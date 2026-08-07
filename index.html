@@ -147,7 +147,7 @@ button.action:hover{filter:brightness(1.08);}
       <div class="flash-day-row"><span>Día</span><span>5-ago-26</span></div>
       <table class="flash-table">
         <tbody><tr><td class="lbl">Cabeza del día</td><td class="hdr">Au</td><td class="hdr">Ag</td></tr>
-        <tr><td></td><td class="val">1.199</td><td class="val">58.12</td></tr>
+        <tr><td></td><td class="val">1.20</td><td class="val">58.12</td></tr>
         <tr><td class="lbl">Acumulado</td><td class="hdr">Molienda</td><td class="hdr">Toneladas</td><td class="hdr">horas</td></tr>
         <tr><td class="val">6,649</td><td class="lbl">Húmedas (Trit.)</td><td class="val">800</td><td class="val">78.81</td></tr>
         <tr><td class="val">5,650</td><td class="lbl">Húmedas (Mol.)</td><td class="val">1,016</td><td class="val">111.80</td></tr>
@@ -166,7 +166,7 @@ button.action:hover{filter:brightness(1.08);}
 
 </div>
 <div class="footer-bar"></div>
-<div style="text-align:center;font-size:10px;color:#bbb;padding:4px 0 8px;">Build generado: 2026-08-06 13:25</div>
+<div style="text-align:center;font-size:10px;color:#bbb;padding:4px 0 8px;">Build generado: 2026-08-06 18:46</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -310,7 +310,7 @@ function renderFlash(){
       <div class="flash-day-row"><span>Día</span><span>${diaLabel(d)}</span></div>
       <table class="flash-table">
         <tr><td class="lbl">Cabeza del día</td><td class="hdr">Au</td><td class="hdr">Ag</td></tr>
-        <tr><td></td><td class="val">${fmt(d.ley_au,3)}</td><td class="val">${fmt(d.ley_ag,2)}</td></tr>
+        <tr><td></td><td class="val">${fmt(d.ley_au,2)}</td><td class="val">${fmt(d.ley_ag,2)}</td></tr>
         <tr><td class="lbl">Acumulado</td><td class="hdr">Molienda</td><td class="hdr">Toneladas</td><td class="hdr">horas</td></tr>
         <tr><td class="val">${fmt(accTrituracionTon,0)}</td><td class="lbl">Húmedas (Trit.)</td><td class="val">${fmt(d.ton_humedas_trituracion,0)}</td><td class="val">${fmt(accTrituracionHrs,2)}</td></tr>
         <tr><td class="val">${fmt(accMolHumTon,0)}</td><td class="lbl">Húmedas (Mol.)</td><td class="val">${fmt(d.molido_humedo,0)}</td><td class="val">${fmt(accMolHumHrs,2)}</td></tr>
