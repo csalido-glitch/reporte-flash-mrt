@@ -422,7 +422,8 @@ function renderCharts(){
      ]})},
     // Fila 7
     {id:'ch9', title:'Ratio ($Au/$Ag)', type:'line',
-     mk:()=>({labels, datasets:[{label:'Ratio $Au/$Ag', data:dias.map(d=>d.ratio_au_ag), borderColor:'#E8A33D', backgroundColor:'#E8A33D', tension:.25}]})},
+     mk:()=>({labels, datasets:[{label:'Ratio $Au/$Ag', data:dias.map(d=>d.ratio_au_ag), borderColor:'#E8A33D', backgroundColor:'#E8A33D', tension:.25}]}),
+     scales:{ y:{ type:'linear', min:20, max:100 } }},
   ];
 
   grid.innerHTML = CH.map(c=>{
