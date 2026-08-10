@@ -99,6 +99,14 @@ button.action:hover{filter:brightness(1.08);}
 .chart-badges{ display:flex; gap:22px; justify-content:center; flex-wrap:wrap; font-size:12.5px; margin:-4px 0 8px; }
 .chart-badges b{ font-size:15px; }
 .chart-box[style*="span 1"] h3{ font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.stock-proc-head{ display:flex; justify-content:flex-end; font-size:12px; color:#8a8578; margin:-4px 0 10px; }
+.stock-proc-list{ display:flex; flex-direction:column; gap:7px; }
+.stock-proc-row{ display:grid; grid-template-columns:130px 1fr 70px; align-items:center; gap:8px; }
+.stock-proc-name{ font-size:12.5px; color:var(--navy); }
+.stock-proc-bar-wrap{ background:#efe8d4; border-radius:4px; height:14px; }
+.stock-proc-bar{ background:#C99700; height:100%; border-radius:4px; }
+.stock-proc-val{ font-size:12px; color:var(--navy); text-align:right; }
+.stock-proc-empty{ font-size:12.5px; color:#8a8578; }
 .small-note{font-size:11px;color:#888;margin-top:8px;}
 </style>
 </head>
@@ -186,7 +194,7 @@ function linearTrend(values){
   return values.map((v,i)=> (v===null || v===undefined || isNaN(v)) ? null : slope*i + intercept);
 }
 
-let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, selectedDay: 1 };
+let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, stockProcedencia: BASE_DATA.stockProcedencia || [], selectedDay: 1 };
 
 async function loadState(){
   // Una copia archivada (IS_LOCKED_COPY) siempre muestra exactamente los datos con los
@@ -201,7 +209,7 @@ async function loadState(){
       } else {
         // la tabla está vacía todavía: sembramos con los datos que ya traía el archivo,
         // para que el piloto no arranque en ceros
-        await sb.from('flash_reportes').upsert({periodo: state.mes, data:{mes:state.mes,dias:state.dias,totales:state.totales,stock:state.stock}});
+        await sb.from('flash_reportes').upsert({periodo: state.mes, data:{mes:state.mes,dias:state.dias,totales:state.totales,stock:state.stock,stockProcedencia:state.stockProcedencia}});
       }
     }catch(e){
       console.error('No se pudo conectar a la base de datos, se muestran los datos de respaldo incluidos en el archivo.', e);
@@ -215,7 +223,7 @@ async function saveState(){
   try{
     const { error } = await sb.from('flash_reportes').upsert({
       periodo: state.mes,
-      data: {mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock},
+      data: {mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia},
       updated_at: new Date().toISOString()
     });
     if(error) throw error;
@@ -356,13 +364,27 @@ function renderCharts(){
     {id:'ch11', title:'Real vs Ptto (Tonelaje acumulado del mes)', type:'bar', colSpan:1,
      mk:()=>({labels:['Proyección','Real'], datasets:[{label:'Tonelaje', data:[state.totales.proy_ton_total, state.totales.real_ton_total], backgroundColor:['#5B9BD5',GOLD]}]})},
     // Fila 2
-    {id:'ch3', title:'Oz Eq Au Diarias — Real vs Proyección', type:'bar', colSpan:3,
+    {id:'ch3', title:'Oz Eq Au Diarias — Real vs Proyección', type:'bar', colSpan:3, alwaysLabels:true,
      mk:()=>({labels, datasets:[
-        {label:'Oz Eq Precipitadas', data:dias.map(d=>d.oz_eq_au), backgroundColor:highlightColors(GOLD,n,selIdx)},
+        {label:'Oz Eq Precipitadas', data:dias.map(d=>d.oz_eq_au), backgroundColor:highlightColors(GOLD,n,selIdx),
+         datalabels:{
+           display:true, anchor:'end', align:'top', offset:2, clip:false,
+           font:{size:8, weight:'bold'}, color:'#444',
+           backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
+           padding:{top:1, bottom:1, left:3, right:3},
+           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
+         }},
         {label:'Proyección', type:'line', data:dias.map(d=>d.proy_oz_dia), borderColor:'#5B9BD5', borderDash:[6,4], pointRadius:0, fill:false, tension:.2}
      ]})},
-    {id:'ch12', title:'Proyección vs Real (Oz Eq Au acumulado del mes)', type:'bar', colSpan:1,
-     mk:()=>({labels:['Proyección','Real'], datasets:[{label:'Oz Eq Au', data:[state.totales.proy_oz_total, state.totales.real_oz_total], backgroundColor:['#5B9BD5',GOLD]}]})},
+    {id:'ch12', title:'Proyección vs Real (Oz Eq Au acumulado del mes)', type:'bar', colSpan:1, alwaysLabels:true,
+     mk:()=>({labels:['Proyección','Real'], datasets:[{label:'Oz Eq Au', data:[state.totales.proy_oz_total, state.totales.real_oz_total], backgroundColor:['#5B9BD5',GOLD],
+        datalabels:{
+          display:true, anchor:'end', align:'top', offset:2, clip:false,
+          font:{size:8, weight:'bold'}, color:'#444',
+          backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
+          padding:{top:1, bottom:1, left:3, right:3},
+          formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
+        }}]})},
     // Fila 3
     {id:'ch16', title:'Flujo en M3 / Solución Rica-Estéril (Au / Ag, mg/L)', type:'bar', full:true,
      mk:()=>({labels, datasets:[
@@ -377,6 +399,42 @@ function renderCharts(){
        y1:{ type:'linear', position:'right', min:0, max:40, title:{display:true, text:'Ag (mg/L)'}, grid:{drawOnChartArea:false} },
        y2:{ type:'linear', position:'right', title:{display:true, text:'M3'}, grid:{drawOnChartArea:false} },
      }},
+    {id:'stockProc', title:'Stock por Procedencia', full:true, widthPct:75, custom:true, customHtml: stockProcedenciaHtml},
+    {id:'chMezcla', title:'Mezcla Alimentada por Procedencia (Diario)', type:'bar', full:true, alwaysLabels:true,
+     mk:()=>{
+        const procSet = new Set();
+        dias.forEach(d=> Object.keys(d.mezcla||{}).forEach(k=>procSet.add(k)));
+        const procNames = Array.from(procSet);
+        const datasets = procNames.map(name=>({
+          label: name,
+          data: dias.map(d=> (d.mezcla && d.mezcla[name]) || 0),
+          backgroundColor: colorForProcedencia(name),
+          stack: 'mezcla',
+          datalabels:{
+            display:(ctx)=> ctx.dataset.data[ctx.dataIndex] > 0,
+            anchor:'center', align:'center',
+            font:{size:10, weight:'bold'}, color:'#fff',
+            backgroundColor:'rgba(0,0,0,.45)', borderRadius:3,
+            padding:{top:2, bottom:2, left:5, right:5},
+            formatter:(v)=> v ? Math.round(v) : ''
+          }
+        }));
+        datasets.push({
+          label:'Total del día', type:'line',
+          data: dias.map(d=> d.mezcla_total||0),
+          borderColor:'transparent', backgroundColor:'transparent', pointRadius:0, borderWidth:0,
+          datalabels:{
+            display:(ctx)=> ctx.dataset.data[ctx.dataIndex] > 0,
+            anchor:'end', align:'top', offset:2,
+            font:{size:8, weight:'bold'}, color:'#444',
+            backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
+            padding:{top:1, bottom:1, left:3, right:3},
+            formatter:(v)=> v ? Math.round(v) : ''
+          }
+        });
+        return { labels, datasets };
+     },
+     scales:{ x:{stacked:true}, y:{stacked:true, beginAtZero:true} }},
     // Fila 4
     {id:'ch2', title:'Trituración Diaria', type:'bar',
      mk:()=>({labels, datasets:[{label:'TON Trituración Seco', data:dias.map(d=>d.ton_trituracion_seco), backgroundColor:highlightColors(GOLD,n,selIdx)}]})},
@@ -427,10 +485,16 @@ function renderCharts(){
   ];
 
   grid.innerHTML = CH.map(c=>{
+    if(c.custom){
+      const customWidthStyle = c.widthPct ? `width:${c.widthPct}%; max-width:${c.widthPct}%; margin:0 auto; justify-self:center;` : '';
+      return `<div class="chart-box${c.full?' full-row':''}" style="grid-column:${c.full?'1 / -1':'span '+(c.colSpan||2)}; ${customWidthStyle}"><h3>${c.title}</h3>${c.customHtml()}</div>`;
+    }
     const badgesHtml = c.badges ? `<div class="chart-badges">${c.badges().map(b=>`<span style="color:${b.color};"><b>${b.label}:</b> ${b.value}</span>`).join('')}</div>` : '';
-    return `<div class="chart-box${c.full?' full-row':''}" style="grid-column:${c.full?'1 / -1':'span '+(c.colSpan||2)}"><h3>${c.title}</h3>${badgesHtml}<div class="canvas-wrap"><canvas id="${c.id}"></canvas></div></div>`;
+    const widthStyle = c.widthPct ? `width:${c.widthPct}%; max-width:${c.widthPct}%; margin:0 auto; justify-self:center;` : '';
+    return `<div class="chart-box${c.full?' full-row':''}" style="grid-column:${c.full?'1 / -1':'span '+(c.colSpan||2)}; ${widthStyle}"><h3>${c.title}</h3>${badgesHtml}<div class="canvas-wrap"><canvas id="${c.id}"></canvas></div></div>`;
   }).join('');
   CH.forEach(c=>{
+    if(c.custom) return;
     destroyChart(c.id);
     const built = c.mk();
 
@@ -476,7 +540,7 @@ function renderCharts(){
         responsive:true,
         maintainAspectRatio:false,
         devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
-        layout: { padding: { top: showDataLabels ? 38 : 0 } },
+        layout: { padding: { top: (showDataLabels || c.alwaysLabels) ? 38 : 0 } },
         plugins:{legend:{display: built.datasets.length>1}, tooltip: tooltipOpts, datalabels: datalabelsOpts},
         scales: c.scales || {}
       }
@@ -486,6 +550,37 @@ function renderCharts(){
 const GOLD = '#C99700';
 const SILVER = '#707070';
 const SILVER_DARK = '#454545';
+
+// Paleta para "Mezcla alimentada por procedencia": cada procedencia conserva siempre el
+// mismo color entre renders (se le asigna uno la primera vez que aparece y se recuerda).
+const MEZCLA_PALETTE = ['#C99700','#5B9BD5','#2f6f62','#B0413E','#8E44AD','#3D9970','#D4AC0D','#7B7D7D','#117864','#A04000','#707070','#E8A33D'];
+const procColorMap = {};
+let procColorIdx = 0;
+function colorForProcedencia(nombre){
+  if(!procColorMap[nombre]) procColorMap[nombre] = MEZCLA_PALETTE[procColorIdx++ % MEZCLA_PALETTE.length];
+  return procColorMap[nombre];
+}
+// Desglose de Stock por procedencia: bloque de HTML (no es una gráfica de Chart.js) con
+// una barra por procedencia, ordenado de mayor a menor.
+function stockProcedenciaHtml(){
+  const list = state.stockProcedencia || [];
+  const last = lastDiaConDato();
+  const fechaLabel = last ? diaLabel(state.dias[last-1]) : '';
+  const totalTxt = fmt(state.stock ? state.stock.stock_estimado : null, 0);
+  if(!list.length){
+    return `<div class="stock-proc-head"><span>Stock al día ${fechaLabel}: ${totalTxt} t</span></div><div class="stock-proc-empty">Sin desglose por procedencia en este archivo.</div>`;
+  }
+  const max = Math.max(...list.map(p=>p.valor));
+  const rows = list.map(p=>{
+    const pct = max>0 ? Math.max(2, (p.valor/max*100)) : 0;
+    return `<div class="stock-proc-row">
+      <span class="stock-proc-name">${escapeYSaltos(p.nombre)}</span>
+      <div class="stock-proc-bar-wrap"><div class="stock-proc-bar" style="width:${pct}%"></div></div>
+      <span class="stock-proc-val">${fmt(p.valor,0)}</span>
+    </div>`;
+  }).join('');
+  return `<div class="stock-proc-head"><span>Stock al día ${fechaLabel}: ${totalTxt} t</span></div><div class="stock-proc-list">${rows}</div>`;
+}
 
 function renderAll(){
   renderDayChips();
@@ -639,6 +734,88 @@ function parseComentariosTabla(aoaT){
   return {};
 }
 
+// ALIM PROCEDENCIA: desglose de Stock por procedencia (foto más reciente, no por día).
+// Se ubica por texto ("Stock al dia..." y "Realito" como ancla de encabezados), no por
+// celda/columna fija, para que el bloque pueda crecer hacia la derecha si se agrega una
+// procedencia nueva sin romper el parser. Regla: se excluyen procedencias en cero,
+// negativas o menores a 1 tonelada (el total general no se ve afectado, se calcula aparte).
+function parseStockProcedencia(aoa){
+  let stockRow = -1;
+  for(let r=0;r<aoa.length && stockRow<0;r++){
+    const row = aoa[r]||[];
+    for(let c=0;c<row.length;c++){
+      if(row[c]!=null && normTxt(row[c]).startsWith('STOCK AL DIA')){ stockRow = r; break; }
+    }
+  }
+  if(stockRow<0) return [];
+  // La fila de encabezados con los nombres de procedencia es la más cercana hacia arriba
+  // que contenga "REALITO" (columna ancla presente en todas las variantes de este bloque).
+  // Esa misma columna marca el inicio del bloque: se lee hacia la derecha desde ahí (no
+  // desde la columna 0), porque a la izquierda puede haber datos sueltos de otras tablas
+  // de la misma hoja que comparten renglón por coincidencia.
+  let hdrRow = -1, anchorCol = -1;
+  for(let r=stockRow-1;r>=0 && hdrRow<0;r--){
+    const row = aoa[r]||[];
+    for(let c=0;c<row.length;c++){
+      if(row[c]!=null && normTxt(row[c])==='REALITO'){ hdrRow = r; anchorCol = c; break; }
+    }
+  }
+  if(hdrRow<0) return [];
+  const hdr = aoa[hdrRow]||[];
+  const vals = aoa[stockRow]||[];
+  const out = [];
+  for(let c=anchorCol;c<hdr.length;c++){
+    const name = hdr[c];
+    if(name==null || String(name).trim()==='') break; // primer hueco: fin del bloque
+    const nUp = normTxt(name);
+    if(nUp.startsWith('TOTAL')){ continue; }
+    const val = vals[c];
+    if(typeof val !== 'number') continue;
+    if(val < 1) continue; // regla: fuera cero, negativos y menores a 1 ton
+    out.push({ nombre: String(name).trim(), valor: val });
+  }
+  out.sort((a,b)=> b.valor - a.valor);
+  return out;
+}
+
+// RELACIÓN DE ALIMENTACIÓN (bloque "Relación Húmeda de Tonelaje"): mezcla alimentada por
+// procedencia, día por día. Se ubica por el texto exacto "Tonelaje" (columna del total del
+// día) y, a la derecha, se leen los nombres de procedencia hasta la primera columna vacía
+// (el bloque puede crecer hacia la derecha si se agrega una procedencia nueva). El día 1
+// es el renglón inmediatamente debajo del encabezado. Regla: solo se guardan procedencias
+// con tonelaje mayor a 0 ese día.
+function parseMezclaAlimentacion(aoa){
+  let hdrRow=-1, totalCol=-1;
+  for(let r=0;r<aoa.length && hdrRow<0;r++){
+    const row = aoa[r]||[];
+    for(let c=0;c<row.length;c++){
+      if(row[c]!=null && normTxt(row[c])==='TONELAJE'){ hdrRow=r; totalCol=c; break; }
+    }
+  }
+  if(hdrRow<0) return [];
+  const hdr = aoa[hdrRow]||[];
+  const nombres = [];
+  for(let c=totalCol+1;c<hdr.length;c++){
+    const v = hdr[c];
+    if(v==null || String(v).trim()==='') break; // hueco: fin del bloque
+    if(normTxt(v)==='TONELAJE') break; // empieza otro bloque duplicado pegado sin hueco
+    nombres.push({ col:c, nombre: String(v).trim() });
+  }
+  const day1Row = hdrRow+1;
+  const out = [];
+  for(let i=0;i<31;i++){
+    const row = aoa[day1Row+i]||[];
+    const total = numv(row[totalCol]);
+    const valores = {};
+    nombres.forEach(n=>{
+      const v = numv(row[n.col]);
+      if(v>0) valores[n.nombre] = v;
+    });
+    out.push({ total, valores });
+  }
+  return out;
+}
+
 function parseDailyWorkbookDynamic(wb, XLSXref){
   const XLSX_ = XLSXref;
   const need = ['RESUMEN','DINÁMICA','MERRILL-CROWE','PROYECCIONES','HUM Y CAB CALC','HISTORICO'];
@@ -651,6 +828,23 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
   const aoaHist = XLSX_.utils.sheet_to_json(wb.Sheets['HISTORICO'], {header:1, raw:true, defval:null});
   const aoaT = wb.Sheets['TABLA'] ? XLSX_.utils.sheet_to_json(wb.Sheets['TABLA'], {header:1, raw:true, defval:null}) : [];
   const comentariosPorFecha = parseComentariosTabla(aoaT);
+
+  // Stock por procedencia y mezcla alimentada por procedencia: hojas opcionales, si no
+  // existen o cambian de forma inesperada no se rompe el resto del archivo.
+  let stockProcedencia = [];
+  if(wb.Sheets['ALIM PROCEDENCIA']){
+    try{
+      const aoaAP = XLSX_.utils.sheet_to_json(wb.Sheets['ALIM PROCEDENCIA'], {header:1, raw:true, defval:null});
+      stockProcedencia = parseStockProcedencia(aoaAP);
+    }catch(e){ console.error('No se pudo leer el Stock por procedencia', e); }
+  }
+  let mezclaPorDia = [];
+  if(wb.Sheets['RELACIÓN DE ALIMENTACIÓN']){
+    try{
+      const aoaRA = XLSX_.utils.sheet_to_json(wb.Sheets['RELACIÓN DE ALIMENTACIÓN'], {header:1, raw:true, defval:null});
+      mezclaPorDia = parseMezclaAlimentacion(aoaRA);
+    }catch(e){ console.error('No se pudo leer la Mezcla alimentada por procedencia', e); }
+  }
 
   // 1) Ubicar dinámicamente la fila/columna del día 1 en cada hoja (soluciona corrimiento de FILA)
   const d1R = findDayOneCell(aoaR);
@@ -775,6 +969,8 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
       nacn_real: numv(gh(colNacn)),
       proy_nacn: numv(gh(colProyNacn)),
       comentario: comentario,
+      mezcla: (mezclaPorDia[i] && mezclaPorDia[i].valores) || {},
+      mezcla_total: (mezclaPorDia[i] && mezclaPorDia[i].total) || 0,
     });
   }
 
@@ -810,7 +1006,7 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
     return {error:'No se encontró la caja "Stock Estimado" en HISTORICO.'};
   }
 
-  return { mes: mesDetectado, dias, totales, stock };
+  return { mes: mesDetectado, dias, totales, stock, stockProcedencia };
 }
 
 
@@ -836,7 +1032,7 @@ function handleFile(file){
       if(parsed.mes !== state.mes){
         if(!confirm('Este archivo parece ser de '+parsed.mes+' y tu vista actual es de '+state.mes+'. ¿Reemplazar la vista con este nuevo mes? (se recomienda primero "Guardar copia" del mes actual)')) return;
       }
-      state.mes = parsed.mes; state.dias = parsed.dias; state.totales = parsed.totales; state.stock = parsed.stock;
+      state.mes = parsed.mes; state.dias = parsed.dias; state.totales = parsed.totales; state.stock = parsed.stock; state.stockProcedencia = parsed.stockProcedencia;
       const last = lastDiaConDato();
       state.selectedDay = Math.max(1,last);
       await saveState();
@@ -896,7 +1092,15 @@ document.getElementById('btnReset').onclick = async ()=>{
   if(!confirm('¿Restablecer? Esto borra todos los días capturados para empezar limpio con el mes nuevo (asegúrate de haber guardado una copia primero).')) return;
   if(sb){
     try{
-      const { error } = await sb.from('flash_reportes').delete().eq('periodo', state.mes);
+      // Se guarda un mes vacío en vez de solo borrar el registro: si se borrara sin más,
+      // al recargar la página lo volvería a sembrar con los datos que trae el propio
+      // archivo (respaldo incluido), y el restablecer parecería no hacer nada.
+      const empty = emptyDataset();
+      const { error } = await sb.from('flash_reportes').upsert({
+        periodo: state.mes,
+        data: {mes: state.mes, dias: empty.dias, totales: empty.totales, stock: empty.stock, stockProcedencia: []},
+        updated_at: new Date().toISOString()
+      });
       if(error) throw error;
     }catch(e){
       console.error('Error al restablecer en la base de datos', e);
@@ -910,7 +1114,7 @@ document.getElementById('btnReset').onclick = async ()=>{
 document.getElementById('btnExport').onclick = ()=>{
   let newHtml = document.documentElement.outerHTML.replace(
     /const BASE_DATA = \{.*?\};\s*\n/s,
-    'const BASE_DATA = '+JSON.stringify({mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock})+';\n'
+    'const BASE_DATA = '+JSON.stringify({mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia})+';\n'
   );
   // La copia guardada queda archivada: no admite arrastrar más archivos ni restablecer.
   newHtml = newHtml.replace('const IS_LOCKED_COPY = false;', 'const IS_LOCKED_COPY = true;');
