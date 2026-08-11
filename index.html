@@ -35,6 +35,12 @@ body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#fafafa;color:#
 }
 .dropzone.drag{background:#fff3d6;border-color:var(--gold-dark);}
 .dropzone b{color:var(--gold-dark);}
+.dropzone-discreet{
+  border:1px dashed #ccc; border-radius:5px; padding:5px; font-size:9px; max-width:420px;
+  margin:14px auto 4px; text-align:center; color:#999; background:transparent; cursor:pointer; transition:.15s;
+}
+.dropzone-discreet.drag{background:#fff3d6;border-color:var(--gold-dark);color:#8a6a17;}
+.dropzone-discreet b{color:#aaa;}
 .locked-banner{
   border:1.5px solid #8a6a17; border-radius:6px; padding:9px 14px; font-size:12px;
   text-align:center; color:#5a4610; background:#fff3d6; margin-bottom:9px;
@@ -56,6 +62,8 @@ body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#fafafa;color:#
   cursor:pointer; padding:6px 0; margin:0 auto; text-decoration:underline;
 }
 .maint-footer-link:hover{ color:#888; }
+.discreet-actions{ display:flex; justify-content:center; gap:16px; flex-wrap:wrap; }
+.discreet-actions .maint-footer-link{ display:inline-block; padding:6px 4px; }
 
 .sticky-head{ position:sticky; top:0; z-index:20; background:#fafafa; padding-top:6px;
   margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px; }
@@ -153,10 +161,6 @@ button.action:hover{filter:brightness(1.08);}
 
   <div class="maint-admin-banner" id="maintAdminBanner">🔧 Modo mantenimiento activo — solo tú ves esta pantalla de carga. Los demás ven el aviso de mantenimiento. Cuando termines, usa el botón de abajo para reactivar el reporte para todos.</div>
 
-  <div class="dropzone" id="dropzone">
-    <div><b>Arrastra aquí</b> el Balance Metalúrgico Diario del mes (.xlsm) o haz clic para elegirlo</div>
-    <input type="file" id="fileInput" accept=".xlsx,.xlsm" style="display:none">
-  </div>
   <div class="locked-banner" id="lockedBanner" style="display:none">🔒 Copia archivada de <b id="lockedMes"></b> — solo lectura, no admite nuevos datos.</div>
 
   <div class="sticky-head" id="stickyHead">
@@ -169,8 +173,6 @@ button.action:hover{filter:brightness(1.08);}
       <div class="btns">
         <label class="chart-toggle"><input type="checkbox" id="chkDataLabels"> Etiquetas de datos</label>
         <label class="chart-toggle"><input type="checkbox" id="chkTrend"> Tendencia</label>
-        <button class="action" id="btnExport">💾 Guardar copia de este mes</button>
-        <button class="action secondary" id="btnReset">🔄 Restablecer (mes nuevo)</button>
       </div>
     </div>
   </div>
@@ -178,6 +180,16 @@ button.action:hover{filter:brightness(1.08);}
   <div id="flashArea"></div>
 
   <div class="charts-grid" id="chartsGrid"></div>
+
+  <div class="dropzone-discreet" id="dropzone">
+    Arrastra aquí el Balance Metalúrgico Diario del mes (.xlsm) o haz clic para elegirlo
+    <input type="file" id="fileInput" accept=".xlsx,.xlsm" style="display:none">
+  </div>
+
+  <div class="discreet-actions">
+    <button class="maint-footer-link" id="btnExport">💾 Guardar copia de este mes</button>
+    <button class="maint-footer-link" id="btnReset">🔄 Restablecer (mes nuevo)</button>
+  </div>
 
 </div>
 <div class="footer-bar"></div>
