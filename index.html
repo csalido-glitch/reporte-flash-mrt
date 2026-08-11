@@ -40,6 +40,23 @@ body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#fafafa;color:#
   text-align:center; color:#5a4610; background:#fff3d6; margin-bottom:9px;
 }
 
+.maint-screen{
+  display:none; min-height:60vh; align-items:center; justify-content:center; flex-direction:column;
+  text-align:center; color:#555; padding:40px 20px;
+}
+.maint-screen .icon{ font-size:42px; margin-bottom:10px; }
+.maint-screen h2{ font-size:18px; color:var(--navy); margin:0 0 6px; }
+.maint-screen p{ font-size:13px; color:#777; max-width:420px; }
+.maint-admin-banner{
+  display:none; border:1.5px solid var(--gold-dark); border-radius:6px; padding:9px 14px;
+  font-size:12px; text-align:center; color:#5a4610; background:#fff3d6; margin-bottom:9px;
+}
+.maint-footer-link{
+  display:block; text-align:center; font-size:10px; color:#bbb; background:none; border:none;
+  cursor:pointer; padding:6px 0; margin:0 auto; text-decoration:underline;
+}
+.maint-footer-link:hover{ color:#888; }
+
 .sticky-head{ position:sticky; top:0; z-index:20; background:#fafafa; padding-top:6px;
   margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px; }
 .sticky-head.stuck{box-shadow:0 3px 8px rgba(0,0,0,.08);}
@@ -128,6 +145,14 @@ button.action:hover{filter:brightness(1.08);}
 </noscript>
 <div class="container">
 
+  <div class="maint-screen" id="maintScreen">
+    <div class="icon">🔧</div>
+    <h2>Reporte en mantenimiento</h2>
+    <p>Estamos actualizando la información. Vuelve en un momento.</p>
+  </div>
+
+  <div class="maint-admin-banner" id="maintAdminBanner">🔧 Modo mantenimiento activo — solo tú ves esta pantalla de carga. Los demás ven el aviso de mantenimiento. Cuando termines, usa el botón de abajo para reactivar el reporte para todos.</div>
+
   <div class="dropzone" id="dropzone">
     <div><b>Arrastra aquí</b> el Balance Metalúrgico Diario del mes (.xlsm) o haz clic para elegirlo</div>
     <input type="file" id="fileInput" accept=".xlsx,.xlsm" style="display:none">
@@ -157,6 +182,7 @@ button.action:hover{filter:brightness(1.08);}
 </div>
 <div class="footer-bar"></div>
 <div style="text-align:center;font-size:10px;color:#bbb;padding:4px 0 8px;">Build generado: 2026-08-07 13:45</div>
+<button class="maint-footer-link" id="btnMaint">🔧 Mantenimiento</button>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -194,7 +220,8 @@ function linearTrend(values){
   return values.map((v,i)=> (v===null || v===undefined || isNaN(v)) ? null : slope*i + intercept);
 }
 
-let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, stockProcedencia: BASE_DATA.stockProcedencia || [], selectedDay: 1 };
+let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, stockProcedencia: BASE_DATA.stockProcedencia || [], selectedDay: 1, paused: false };
+let isMaintAdmin = false; // solo dura mientras la pestaña esté abierta; no se guarda en la BD
 
 async function loadState(){
   // Una copia archivada (IS_LOCKED_COPY) siempre muestra exactamente los datos con los
@@ -209,7 +236,7 @@ async function loadState(){
       } else {
         // la tabla está vacía todavía: sembramos con los datos que ya traía el archivo,
         // para que el piloto no arranque en ceros
-        await sb.from('flash_reportes').upsert({periodo: state.mes, data:{mes:state.mes,dias:state.dias,totales:state.totales,stock:state.stock,stockProcedencia:state.stockProcedencia}});
+        await sb.from('flash_reportes').upsert({periodo: state.mes, data:{mes:state.mes,dias:state.dias,totales:state.totales,stock:state.stock,stockProcedencia:state.stockProcedencia,paused:state.paused}});
       }
     }catch(e){
       console.error('No se pudo conectar a la base de datos, se muestran los datos de respaldo incluidos en el archivo.', e);
@@ -223,7 +250,7 @@ async function saveState(){
   try{
     const { error } = await sb.from('flash_reportes').upsert({
       periodo: state.mes,
-      data: {mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia},
+      data: {mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, paused:state.paused},
       updated_at: new Date().toISOString()
     });
     if(error) throw error;
@@ -1104,7 +1131,7 @@ document.getElementById('btnReset').onclick = async ()=>{
       const empty = emptyDataset();
       const { error } = await sb.from('flash_reportes').upsert({
         periodo: state.mes,
-        data: {mes: state.mes, dias: empty.dias, totales: empty.totales, stock: empty.stock, stockProcedencia: []},
+        data: {mes: state.mes, dias: empty.dias, totales: empty.totales, stock: empty.stock, stockProcedencia: [], paused: state.paused},
         updated_at: new Date().toISOString()
       });
       if(error) throw error;
@@ -1120,7 +1147,7 @@ document.getElementById('btnReset').onclick = async ()=>{
 document.getElementById('btnExport').onclick = ()=>{
   let newHtml = document.documentElement.outerHTML.replace(
     /const BASE_DATA = \{.*?\};\s*\n/s,
-    'const BASE_DATA = '+JSON.stringify({mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia})+';\n'
+    'const BASE_DATA = '+JSON.stringify({mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, paused:false})+';\n'
   );
   // La copia guardada queda archivada: no admite arrastrar más archivos ni restablecer.
   newHtml = newHtml.replace('const IS_LOCKED_COPY = false;', 'const IS_LOCKED_COPY = true;');
@@ -1137,17 +1164,64 @@ function applyLockIfNeeded(){
   document.getElementById('dropzone').style.display = 'none';
   document.getElementById('btnReset').style.display = 'none';
   document.getElementById('btnExport').style.display = 'none';
+  document.getElementById('btnMaint').style.display = 'none';
   const banner = document.getElementById('lockedBanner');
   banner.style.display = 'block';
   document.getElementById('lockedMes').textContent = state.mes || '';
 }
 
+// Modo mantenimiento: mientras state.paused sea true, cualquier visitante que NO se
+// autentique con la contraseña en esa pestaña (isMaintAdmin, no se guarda en la BD, se
+// pierde al recargar) ve solo un aviso genérico, sin acceso a nada. Quien SÍ se autentica
+// (el administrador que activó el mantenimiento) sigue viendo el dashboard completo tal
+// cual, para poder revisar los datos que subió antes de reactivarlo para todos.
+function applyMaintenanceUI(){
+  const paused = !!state.paused;
+  const showAdminView = paused && isMaintAdmin;
+  const showBlankScreen = paused && !isMaintAdmin;
 
+  document.getElementById('stickyHead').style.display = showBlankScreen ? 'none' : '';
+  document.getElementById('flashArea').style.display = showBlankScreen ? 'none' : '';
+  document.getElementById('chartsGrid').style.display = showBlankScreen ? 'none' : '';
+  document.getElementById('maintScreen').style.display = showBlankScreen ? 'flex' : 'none';
+  document.getElementById('maintAdminBanner').style.display = showAdminView ? 'block' : 'none';
+  if(!IS_LOCKED_COPY){
+    document.getElementById('dropzone').style.display = showBlankScreen ? 'none' : '';
+  }
+
+  const btn = document.getElementById('btnMaint');
+  if(!paused){ btn.textContent = '🔧 Mantenimiento'; }
+  else if(!isMaintAdmin){ btn.textContent = '🔧 Acceso administrador'; }
+  else { btn.textContent = '✅ Reactivar reporte para todos'; }
+}
+
+document.getElementById('btnMaint').onclick = async ()=>{
+  if(IS_LOCKED_COPY) return; // copia archivada: no aplica mantenimiento
+  if(!checkUploadPin()) return;
+  if(!state.paused){
+    if(!confirm('¿Activar modo mantenimiento? El reporte se ocultará para todos (incluyéndote) hasta que lo reactives.')) return;
+    state.paused = true;
+    await saveState();
+    location.reload();
+  } else if(!isMaintAdmin){
+    isMaintAdmin = true;
+    applyMaintenanceUI();
+    renderAll();
+  } else {
+    if(!confirm('¿Reactivar el reporte para todos?')) return;
+    state.paused = false;
+    await saveState();
+    location.reload();
+  }
+};
 
 (async ()=>{
   await loadState();
   applyLockIfNeeded();
-  renderAll();
+  applyMaintenanceUI();
+  if(!(state.paused && !isMaintAdmin)){
+    renderAll();
+  }
 })();
 </script>
 </body>
