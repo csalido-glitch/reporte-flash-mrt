@@ -373,6 +373,15 @@ function highlightColors(baseColor, n, selIdx){
   return arr;
 }
 
+// Fechas del eje X: nunca se saltan (autoSkip:false) y Chart.js decide el ángulo solo —
+// horizontal (0°) mientras quepan bien, hasta 45° a medida que se llena el mes (día 29-31).
+function withDefaultXTicks(scales){
+  const s = Object.assign({}, scales);
+  const xTicksDefault = { autoSkip:false, minRotation:0, maxRotation:45, font:{size:9} };
+  s.x = Object.assign({}, s.x, { ticks: Object.assign({}, xTicksDefault, (s.x && s.x.ticks) || {}) });
+  return s;
+}
+
 function renderCharts(){
   const grid = document.getElementById('chartsGrid');
   const last = lastDiaConDato();
@@ -569,7 +578,7 @@ function renderCharts(){
         devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
         layout: { padding: { top: (showDataLabels || c.alwaysLabels) ? 38 : 0 } },
         plugins:{legend:{display: built.datasets.length>1}, tooltip: tooltipOpts, datalabels: datalabelsOpts},
-        scales: c.scales || {}
+        scales: withDefaultXTicks(c.scales || {})
       }
     });
   });
