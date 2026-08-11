@@ -737,9 +737,10 @@ function parseComentariosTabla(aoaT){
 // ALIM PROCEDENCIA: desglose de Stock por procedencia (foto más reciente, no por día).
 // Se ubica por texto ("Stock al dia..." y "Realito" como ancla de encabezados), no por
 // celda/columna fija, para que el bloque pueda crecer hacia la derecha si se agrega una
-// procedencia nueva sin romper el parser. Regla: se excluyen procedencias en cero,
-// negativas o menores a 1 tonelada (el total general no se ve afectado, se calcula aparte).
-function parseStockProcedencia(aoa){
+// procedencia nueva sin romper el parser. Regla: se incluyen únicamente las procedencias
+// cuya columna esté visible en el Excel (no oculta); las que el propio archivo oculta no
+// se muestran, sin importar su valor (el total general no se ve afectado, se calcula aparte).
+function parseStockProcedencia(aoa, ws, rangeStartCol){
   let stockRow = -1;
   for(let r=0;r<aoa.length && stockRow<0;r++){
     const row = aoa[r]||[];
@@ -763,6 +764,8 @@ function parseStockProcedencia(aoa){
   if(hdrRow<0) return [];
   const hdr = aoa[hdrRow]||[];
   const vals = aoa[stockRow]||[];
+  const cols = ws && ws['!cols'] ? ws['!cols'] : [];
+  const offset = rangeStartCol || 0; // aoa[][] es relativo al rango usado de la hoja, !cols es absoluto
   const out = [];
   for(let c=anchorCol;c<hdr.length;c++){
     const name = hdr[c];
@@ -771,7 +774,8 @@ function parseStockProcedencia(aoa){
     if(nUp.startsWith('TOTAL')){ continue; }
     const val = vals[c];
     if(typeof val !== 'number') continue;
-    if(val < 1) continue; // regla: fuera cero, negativos y menores a 1 ton
+    const colInfo = cols[c+offset];
+    if(colInfo && colInfo.hidden) continue; // regla: fuera lo que el Excel oculta
     out.push({ nombre: String(name).trim(), valor: val });
   }
   out.sort((a,b)=> b.valor - a.valor);
@@ -834,8 +838,10 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
   let stockProcedencia = [];
   if(wb.Sheets['ALIM PROCEDENCIA']){
     try{
-      const aoaAP = XLSX_.utils.sheet_to_json(wb.Sheets['ALIM PROCEDENCIA'], {header:1, raw:true, defval:null});
-      stockProcedencia = parseStockProcedencia(aoaAP);
+      const wsAP = wb.Sheets['ALIM PROCEDENCIA'];
+      const aoaAP = XLSX_.utils.sheet_to_json(wsAP, {header:1, raw:true, defval:null});
+      const rangeStartColAP = wsAP['!ref'] ? XLSX_.utils.decode_range(wsAP['!ref']).s.c : 0;
+      stockProcedencia = parseStockProcedencia(aoaAP, wsAP, rangeStartColAP);
     }catch(e){ console.error('No se pudo leer el Stock por procedencia', e); }
   }
   let mezclaPorDia = [];
@@ -1026,7 +1032,7 @@ function handleFile(file){
   reader.onload = async function(e){
     try{
       const dataBuf = new Uint8Array(e.target.result);
-      const wb = XLSX.read(dataBuf, {type:'array', cellDates:false});
+      const wb = XLSX.read(dataBuf, {type:'array', cellDates:false, cellStyles:true});
       const parsed = parseDailyWorkbookDynamic(wb, XLSX);
       if(parsed.error){ alert('No reconozco este archivo: '+parsed.error); return; }
       if(parsed.mes !== state.mes){
