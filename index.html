@@ -290,6 +290,13 @@ function proyValue(dias, key){
   const v = dias.map(d=>d[key]).find(x=>x!=null && !isNaN(x));
   return (v===undefined) ? null : v;
 }
+// Promedio simple (sin ponderar) de lo que va del mes, para indicadores que no
+// dependen del tonelaje molido (ej. ratio de precios, eficiencia de precipitación).
+function promSimple(dias, key){
+  const vals = dias.map(d=>d[key]).filter(v=>v!=null && !isNaN(v));
+  if(!vals.length) return null;
+  return vals.reduce((a,b)=>a+b,0)/vals.length;
+}
 // Tratamiento visual "ensaye pendiente": cuando state.ensayePendiente está activo
 // (celda TABLA!A2 = "Proyección"), la última barra/punto de las gráficas que dependen
 // de ensaye se dibuja hueca/punteada, para avisar que ese valor puede cambiar cuando
@@ -644,7 +651,11 @@ function renderCharts(){
         {label:'Au', data:dias.map(d=>d.eficiencia_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, ...applyEnsayeLine(GOLD, dias.length)},
         {label:'Ag', data:dias.map(d=>d.eficiencia_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, ...applyEnsayeLine(SILVER, dias.length)},
      ]}),
-     scales:{ y:{ type:'linear', min:0, max:100 }, x:{ ticks:{ callback: ensayeTickCallback(dias.length-1) } } }},
+     scales:{ y:{ type:'linear', min:0, max:100 }, x:{ ticks:{ callback: ensayeTickCallback(dias.length-1) } } },
+     badges:()=>[
+       {label:'Efic Au Promedio', value:fmt(promSimple(dias,'eficiencia_au'),1)+'%', color:GOLD},
+       {label:'Efic Ag Promedio', value:fmt(promSimple(dias,'eficiencia_ag'),1)+'%', color:SILVER},
+     ]},
     {id:'ch13', title:'NaCN Kg/Ton (Real vs Proyección)', type:'bar', alwaysLabels:true,
      mk:()=>({labels, datasets:[
         {label:'NaCN Kg/Ton', data:dias.map(d=>d.nacn_real), backgroundColor:highlightColors('#5B9BD5',n,selIdx),
@@ -662,7 +673,8 @@ function renderCharts(){
     // Fila 7
     {id:'ch9', title:'Ratio ($Au/$Ag)', type:'line',
      mk:()=>({labels, datasets:[{label:'Ratio $Au/$Ag', data:dias.map(d=>d.ratio_au_ag), borderColor:'#E8A33D', backgroundColor:'#E8A33D', tension:.25}]}),
-     scales:{ y:{ type:'linear', min:20, max:100 } }},
+     scales:{ y:{ type:'linear', min:20, max:100 } },
+     badges:()=>[{label:'Ratio Promedio', value:fmt(promSimple(dias,'ratio_au_ag'),1), color:'#E8A33D'}]},
   ];
 
   grid.innerHTML = CH.map(c=>{
