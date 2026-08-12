@@ -78,6 +78,8 @@ body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#fafafa;color:#
 }
 .day-chip.active{background:var(--gold-dark);box-shadow:0 0 0 2px rgba(184,145,42,.35);}
 .day-chip.empty{background:#d8d8d8;color:#999;cursor:default;}
+.day-chip-proy{flex-direction:column;gap:1px;padding:4px 9px;border:2px dashed #C99700;}
+.day-chip-sub{font-size:8px;font-weight:400;font-style:italic;opacity:.9;line-height:1;}
 .day-selector-group{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .selected-day-label{
   font-weight:800; font-size:.92rem; color:#fff; background:var(--gold-dark,#B8912A);
@@ -124,6 +126,7 @@ button.action:hover{filter:brightness(1.08);}
 .chart-badges{ display:flex; gap:22px; justify-content:center; flex-wrap:wrap; font-size:12.5px; margin:-4px 0 2px; }
 .chart-badges b{ font-size:15px; }
 .chart-badges-proy{ margin:0 0 8px; }
+.chart-delta{ text-align:center; font-size:13px; font-weight:700; margin:-2px 0 6px; }
 .chart-box[style*="span 1"] h3{ font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .stock-proc-head{ display:flex; justify-content:flex-end; font-size:12px; color:#8a8578; margin:-4px 0 10px; }
 .stock-proc-list{ display:flex; flex-direction:column; gap:7px; }
@@ -233,7 +236,7 @@ function linearTrend(values){
   return values.map((v,i)=> (v===null || v===undefined || isNaN(v)) ? null : slope*i + intercept);
 }
 
-let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, stockProcedencia: BASE_DATA.stockProcedencia || [], selectedDay: 1, paused: false };
+let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, stockProcedencia: BASE_DATA.stockProcedencia || [], selectedDay: 1, paused: false, ensayePendiente: BASE_DATA.ensayePendiente || false };
 let isMaintAdmin = false; // solo dura mientras la pestaña esté abierta; no se guarda en la BD
 
 async function loadState(){
@@ -249,7 +252,7 @@ async function loadState(){
       } else {
         // la tabla está vacía todavía: sembramos con los datos que ya traía el archivo,
         // para que el piloto no arranque en ceros
-        await sb.from('flash_reportes').upsert({periodo: state.mes, data:{mes:state.mes,dias:state.dias,totales:state.totales,stock:state.stock,stockProcedencia:state.stockProcedencia,paused:state.paused}});
+        await sb.from('flash_reportes').upsert({periodo: state.mes, data:{mes:state.mes,dias:state.dias,totales:state.totales,stock:state.stock,stockProcedencia:state.stockProcedencia,paused:state.paused,ensayePendiente:state.ensayePendiente}});
       }
     }catch(e){
       console.error('No se pudo conectar a la base de datos, se muestran los datos de respaldo incluidos en el archivo.', e);
@@ -263,7 +266,7 @@ async function saveState(){
   try{
     const { error } = await sb.from('flash_reportes').upsert({
       periodo: state.mes,
-      data: {mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, paused:state.paused},
+      data: {mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, paused:state.paused, ensayePendiente:state.ensayePendiente},
       updated_at: new Date().toISOString()
     });
     if(error) throw error;
@@ -286,6 +289,46 @@ function fmt(n, dec=1){
 function proyValue(dias, key){
   const v = dias.map(d=>d[key]).find(x=>x!=null && !isNaN(x));
   return (v===undefined) ? null : v;
+}
+// Tratamiento visual "ensaye pendiente": cuando state.ensayePendiente está activo
+// (celda TABLA!A2 = "Proyección"), la última barra/punto de las gráficas que dependen
+// de ensaye se dibuja hueca/punteada, para avisar que ese valor puede cambiar cuando
+// llegue el resultado real del laboratorio.
+function applyEnsayeBar(colors){
+  if(!state.ensayePendiente) return { backgroundColor: colors };
+  const lastIdx = colors.length-1;
+  return {
+    backgroundColor: colors.map((c,i)=> i===lastIdx? 'rgba(0,0,0,0)' : c),
+    borderColor: colors,
+    borderWidth: colors.map((c,i)=> i===lastIdx? 2 : 0),
+    borderDash: [4,3],
+  };
+}
+function applyEnsayeLine(baseColor, len){
+  if(!state.ensayePendiente) return {};
+  const lastIdx = len-1;
+  return {
+    pointRadius: Array.from({length:len},(_,i)=> i===lastIdx?6:3),
+    pointBackgroundColor: Array.from({length:len},(_,i)=> i===lastIdx?'#fff':baseColor),
+    pointBorderColor: Array.from({length:len},()=>baseColor),
+    pointBorderWidth: Array.from({length:len},(_,i)=> i===lastIdx?2:1),
+  };
+}
+// Callback de ticks del eje X: agrega "Proyección" como segunda línea solo bajo la
+// fecha/categoría indicada (lastTickIdx), cuando el ensaye está pendiente.
+// Diferencia Real vs Proyección para las gráficas de 2 barras (acumulado del mes):
+// devuelve la diferencia en unidades y en %, para mostrarla bien clara arriba del
+// par de barras en vez de que el usuario tenga que comparar las alturas a ojo.
+function computeDelta(proy, real, unit, dec){
+  const diff = real - proy;
+  const pct = proy ? (diff/proy*100) : 0;
+  return { diff, pct, unit, dec: dec||0 };
+}
+function ensayeTickCallback(lastTickIdx){
+  return function(val, idx){
+    const lbl = this.getLabelForValue(val);
+    return (state.ensayePendiente && idx===lastTickIdx) ? [lbl,'Proyección'] : lbl;
+  };
 }
 // Escapa HTML y convierte saltos de línea (Alt+Enter en Excel) en <br> para que
 // los comentarios multilínea se vean igual que en la celda de origen.
@@ -328,6 +371,13 @@ function renderDayChips(){
     chip.title = hasData ? diaLabel(d) : 'sin datos';
     if(hasData){
       chip.onclick = ()=>{ state.selectedDay = i; saveState(); renderAll(); };
+    }
+    if(i===last && state.ensayePendiente){
+      chip.classList.add('day-chip-proy');
+      const sub = document.createElement('div');
+      sub.className = 'day-chip-sub';
+      sub.textContent = 'Proyección';
+      chip.appendChild(sub);
     }
     el.appendChild(chip);
   }
@@ -433,11 +483,12 @@ function renderCharts(){
           backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
           padding:{top:1, bottom:1, left:3, right:3},
           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
-        }}]})},
+        }}]}),
+     delta:()=>computeDelta(state.totales.proy_ton_total, state.totales.real_ton_total, 't', 0)},
     // Fila 2
     {id:'ch3', title:'Oz Eq Au Diarias — Real vs Proyección', type:'bar', colSpan:3, alwaysLabels:true,
      mk:()=>({labels, datasets:[
-        {label:'Oz Eq Precipitadas', data:dias.map(d=>d.oz_eq_au), backgroundColor:highlightColors(GOLD,n,selIdx),
+        {label:'Oz Eq Precipitadas', data:dias.map(d=>d.oz_eq_au), ...applyEnsayeBar(highlightColors(GOLD,n,selIdx)),
          datalabels:{
            display:true, anchor:'end', align:'top', offset:2, clip:false,
            font:{size:8, weight:'bold'}, color:'#444',
@@ -448,29 +499,33 @@ function renderCharts(){
         {label:'Proyección', type:'line', data:dias.map(d=>d.proy_oz_dia), borderColor:'#5B9BD5', borderDash:[6,4], pointRadius:0, fill:false, tension:.2,
          datalabels:{display:false}}
      ]}),
+     scales:{ x:{ ticks:{ callback: ensayeTickCallback(dias.length-1) } } },
      badges:()=>[{label:'Proyección Oz Eq Au', value: fmt(proyValue(dias,'proy_oz_dia'),1), color:'#5B9BD5', dash:true}]},
     {id:'ch12', title:'Proyección vs Real (Oz Eq Au acumulado del mes)', type:'bar', colSpan:1, alwaysLabels:true,
-     mk:()=>({labels:['Proyección','Real'], datasets:[{label:'Oz Eq Au', data:[state.totales.proy_oz_total, state.totales.real_oz_total], backgroundColor:['#5B9BD5',GOLD],
+     mk:()=>({labels:['Proyección','Real'], datasets:[{label:'Oz Eq Au', data:[state.totales.proy_oz_total, state.totales.real_oz_total], ...applyEnsayeBar(['#5B9BD5',GOLD]),
         datalabels:{
           display:true, anchor:'end', align:'top', offset:2, clip:false,
           font:{size:8, weight:'bold'}, color:'#444',
           backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
           padding:{top:1, bottom:1, left:3, right:3},
           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
-        }}]})},
+        }}]}),
+     scales:{ x:{ ticks:{ callback: ensayeTickCallback(1) } } },
+     delta:()=>computeDelta(state.totales.proy_oz_total, state.totales.real_oz_total, 'oz', 1)},
     // Fila 3
     {id:'ch16', title:'Flujo en M3 / Solución Rica-Estéril (Au / Ag, mg/L)', type:'bar', full:true,
      mk:()=>({labels, datasets:[
         {label:'M3 Bombeados', type:'bar', data:dias.map(d=>d.m3_bombeados), backgroundColor:'rgba(21,96,130,.32)', yAxisID:'y2', order:3},
-        {label:'Sol Rica Au', type:'line', data:dias.map(d=>d.sol_rica_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, yAxisID:'y', order:1},
-        {label:'Sol Estéril Au', type:'line', data:dias.map(d=>d.sol_esteril_au), borderColor:GOLD, backgroundColor:GOLD, borderDash:[4,3], tension:.25, yAxisID:'y', order:1},
-        {label:'Sol Rica Ag', type:'line', data:dias.map(d=>d.sol_rica_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, yAxisID:'y1', order:2},
-        {label:'Sol Estéril Ag', type:'line', data:dias.map(d=>d.sol_esteril_ag), borderColor:SILVER_DARK, backgroundColor:SILVER_DARK, borderDash:[4,3], tension:.25, yAxisID:'y1', order:2},
+        {label:'Sol Rica Au', type:'line', data:dias.map(d=>d.sol_rica_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, yAxisID:'y', order:1, ...applyEnsayeLine(GOLD, dias.length)},
+        {label:'Sol Estéril Au', type:'line', data:dias.map(d=>d.sol_esteril_au), borderColor:GOLD, backgroundColor:GOLD, borderDash:[4,3], tension:.25, yAxisID:'y', order:1, ...applyEnsayeLine(GOLD, dias.length)},
+        {label:'Sol Rica Ag', type:'line', data:dias.map(d=>d.sol_rica_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, yAxisID:'y1', order:2, ...applyEnsayeLine(SILVER, dias.length)},
+        {label:'Sol Estéril Ag', type:'line', data:dias.map(d=>d.sol_esteril_ag), borderColor:SILVER_DARK, backgroundColor:SILVER_DARK, borderDash:[4,3], tension:.25, yAxisID:'y1', order:2, ...applyEnsayeLine(SILVER_DARK, dias.length)},
      ]}),
      scales:{
        y:{ type:'linear', position:'left', min:0, max:1, title:{display:true, text:'Au (mg/L)'} },
        y1:{ type:'linear', position:'right', min:0, max:40, title:{display:true, text:'Ag (mg/L)'}, grid:{drawOnChartArea:false} },
        y2:{ type:'linear', position:'right', title:{display:true, text:'M3'}, grid:{drawOnChartArea:false} },
+       x:{ ticks:{ callback: ensayeTickCallback(dias.length-1) } },
      }},
     {id:'stockProc', title:'Stock por Procedencia', full:true, widthPct:75, custom:true, customHtml: stockProcedenciaHtml},
     {id:'chMezcla', title:'Mezcla Alimentada por Procedencia (Diario)', type:'bar', full:true, alwaysLabels:true,
@@ -521,7 +576,7 @@ function renderCharts(){
     // Fila 5
     {id:'ch6', title:'Comportamiento Leyes Alimentación - Cola Planta', type:'line', alwaysLabels:true,
      mk:()=>({labels, datasets:[
-        {label:'Ley Au', data:dias.map(d=>d.ley_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, yAxisID:'y',
+        {label:'Ley Au', data:dias.map(d=>d.ley_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, yAxisID:'y', ...applyEnsayeLine(GOLD, dias.length),
          datalabels:{
            display:true, anchor:'end', align:'top', offset:2, clip:false,
            font:{size:8, weight:'bold'}, color:'#444',
@@ -531,7 +586,7 @@ function renderCharts(){
          }},
         {label:'Proyección Au', data:dias.map(d=>d.proy_ley_au_banda), borderColor:GOLD, borderDash:[4,4], pointRadius:0, tension:.25, yAxisID:'y',
          datalabels:{display:false}},
-        {label:'Ley Ag', data:dias.map(d=>d.ley_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, yAxisID:'y1',
+        {label:'Ley Ag', data:dias.map(d=>d.ley_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, yAxisID:'y1', ...applyEnsayeLine(SILVER, dias.length),
          datalabels:{
            display:true, anchor:'end', align:'bottom', offset:2, clip:false,
            font:{size:8, weight:'bold'}, color:'#444',
@@ -545,6 +600,7 @@ function renderCharts(){
      scales:{
        y:{ type:'linear', position:'left', min:0, max:2.4, title:{display:true, text:'Au (g/t)'} },
        y1:{ type:'linear', position:'right', min:0, max:160, title:{display:true, text:'Ag (g/t)'}, grid:{drawOnChartArea:false} },
+       x:{ ticks:{ callback: ensayeTickCallback(dias.length-1) } },
      },
      badges:()=>[
        {label:'Au Acumulado', value:fmt(pesoProm(state.selectedDay,'ley_au','molido_seco'),2), color:GOLD},
@@ -554,7 +610,7 @@ function renderCharts(){
      ]},
     {id:'ch4', title:'Recuperación Planta Au / Ag (%)', type:'line', alwaysLabels:true,
      mk:()=>({labels, datasets:[
-        {label:'Recuperación Au', data:dias.map(d=>d.recuperacion_au*100), borderColor:GOLD, backgroundColor:GOLD, tension:.25,
+        {label:'Recuperación Au', data:dias.map(d=>d.recuperacion_au*100), borderColor:GOLD, backgroundColor:GOLD, tension:.25, ...applyEnsayeLine(GOLD, dias.length),
          datalabels:{
            display:true, anchor:'end', align:'top', offset:2, clip:false,
            font:{size:8, weight:'bold'}, color:'#444',
@@ -562,7 +618,7 @@ function renderCharts(){
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
          }},
-        {label:'Recuperación Ag', data:dias.map(d=>d.recuperacion_ag*100), borderColor:SILVER, backgroundColor:SILVER, tension:.25,
+        {label:'Recuperación Ag', data:dias.map(d=>d.recuperacion_ag*100), borderColor:SILVER, backgroundColor:SILVER, tension:.25, ...applyEnsayeLine(SILVER, dias.length),
          datalabels:{
            display:true, anchor:'end', align:'bottom', offset:2, clip:false,
            font:{size:8, weight:'bold'}, color:'#444',
@@ -575,7 +631,7 @@ function renderCharts(){
         {label:'Proyección Ag', data:dias.map(d=>d.proy_recup_ag*100), borderColor:SILVER, borderDash:[4,4], pointRadius:0, tension:.25,
          datalabels:{display:false}},
      ]}),
-     scales:{ y:{ type:'linear', min:20, max:100 } },
+     scales:{ y:{ type:'linear', min:20, max:100 }, x:{ ticks:{ callback: ensayeTickCallback(dias.length-1) } } },
      badges:()=>[
        {label:'Rec Au Acumulado', value:fmt(pesoProm(state.selectedDay,'recuperacion_au','molido_seco')*100,2)+'%', color:GOLD},
        {label:'Rec Ag Acumulado', value:fmt(pesoProm(state.selectedDay,'recuperacion_ag','molido_seco')*100,2)+'%', color:SILVER},
@@ -585,15 +641,24 @@ function renderCharts(){
     // Fila 6
     {id:'ch5', title:'Eficiencia de Precipitación Au / Ag (%)', type:'line',
      mk:()=>({labels, datasets:[
-        {label:'Au', data:dias.map(d=>d.eficiencia_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25},
-        {label:'Ag', data:dias.map(d=>d.eficiencia_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25},
+        {label:'Au', data:dias.map(d=>d.eficiencia_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, ...applyEnsayeLine(GOLD, dias.length)},
+        {label:'Ag', data:dias.map(d=>d.eficiencia_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, ...applyEnsayeLine(SILVER, dias.length)},
      ]}),
-     scales:{ y:{ type:'linear', min:0, max:100 } }},
-    {id:'ch13', title:'NaCN Kg/Ton (Real vs Proyección)', type:'bar',
+     scales:{ y:{ type:'linear', min:0, max:100 }, x:{ ticks:{ callback: ensayeTickCallback(dias.length-1) } } }},
+    {id:'ch13', title:'NaCN Kg/Ton (Real vs Proyección)', type:'bar', alwaysLabels:true,
      mk:()=>({labels, datasets:[
-        {label:'NaCN Kg/Ton', data:dias.map(d=>d.nacn_real), backgroundColor:highlightColors('#5B9BD5',n,selIdx)},
-        {label:'Proyección', type:'line', data:dias.map(d=>d.proy_nacn), borderColor:GOLD, borderDash:[6,4], pointRadius:0, fill:false, tension:.2}
-     ]})},
+        {label:'NaCN Kg/Ton', data:dias.map(d=>d.nacn_real), backgroundColor:highlightColors('#5B9BD5',n,selIdx),
+         datalabels:{
+           display:true, anchor:'end', align:'top', offset:2, clip:false,
+           font:{size:8, weight:'bold'}, color:'#444',
+           backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
+           padding:{top:1, bottom:1, left:3, right:3},
+           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
+         }},
+        {label:'Proyección', type:'line', data:dias.map(d=>d.proy_nacn), borderColor:GOLD, borderDash:[6,4], pointRadius:0, fill:false, tension:.2,
+         datalabels:{display:false}}
+     ]}),
+     badges:()=>[{label:'Proyección NaCN', value: fmt(proyValue(dias,'proy_nacn'),2)+' kg/ton', color:GOLD, dash:true}]},
     // Fila 7
     {id:'ch9', title:'Ratio ($Au/$Ag)', type:'line',
      mk:()=>({labels, datasets:[{label:'Ratio $Au/$Ag', data:dias.map(d=>d.ratio_au_ag), borderColor:'#E8A33D', backgroundColor:'#E8A33D', tension:.25}]}),
@@ -623,8 +688,19 @@ function renderCharts(){
       if(real.length) badgesHtml += `<div class="chart-badges">${real.map(badgeSpan).join('')}</div>`;
       if(proy.length) badgesHtml += `<div class="chart-badges chart-badges-proy">${proy.map(badgeSpan).join('')}</div>`;
     }
+    // Diferencia Real vs Proyección (gráficas de 2 barras acumuladas): flecha + valor
+    // + % arriba del par de barras, para no tener que comparar alturas a ojo.
+    let deltaHtml = '';
+    if(c.delta){
+      const dl = c.delta();
+      const isPos = dl.diff>=0;
+      const color = isPos ? '#008300' : '#a32d2d';
+      const arrow = isPos ? '▲' : '▼';
+      const sign = isPos ? '+' : '';
+      deltaHtml = `<div class="chart-delta" style="color:${color};">${arrow} ${sign}${fmt(dl.diff,dl.dec)} ${dl.unit} (${sign}${fmt(dl.pct,1)}%) vs Ptto</div>`;
+    }
     const widthStyle = c.widthPct ? `width:${c.widthPct}%; max-width:${c.widthPct}%; margin:0 auto; justify-self:center;` : '';
-    return `<div class="chart-box${c.full?' full-row':''}" style="grid-column:${c.full?'1 / -1':'span '+(c.colSpan||2)}; ${widthStyle}"><h3>${c.title}</h3>${badgesHtml}<div class="canvas-wrap"><canvas id="${c.id}"></canvas></div></div>`;
+    return `<div class="chart-box${c.full?' full-row':''}" style="grid-column:${c.full?'1 / -1':'span '+(c.colSpan||2)}; ${widthStyle}"><h3>${c.title}</h3>${deltaHtml}${badgesHtml}<div class="canvas-wrap"><canvas id="${c.id}"></canvas></div></div>`;
   }).join('');
   CH.forEach(c=>{
     if(c.custom) return;
@@ -966,6 +1042,11 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
   const aoaHist = XLSX_.utils.sheet_to_json(wb.Sheets['HISTORICO'], {header:1, raw:true, defval:null});
   const aoaT = wb.Sheets['TABLA'] ? XLSX_.utils.sheet_to_json(wb.Sheets['TABLA'], {header:1, raw:true, defval:null}) : [];
   const comentariosPorFecha = parseComentariosTabla(aoaT);
+  // Indicador de "ensaye pendiente" del último día: hoja TABLA, celda A2. Si dice
+  // "Proyección" (sin importar acentos/mayúsculas), las gráficas que dependen de ensaye
+  // marcan el último día como preliminar.
+  const celdaA2 = aoaT[1] ? aoaT[1][0] : null;
+  const ensayePendiente = celdaA2!=null && normTxt(celdaA2)==='PROYECCION';
 
   // Stock por procedencia y mezcla alimentada por procedencia: hojas opcionales, si no
   // existen o cambian de forma inesperada no se rompe el resto del archivo.
@@ -1146,7 +1227,7 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
     return {error:'No se encontró la caja "Stock Estimado" en HISTORICO.'};
   }
 
-  return { mes: mesDetectado, dias, totales, stock, stockProcedencia };
+  return { mes: mesDetectado, dias, totales, stock, stockProcedencia, ensayePendiente };
 }
 
 
@@ -1164,6 +1245,9 @@ function handleFile(file){
   if(!checkUploadPin()) return;
   const reader = new FileReader();
   reader.onload = async function(e){
+    // Mientras se procesa/guarda este archivo, el auto-refresh se salta su ciclo
+    // para no pisar estos cambios locales antes de que queden guardados.
+    window.__flashBusy = true;
     try{
       const dataBuf = new Uint8Array(e.target.result);
       const wb = XLSX.read(dataBuf, {type:'array', cellDates:false, cellStyles:true});
@@ -1172,7 +1256,7 @@ function handleFile(file){
       if(parsed.mes !== state.mes){
         if(!confirm('Este archivo parece ser de '+parsed.mes+' y tu vista actual es de '+state.mes+'. ¿Reemplazar la vista con este nuevo mes? (se recomienda primero "Guardar copia" del mes actual)')) return;
       }
-      state.mes = parsed.mes; state.dias = parsed.dias; state.totales = parsed.totales; state.stock = parsed.stock; state.stockProcedencia = parsed.stockProcedencia;
+      state.mes = parsed.mes; state.dias = parsed.dias; state.totales = parsed.totales; state.stock = parsed.stock; state.stockProcedencia = parsed.stockProcedencia; state.ensayePendiente = parsed.ensayePendiente;
       const last = lastDiaConDato();
       state.selectedDay = Math.max(1,last);
       await saveState();
@@ -1181,6 +1265,8 @@ function handleFile(file){
     }catch(err){
       console.error(err);
       alert('Error leyendo el archivo: '+err.message);
+    } finally {
+      window.__flashBusy = false;
     }
   };
   reader.readAsArrayBuffer(file);
@@ -1238,7 +1324,7 @@ document.getElementById('btnReset').onclick = async ()=>{
       const empty = emptyDataset();
       const { error } = await sb.from('flash_reportes').upsert({
         periodo: state.mes,
-        data: {mes: state.mes, dias: empty.dias, totales: empty.totales, stock: empty.stock, stockProcedencia: [], paused: state.paused},
+        data: {mes: state.mes, dias: empty.dias, totales: empty.totales, stock: empty.stock, stockProcedencia: [], paused: state.paused, ensayePendiente: false},
         updated_at: new Date().toISOString()
       });
       if(error) throw error;
@@ -1254,7 +1340,7 @@ document.getElementById('btnReset').onclick = async ()=>{
 document.getElementById('btnExport').onclick = ()=>{
   let newHtml = document.documentElement.outerHTML.replace(
     /const BASE_DATA = \{.*?\};\s*\n/s,
-    'const BASE_DATA = '+JSON.stringify({mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, paused:false})+';\n'
+    'const BASE_DATA = '+JSON.stringify({mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, paused:false, ensayePendiente:state.ensayePendiente})+';\n'
   );
   // La copia guardada queda archivada: no admite arrastrar más archivos ni restablecer.
   newHtml = newHtml.replace('const IS_LOCKED_COPY = false;', 'const IS_LOCKED_COPY = true;');
@@ -1330,6 +1416,40 @@ document.getElementById('btnMaint').onclick = async ()=>{
     renderAll();
   }
 })();
+
+// Auto-refresh: relee la base de datos cada 5 min, pero solo mientras la pestaña está
+// visible en la pantalla de alguien (Page Visibility API). Se pausa al ocultarse/minimizar
+// y, al volver a mostrarse, dispara una recarga inmediata (por si algo cambió mientras
+// estaba fuera) y reanuda el temporizador. No corre en copias archivadas, y se salta el
+// ciclo si hay una carga/parseo de Excel en curso, para no pisar cambios sin guardar.
+if(!IS_LOCKED_COPY){
+  const AUTOREFRESH_MS = 5*60*1000;
+  let autoRefreshTimer = null;
+  async function autoRefreshTick(){
+    if(window.__flashBusy) return;
+    const prevSelectedDay = state.selectedDay;
+    await loadState();
+    state.selectedDay = prevSelectedDay; // no perder el día que estás viendo
+    applyMaintenanceUI();
+    if(!(state.paused && !isMaintAdmin)) renderAll();
+  }
+  function startAutoRefresh(){
+    if(autoRefreshTimer) return;
+    autoRefreshTimer = setInterval(autoRefreshTick, AUTOREFRESH_MS);
+  }
+  function stopAutoRefresh(){
+    if(autoRefreshTimer){ clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+  }
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'visible'){
+      autoRefreshTick();
+      startAutoRefresh();
+    } else {
+      stopAutoRefresh();
+    }
+  });
+  if(document.visibilityState === 'visible') startAutoRefresh();
+}
 </script>
 </body>
 </html>
