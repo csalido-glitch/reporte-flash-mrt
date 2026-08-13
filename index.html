@@ -64,6 +64,7 @@ body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#fafafa;color:#
 .maint-footer-link:hover{ color:#888; }
 .discreet-actions{ display:flex; justify-content:center; gap:16px; flex-wrap:wrap; }
 .discreet-actions .maint-footer-link{ display:inline-block; padding:6px 4px; }
+.theme-toggle{ text-decoration:none; border:1px solid var(--gold-dark); border-radius:14px; padding:4px 10px; color:var(--gold-dark); }
 
 .sticky-head{ position:sticky; top:0; z-index:20; background:#fafafa; padding-top:6px;
   margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px; }
@@ -127,6 +128,7 @@ button.action:hover{filter:brightness(1.08);}
 .chart-badges b{ font-size:15px; }
 .chart-badges-proy{ margin:0 0 8px; }
 .chart-delta{ text-align:center; font-size:13px; font-weight:700; margin:-2px 0 6px; }
+.chart-badge-value{ color:#2a2a2a; }
 .chart-box[style*="span 1"] h3{ font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .stock-proc-head{ display:flex; justify-content:flex-end; font-size:12px; color:#8a8578; margin:-4px 0 10px; }
 .stock-proc-list{ display:flex; flex-direction:column; gap:7px; }
@@ -137,6 +139,41 @@ button.action:hover{filter:brightness(1.08);}
 .stock-proc-val{ font-size:12px; color:var(--navy); text-align:right; }
 .stock-proc-empty{ font-size:12.5px; color:#8a8578; }
 .small-note{font-size:11px;color:#888;margin-top:8px;}
+
+body[data-theme="dark"]{background:#15191d;color:#e2e2e2;}
+body[data-theme="dark"] .header-banner h1{color:#E8B93D;text-shadow:none;}
+body[data-theme="dark"] .header-banner .subtitle{color:#9aa4ad;}
+body[data-theme="dark"] .dropzone{background:#20262c;color:#aaa;}
+body[data-theme="dark"] .dropzone.drag{background:#3a2f10;}
+body[data-theme="dark"] .dropzone-discreet{color:#888;border-color:#444;}
+body[data-theme="dark"] .dropzone-discreet.drag{background:#3a2f10;color:#E8B93D;}
+body[data-theme="dark"] .dropzone-discreet b{color:#777;}
+body[data-theme="dark"] .locked-banner,body[data-theme="dark"] .maint-admin-banner{background:#3a2f10;color:#E8B93D;}
+body[data-theme="dark"] .maint-screen{color:#aaa;}
+body[data-theme="dark"] .maint-screen h2{color:#e2e2e2;}
+body[data-theme="dark"] .maint-screen p{color:#999;}
+body[data-theme="dark"] .maint-footer-link{color:#666;}
+body[data-theme="dark"] .maint-footer-link:hover{color:#999;}
+body[data-theme="dark"] .sticky-head{background:#15191d;}
+body[data-theme="dark"] .day-chip.empty{background:#333;color:#777;}
+body[data-theme="dark"] .last-updated{color:#999;}
+body[data-theme="dark"] .flash-card{background:#20262c;border-color:#333c44;}
+body[data-theme="dark"] .flash-day-row{background:#2a333b;color:#e2e2e2;}
+body[data-theme="dark"] .flash-table td{border-color:#3a444c;}
+body[data-theme="dark"] .flash-table .lbl{background:#262e35;color:#e2e2e2;}
+body[data-theme="dark"] .flash-table .val{color:#e2e2e2;}
+body[data-theme="dark"] .flash-note{color:#999;}
+body[data-theme="dark"] .stock-box{background:#262e35;border-color:#3a444c;}
+body[data-theme="dark"] .stock-box .lbl{color:#e2e2e2;}
+body[data-theme="dark"] .stock-box .val{background:#20262c;border-color:#3a444c;color:#E8B93D;}
+body[data-theme="dark"] .chart-box{background:#20262c;border-color:#333c44;}
+body[data-theme="dark"] .chart-box h3{color:#e2e2e2;}
+body[data-theme="dark"] .chart-badge-value{color:#e2e2e2;}
+body[data-theme="dark"] .stock-proc-head,body[data-theme="dark"] .stock-proc-empty{color:#9a9587;}
+body[data-theme="dark"] .stock-proc-name,body[data-theme="dark"] .stock-proc-val{color:#e2e2e2;}
+body[data-theme="dark"] .stock-proc-bar-wrap{background:#3a3325;}
+body[data-theme="dark"] .small-note{color:#888;}
+body[data-theme="dark"] .theme-toggle{color:#E8B93D;border-color:#8a6a17;}
 </style>
 </head>
 <body>
@@ -193,6 +230,7 @@ button.action:hover{filter:brightness(1.08);}
   <div class="discreet-actions">
     <button class="maint-footer-link" id="btnExport">💾 Guardar copia de este mes</button>
     <button class="maint-footer-link" id="btnReset">🔄 Restablecer (mes nuevo)</button>
+    <button class="maint-footer-link theme-toggle" id="btnTheme">🌙 Modo oscuro</button>
   </div>
 
 </div>
@@ -459,6 +497,12 @@ function withDefaultXTicks(scales){
 }
 
 function renderCharts(){
+  // Colores base de Chart.js (texto de ejes/leyenda y líneas de cuadrícula) según el
+  // tema activo, para que las gráficas se lean bien tanto en claro como en oscuro.
+  if(typeof Chart !== 'undefined'){
+    Chart.defaults.color = isDarkTheme() ? '#c7ccd1' : '#666';
+    Chart.defaults.borderColor = isDarkTheme() ? 'rgba(255,255,255,.12)' : 'rgba(0,0,0,.1)';
+  }
   const grid = document.getElementById('chartsGrid');
   const last = lastDiaConDato();
   const n = Math.max(last, 1);
@@ -473,8 +517,8 @@ function renderCharts(){
         {label:'TON Molienda Seco', data:dias.map(d=>d.ton_molienda_seco), backgroundColor:highlightColors(GOLD,n,selIdx),
          datalabels:{
            display:true, anchor:'end', align:'top', offset:2, clip:false,
-           font:{size:8, weight:'bold'}, color:'#444',
-           backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
+           font:{size:8, weight:'bold'}, color: dlTextColor(),
+           backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
          }},
@@ -486,8 +530,8 @@ function renderCharts(){
      mk:()=>({labels:['Proyección','Real'], datasets:[{label:'Tonelaje', data:[state.totales.proy_ton_total, state.totales.real_ton_total], backgroundColor:['#5B9BD5',GOLD],
         datalabels:{
           display:true, anchor:'end', align:'top', offset:2, clip:false,
-          font:{size:8, weight:'bold'}, color:'#444',
-          backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
+          font:{size:8, weight:'bold'}, color: dlTextColor(),
+          backgroundColor: dlBgColor(), borderRadius:3,
           padding:{top:1, bottom:1, left:3, right:3},
           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
         }}]}),
@@ -498,8 +542,8 @@ function renderCharts(){
         {label:'Oz Eq Precipitadas', data:dias.map(d=>d.oz_eq_au), ...applyEnsayeBar(highlightColors(GOLD,n,selIdx)),
          datalabels:{
            display:true, anchor:'end', align:'top', offset:2, clip:false,
-           font:{size:8, weight:'bold'}, color:'#444',
-           backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
+           font:{size:8, weight:'bold'}, color: dlTextColor(),
+           backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
          }},
@@ -512,8 +556,8 @@ function renderCharts(){
      mk:()=>({labels:['Proyección','Real'], datasets:[{label:'Oz Eq Au', data:[state.totales.proy_oz_total, state.totales.real_oz_total], ...applyEnsayeBar(['#5B9BD5',GOLD]),
         datalabels:{
           display:true, anchor:'end', align:'top', offset:2, clip:false,
-          font:{size:8, weight:'bold'}, color:'#444',
-          backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
+          font:{size:8, weight:'bold'}, color: dlTextColor(),
+          backgroundColor: dlBgColor(), borderRadius:3,
           padding:{top:1, bottom:1, left:3, right:3},
           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
         }}]}),
@@ -561,8 +605,8 @@ function renderCharts(){
           datalabels:{
             display:(ctx)=> ctx.dataset.data[ctx.dataIndex] > 0,
             anchor:'end', align:'top', offset:2,
-            font:{size:8, weight:'bold'}, color:'#444',
-            backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
+            font:{size:8, weight:'bold'}, color: dlTextColor(),
+            backgroundColor: dlBgColor(), borderRadius:3,
             padding:{top:1, bottom:1, left:3, right:3},
             formatter:(v)=> v ? Math.round(v) : ''
           }
@@ -575,8 +619,8 @@ function renderCharts(){
      mk:()=>({labels, datasets:[{label:'TON Trituración Seco', data:dias.map(d=>d.ton_trituracion_seco), backgroundColor:highlightColors(GOLD,n,selIdx),
         datalabels:{
           display:true, anchor:'end', align:'top', offset:2, clip:false,
-          font:{size:8, weight:'bold'}, color:'#444',
-          backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
+          font:{size:8, weight:'bold'}, color: dlTextColor(),
+          backgroundColor: dlBgColor(), borderRadius:3,
           padding:{top:1, bottom:1, left:3, right:3},
           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
         }}]})},
@@ -586,8 +630,8 @@ function renderCharts(){
         {label:'Ley Au', data:dias.map(d=>d.ley_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, yAxisID:'y', ...applyEnsayeLine(GOLD, dias.length),
          datalabels:{
            display:true, anchor:'end', align:'top', offset:2, clip:false,
-           font:{size:8, weight:'bold'}, color:'#444',
-           backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
+           font:{size:8, weight:'bold'}, color: dlTextColor(),
+           backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
          }},
@@ -596,8 +640,8 @@ function renderCharts(){
         {label:'Ley Ag', data:dias.map(d=>d.ley_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, yAxisID:'y1', ...applyEnsayeLine(SILVER, dias.length),
          datalabels:{
            display:true, anchor:'end', align:'bottom', offset:2, clip:false,
-           font:{size:8, weight:'bold'}, color:'#444',
-           backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
+           font:{size:8, weight:'bold'}, color: dlTextColor(),
+           backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
          }},
@@ -620,16 +664,16 @@ function renderCharts(){
         {label:'Recuperación Au', data:dias.map(d=>d.recuperacion_au*100), borderColor:GOLD, backgroundColor:GOLD, tension:.25, ...applyEnsayeLine(GOLD, dias.length),
          datalabels:{
            display:true, anchor:'end', align:'top', offset:2, clip:false,
-           font:{size:8, weight:'bold'}, color:'#444',
-           backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
+           font:{size:8, weight:'bold'}, color: dlTextColor(),
+           backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
          }},
         {label:'Recuperación Ag', data:dias.map(d=>d.recuperacion_ag*100), borderColor:SILVER, backgroundColor:SILVER, tension:.25, ...applyEnsayeLine(SILVER, dias.length),
          datalabels:{
            display:true, anchor:'end', align:'bottom', offset:2, clip:false,
-           font:{size:8, weight:'bold'}, color:'#444',
-           backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
+           font:{size:8, weight:'bold'}, color: dlTextColor(),
+           backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
          }},
@@ -661,8 +705,8 @@ function renderCharts(){
         {label:'NaCN Kg/Ton', data:dias.map(d=>d.nacn_real), backgroundColor:highlightColors('#5B9BD5',n,selIdx),
          datalabels:{
            display:true, anchor:'end', align:'top', offset:2, clip:false,
-           font:{size:8, weight:'bold'}, color:'#444',
-           backgroundColor:'rgba(255,255,255,.85)', borderRadius:3,
+           font:{size:8, weight:'bold'}, color: dlTextColor(),
+           backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
          }},
@@ -687,7 +731,7 @@ function renderCharts(){
       // gris oscuro fijo, porque colores claros (ej. el azul de Proyección) casi no
       // se leen en texto pequeño.
       const swatch = b.dash ? `<span style="display:inline-block; width:14px; height:0; border-top:2px dashed ${b.color}; margin-right:4px; vertical-align:middle;"></span>` : '';
-      return `<span><span style="color:${b.color};">${swatch}<b>${b.label}:</b></span> <b style="color:#2a2a2a;">${b.value}</b></span>`;
+      return `<span><span style="color:${b.color};">${swatch}<b>${b.label}:</b></span> <b class="chart-badge-value">${b.value}</b></span>`;
     };
     let badgesHtml = '';
     if(c.badges){
@@ -748,7 +792,7 @@ function renderCharts(){
     const datalabelsOpts = {
       display: showDataLabels,
       anchor: 'end', align: 'top', offset: 2, clip: false,
-      font: {size:8}, color:'#444',
+      font: {size:8}, color: dlTextColor(),
       backgroundColor: 'rgba(255,255,255,.78)',
       borderRadius: 3,
       padding: {top:1, bottom:1, left:3, right:3},
@@ -772,6 +816,20 @@ function renderCharts(){
 const GOLD = '#C99700';
 const SILVER = '#707070';
 const SILVER_DARK = '#454545';
+
+// Modo oscuro: preferencia local (no se sube a Supabase, cada quien la elige en su
+// propio navegador). Los colores de Chart.js (etiquetas de datos, ejes, leyenda) se
+// recalculan cada vez que se renderizan las gráficas, así que solo hace falta
+// re-llamar renderCharts() al cambiar de tema para que se actualicen.
+function isDarkTheme(){ return document.body.getAttribute('data-theme') === 'dark'; }
+function dlTextColor(){ return isDarkTheme() ? '#e2e2e2' : '#444'; }
+function dlBgColor(){ return isDarkTheme() ? 'rgba(32,38,44,.85)' : 'rgba(255,255,255,.85)'; }
+function applyTheme(dark){
+  document.body.setAttribute('data-theme', dark ? 'dark' : 'light');
+  localStorage.setItem('flashTheme', dark ? 'dark' : 'light');
+  const btn = document.getElementById('btnTheme');
+  if(btn) btn.textContent = dark ? '☀️ Modo claro' : '🌙 Modo oscuro';
+}
 
 // Paleta para "Mezcla alimentada por procedencia": cada procedencia conserva siempre el
 // mismo color entre renders (se le asigna uno la primera vez que aparece y se recuerda).
@@ -1419,6 +1477,12 @@ document.getElementById('btnMaint').onclick = async ()=>{
     location.reload();
   }
 };
+
+document.getElementById('btnTheme').onclick = ()=>{
+  applyTheme(!isDarkTheme());
+  renderCharts();
+};
+applyTheme(localStorage.getItem('flashTheme') === 'dark');
 
 (async ()=>{
   await loadState();
