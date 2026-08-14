@@ -175,6 +175,7 @@ body[data-theme="dark"] .stock-proc-bar-wrap{background:#3a3325;}
 body[data-theme="dark"] .small-note{color:#888;}
 body[data-theme="dark"] .theme-toggle{color:#E8B93D;border-color:#8a6a17;}
 body[data-theme="dark"] .chart-toggle{color:#c7ccd1;}
+body[data-theme="dark"] #visitasCounter{color:#666;}
 </style>
 </head>
 <body>
@@ -238,6 +239,7 @@ body[data-theme="dark"] .chart-toggle{color:#c7ccd1;}
 <div class="footer-bar"></div>
 <div style="text-align:center;font-size:10px;color:#bbb;padding:4px 0 8px;">Build generado: 2026-08-07 13:45</div>
 <button class="maint-footer-link" id="btnMaint">🔧 Mantenimiento</button>
+<div id="visitasCounter" style="text-align:center;font-size:10px;color:#bbb;padding:2px 0 8px;"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -275,7 +277,7 @@ function linearTrend(values){
   return values.map((v,i)=> (v===null || v===undefined || isNaN(v)) ? null : slope*i + intercept);
 }
 
-let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, stockProcedencia: BASE_DATA.stockProcedencia || [], selectedDay: 1, paused: false, ensayePendiente: BASE_DATA.ensayePendiente || false };
+let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, stockProcedencia: BASE_DATA.stockProcedencia || [], selectedDay: 1, paused: false, ensayePendiente: BASE_DATA.ensayePendiente || false, visitas: BASE_DATA.visitas || {total:0, porDia:{}} };
 let isMaintAdmin = false; // solo dura mientras la pestaña esté abierta; no se guarda en la BD
 
 async function loadState(){
@@ -291,7 +293,7 @@ async function loadState(){
       } else {
         // la tabla está vacía todavía: sembramos con los datos que ya traía el archivo,
         // para que el piloto no arranque en ceros
-        await sb.from('flash_reportes').upsert({periodo: state.mes, data:{mes:state.mes,dias:state.dias,totales:state.totales,stock:state.stock,stockProcedencia:state.stockProcedencia,paused:state.paused,ensayePendiente:state.ensayePendiente}});
+        await sb.from('flash_reportes').upsert({periodo: state.mes, data:{mes:state.mes,dias:state.dias,totales:state.totales,stock:state.stock,stockProcedencia:state.stockProcedencia,paused:state.paused,ensayePendiente:state.ensayePendiente,visitas:state.visitas}});
       }
     }catch(e){
       console.error('No se pudo conectar a la base de datos, se muestran los datos de respaldo incluidos en el archivo.', e);
@@ -305,7 +307,7 @@ async function saveState(){
   try{
     const { error } = await sb.from('flash_reportes').upsert({
       periodo: state.mes,
-      data: {mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, paused:state.paused, ensayePendiente:state.ensayePendiente},
+      data: {mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, paused:state.paused, ensayePendiente:state.ensayePendiente, visitas:state.visitas},
       updated_at: new Date().toISOString()
     });
     if(error) throw error;
@@ -313,6 +315,31 @@ async function saveState(){
     console.error('Error guardando en la base de datos', e);
     alert('No se pudo guardar en la base de datos (revisa tu conexión a internet). Los cambios no quedaron guardados para los demás.');
   }
+}
+// Contador de visitas: solo se suma en una carga real de página (no en el
+// auto-refresh de los 5 min, que no cuenta como una nueva visita), y como mucho una
+// vez por pestaña abierta (sessionStorage) — si recargas varias veces seguidas en la
+// misma sesión, ya no se vuelve a sumar hasta que abras una pestaña/sesión nueva.
+// No es exacto al 100% (si dos personas cargan casi al mismo instante, en un caso muy
+// raro una escritura puede pisar a la otra), pero es más que suficiente para un
+// contador de referencia interno.
+async function registerVisit(){
+  if(IS_LOCKED_COPY || !sb) return;
+  if(sessionStorage.getItem('flashVisitCounted') === '1') return;
+  const hoy = new Date().toISOString().slice(0,10);
+  if(!state.visitas) state.visitas = {total:0, porDia:{}};
+  state.visitas.total = (state.visitas.total||0) + 1;
+  state.visitas.porDia[hoy] = (state.visitas.porDia[hoy]||0) + 1;
+  await saveState();
+  sessionStorage.setItem('flashVisitCounted', '1');
+  renderVisitas();
+}
+function renderVisitas(){
+  const el = document.getElementById('visitasCounter');
+  if(!el || !state.visitas) return;
+  const hoy = new Date().toISOString().slice(0,10);
+  const hoyCount = state.visitas.porDia[hoy] || 0;
+  el.textContent = `👁 ${state.visitas.total||0} visitas totales · ${hoyCount} hoy`;
 }
 function lastDiaConDato(){
   let last = 0;
@@ -1395,7 +1422,7 @@ document.getElementById('btnReset').onclick = async ()=>{
       const empty = emptyDataset();
       const { error } = await sb.from('flash_reportes').upsert({
         periodo: state.mes,
-        data: {mes: state.mes, dias: empty.dias, totales: empty.totales, stock: empty.stock, stockProcedencia: [], paused: state.paused, ensayePendiente: false},
+        data: {mes: state.mes, dias: empty.dias, totales: empty.totales, stock: empty.stock, stockProcedencia: [], paused: state.paused, ensayePendiente: false, visitas: state.visitas},
         updated_at: new Date().toISOString()
       });
       if(error) throw error;
@@ -1411,7 +1438,7 @@ document.getElementById('btnReset').onclick = async ()=>{
 document.getElementById('btnExport').onclick = ()=>{
   let newHtml = document.documentElement.outerHTML.replace(
     /const BASE_DATA = \{.*?\};\s*\n/s,
-    'const BASE_DATA = '+JSON.stringify({mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, paused:false, ensayePendiente:state.ensayePendiente})+';\n'
+    'const BASE_DATA = '+JSON.stringify({mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, paused:false, ensayePendiente:state.ensayePendiente, visitas:state.visitas})+';\n'
   );
   // La copia guardada queda archivada: no admite arrastrar más archivos ni restablecer.
   newHtml = newHtml.replace('const IS_LOCKED_COPY = false;', 'const IS_LOCKED_COPY = true;');
@@ -1493,6 +1520,8 @@ applyTheme(localStorage.getItem('flashTheme') === 'dark');
   if(!(state.paused && !isMaintAdmin)){
     renderAll();
   }
+  renderVisitas();
+  registerVisit();
 })();
 
 // Auto-refresh: relee la base de datos cada 5 min, pero solo mientras la pestaña está
@@ -1510,6 +1539,7 @@ if(!IS_LOCKED_COPY){
     state.selectedDay = prevSelectedDay; // no perder el día que estás viendo
     applyMaintenanceUI();
     if(!(state.paused && !isMaintAdmin)) renderAll();
+    renderVisitas();
   }
   function startAutoRefresh(){
     if(autoRefreshTimer) return;
