@@ -316,6 +316,12 @@ async function saveState(){
     alert('No se pudo guardar en la base de datos (revisa tu conexión a internet). Los cambios no quedaron guardados para los demás.');
   }
 }
+// Fecha local (no UTC) en formato YYYY-MM-DD, para que el corte del día del
+// contador de visitas sea a medianoche real de quien lo ve, no a medianoche UTC.
+function hoyLocal(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 // Contador de visitas: solo se suma en una carga real de página (no en el
 // auto-refresh de los 5 min, que no cuenta como una nueva visita), y como mucho una
 // vez por pestaña abierta (sessionStorage) — si recargas varias veces seguidas en la
@@ -326,7 +332,7 @@ async function saveState(){
 async function registerVisit(){
   if(IS_LOCKED_COPY || !sb) return;
   if(sessionStorage.getItem('flashVisitCounted') === '1') return;
-  const hoy = new Date().toISOString().slice(0,10);
+  const hoy = hoyLocal();
   if(!state.visitas) state.visitas = {total:0, porDia:{}};
   state.visitas.total = (state.visitas.total||0) + 1;
   state.visitas.porDia[hoy] = (state.visitas.porDia[hoy]||0) + 1;
@@ -337,7 +343,7 @@ async function registerVisit(){
 function renderVisitas(){
   const el = document.getElementById('visitasCounter');
   if(!el || !state.visitas) return;
-  const hoy = new Date().toISOString().slice(0,10);
+  const hoy = hoyLocal();
   const hoyCount = state.visitas.porDia[hoy] || 0;
   el.textContent = `👁 ${state.visitas.total||0} visitas totales · ${hoyCount} hoy`;
 }
