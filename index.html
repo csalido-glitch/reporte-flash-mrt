@@ -600,20 +600,45 @@ function renderCharts(){
      scales:{ x:{ ticks:{ callback: ensayeTickCallback(1) } } },
      delta:()=>computeDelta(state.totales.proy_oz_total, state.totales.real_oz_total, 'oz', 1)},
     // Fila 3
-    {id:'ch16', title:'Flujo en M3 / Solución Rica-Estéril (Au / Ag, mg/L)', type:'bar', full:true,
+    {id:'ch16', title:'Flujo en M³ / Solución Rica-Estéril (Au / Ag, mg/L)', type:'bar', full:true,
      mk:()=>({labels, datasets:[
-        {label:'M3 Bombeados', type:'bar', data:dias.map(d=>d.m3_bombeados), backgroundColor:'rgba(21,96,130,.32)', yAxisID:'y2', order:3},
-        {label:'Sol Rica Au', type:'line', data:dias.map(d=>d.sol_rica_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, yAxisID:'y', order:1, ...applyEnsayeLine(GOLD, dias.length)},
+        {label:'M³ Bombeados', type:'bar', data:dias.map(d=>d.m3_bombeados), backgroundColor:'rgba(21,96,130,.32)', yAxisID:'y2', order:3,
+         datalabels:{
+           display:true, anchor:'end', align:'top', offset:2, clip:false,
+           font:{size:8, weight:'bold'}, color: dlTextColor(),
+           backgroundColor: dlBgColor(), borderRadius:3,
+           padding:{top:1, bottom:1, left:3, right:3},
+           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : Math.round(v)
+         }},
+        {label:'Sol Rica Au', type:'line', data:dias.map(d=>d.sol_rica_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, yAxisID:'y', order:1, ...applyEnsayeLine(GOLD, dias.length),
+         datalabels:{
+           display:true, anchor:'end', align:'top', offset:6, clip:false,
+           font:{size:8, weight:'bold'}, color:GOLD, backgroundColor: dlBgColor(), borderRadius:3,
+           padding:{top:1, bottom:1, left:3, right:3},
+           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
+         }},
         {label:'Sol Estéril Au', type:'line', data:dias.map(d=>d.sol_esteril_au), borderColor:GOLD, backgroundColor:GOLD, borderDash:[4,3], tension:.25, yAxisID:'y', order:1, ...applyEnsayeLine(GOLD, dias.length)},
-        {label:'Sol Rica Ag', type:'line', data:dias.map(d=>d.sol_rica_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, yAxisID:'y1', order:2, ...applyEnsayeLine(SILVER, dias.length)},
+        {label:'Sol Rica Ag', type:'line', data:dias.map(d=>d.sol_rica_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, yAxisID:'y1', order:2, ...applyEnsayeLine(SILVER, dias.length),
+         datalabels:{
+           display:true, anchor:'end', align:'bottom', offset:6, clip:false,
+           font:{size:8, weight:'bold'}, color:SILVER, backgroundColor: dlBgColor(), borderRadius:3,
+           padding:{top:1, bottom:1, left:3, right:3},
+           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : Math.round(v)
+         }},
         {label:'Sol Estéril Ag', type:'line', data:dias.map(d=>d.sol_esteril_ag), borderColor:SILVER_DARK, backgroundColor:SILVER_DARK, borderDash:[4,3], tension:.25, yAxisID:'y1', order:2, ...applyEnsayeLine(SILVER_DARK, dias.length)},
      ]}),
      scales:{
        y:{ type:'linear', position:'left', min:0, max:1, title:{display:true, text:'Au (mg/L)'} },
        y1:{ type:'linear', position:'right', min:0, max:40, title:{display:true, text:'Ag (mg/L)'}, grid:{drawOnChartArea:false} },
-       y2:{ type:'linear', position:'right', title:{display:true, text:'M3'}, grid:{drawOnChartArea:false} },
+       y2:{ type:'linear', position:'right', title:{display:true, text:'M³'}, grid:{drawOnChartArea:false} },
        x:{ ticks:{ callback: ensayeTickCallback(dias.length-1) } },
-     }},
+     },
+     badges:()=>[
+       {label:'M³ Total Acumulado', value: fmt(dias.reduce((a,d)=>a+(Number(d.m3_bombeados)||0),0),0), color:'#5B9BD5'},
+       {label:'M³ Promedio', value: fmt(promSimple(dias,'m3_bombeados'),0), color:'#5B9BD5'},
+       {label:'Sol Rica Au Promedio', value: fmt(promSimple(dias,'sol_rica_au'),2), color:GOLD},
+       {label:'Sol Rica Ag Promedio', value: fmt(promSimple(dias,'sol_rica_ag'),1), color:SILVER},
+     ]},
     {id:'stockProc', title:'Stock por Procedencia', full:true, widthPct:75, custom:true, customHtml: stockProcedenciaHtml},
     {id:'chMezcla', title:'Mezcla Alimentada por Procedencia (Diario)', type:'bar', full:true, alwaysLabels:true,
      mk:()=>{
