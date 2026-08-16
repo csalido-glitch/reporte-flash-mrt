@@ -552,8 +552,8 @@ function renderCharts(){
      mk:()=>({labels, datasets:[
         {label:'TON Molienda Seco', data:dias.map(d=>d.ton_molienda_seco), backgroundColor:highlightColors(GOLD,n,selIdx),
          datalabels:{
-           display:true, anchor:'end', align:'top', offset:2, clip:false,
-           font:{size:8, weight:'bold'}, color: dlTextColor(),
+           display:true, anchor:'end', align:'top', offset:2, clip:false, rotation:-20,
+           font:{size:10, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
@@ -566,7 +566,7 @@ function renderCharts(){
      mk:()=>({labels:['Proyección','Real'], datasets:[{label:'Tonelaje', data:[state.totales.proy_ton_total, state.totales.real_ton_total], backgroundColor:['#5B9BD5',GOLD],
         datalabels:{
           display:true, anchor:'end', align:'top', offset:2, clip:false,
-          font:{size:8, weight:'bold'}, color: dlTextColor(),
+          font:{size:11, weight:'bold'}, color: dlTextColor(),
           backgroundColor: dlBgColor(), borderRadius:3,
           padding:{top:1, bottom:1, left:3, right:3},
           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
@@ -577,8 +577,8 @@ function renderCharts(){
      mk:()=>({labels, datasets:[
         {label:'Oz Eq Precipitadas', data:dias.map(d=>d.oz_eq_au), ...applyEnsayeBar(highlightColors(GOLD,n,selIdx)),
          datalabels:{
-           display:true, anchor:'end', align:'top', offset:2, clip:false,
-           font:{size:8, weight:'bold'}, color: dlTextColor(),
+           display:true, anchor:'end', align:'top', offset:2, clip:false, rotation:-20,
+           font:{size:10, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
@@ -592,7 +592,7 @@ function renderCharts(){
      mk:()=>({labels:['Proyección','Real'], datasets:[{label:'Oz Eq Au', data:[state.totales.proy_oz_total, state.totales.real_oz_total], ...applyEnsayeBar(['#5B9BD5',GOLD]),
         datalabels:{
           display:true, anchor:'end', align:'top', offset:2, clip:false,
-          font:{size:8, weight:'bold'}, color: dlTextColor(),
+          font:{size:11, weight:'bold'}, color: dlTextColor(),
           backgroundColor: dlBgColor(), borderRadius:3,
           padding:{top:1, bottom:1, left:3, right:3},
           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
@@ -604,8 +604,8 @@ function renderCharts(){
      mk:()=>({labels, datasets:[
         {label:'M³ Bombeados', type:'bar', data:dias.map(d=>d.m3_bombeados), backgroundColor:'rgba(21,96,130,.32)', yAxisID:'y2', order:3,
          datalabels:{
-           display:true, anchor:'end', align:'top', offset:2, clip:false,
-           font:{size:8, weight:'bold'}, color: dlTextColor(),
+           display:true, anchor:'end', align:'top', offset:2, clip:false, rotation:-20,
+           font:{size:10, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : Math.round(v)
@@ -613,7 +613,7 @@ function renderCharts(){
         {label:'Sol Rica Au', type:'line', data:dias.map(d=>d.sol_rica_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, yAxisID:'y', order:1, ...applyEnsayeLine(GOLD, dias.length),
          datalabels:{
            display:true, anchor:'end', align:'top', offset:6, clip:false,
-           font:{size:8, weight:'bold'}, color:GOLD, backgroundColor: dlBgColor(), borderRadius:3,
+           font:{size:10, weight:'bold'}, color:GOLD, backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
          }},
@@ -621,7 +621,7 @@ function renderCharts(){
         {label:'Sol Rica Ag', type:'line', data:dias.map(d=>d.sol_rica_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, yAxisID:'y1', order:2, ...applyEnsayeLine(SILVER, dias.length),
          datalabels:{
            display:true, anchor:'end', align:'bottom', offset:6, clip:false,
-           font:{size:8, weight:'bold'}, color:SILVER, backgroundColor: dlBgColor(), borderRadius:3,
+           font:{size:10, weight:'bold'}, color:SILVER, backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : Math.round(v)
          }},
@@ -645,8 +645,10 @@ function renderCharts(){
         const procSet = new Set();
         dias.forEach(d=> Object.keys(d.mezcla||{}).forEach(k=>procSet.add(k)));
         const procNames = Array.from(procSet);
-        const datasets = procNames.map(name=>({
-          label: name,
+        const datasets = procNames.map(name=>{
+          const totalProc = dias.reduce((a,d)=>a+((d.mezcla && d.mezcla[name])||0),0);
+          return {
+          label: name+' ('+fmt(totalProc,0)+' t)',
           data: dias.map(d=> (d.mezcla && d.mezcla[name]) || 0),
           backgroundColor: colorForProcedencia(name),
           stack: 'mezcla',
@@ -658,7 +660,7 @@ function renderCharts(){
             padding:{top:2, bottom:2, left:5, right:5},
             formatter:(v)=> v ? Math.round(v) : ''
           }
-        }));
+        };});
         datasets.push({
           label:'Total del día', type:'line',
           data: dias.map(d=> d.mezcla_total||0),
@@ -679,8 +681,8 @@ function renderCharts(){
     {id:'ch2', title:'Trituración Diaria', type:'bar', alwaysLabels:true,
      mk:()=>({labels, datasets:[{label:'TON Trituración Seco', data:dias.map(d=>d.ton_trituracion_seco), backgroundColor:highlightColors(GOLD,n,selIdx),
         datalabels:{
-          display:true, anchor:'end', align:'top', offset:2, clip:false,
-          font:{size:8, weight:'bold'}, color: dlTextColor(),
+          display:true, anchor:'end', align:'top', offset:2, clip:false, rotation:-20,
+          font:{size:10, weight:'bold'}, color: dlTextColor(),
           backgroundColor: dlBgColor(), borderRadius:3,
           padding:{top:1, bottom:1, left:3, right:3},
           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
@@ -765,8 +767,8 @@ function renderCharts(){
      mk:()=>({labels, datasets:[
         {label:'NaCN Kg/Ton', data:dias.map(d=>d.nacn_real), backgroundColor:highlightColors('#5B9BD5',n,selIdx),
          datalabels:{
-           display:true, anchor:'end', align:'top', offset:2, clip:false,
-           font:{size:8, weight:'bold'}, color: dlTextColor(),
+           display:true, anchor:'end', align:'top', offset:2, clip:false, rotation:-20,
+           font:{size:10, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
