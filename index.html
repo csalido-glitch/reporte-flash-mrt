@@ -371,6 +371,24 @@ function promSimple(dias, key){
   if(!vals.length) return null;
   return vals.reduce((a,b)=>a+b,0)/vals.length;
 }
+// Offset dinámico para pares de series en ejes distintos (ej. Au/Ag) que pueden
+// cruzarse visualmente: mide la distancia real en píxeles entre el punto de cada
+// serie en el mismo día y, si están cerca, empuja ambas etiquetas más lejos de su
+// punto para que nunca se toquen, sin importar en qué día se crucen las líneas.
+function offsetDodge(dataA, dataB, farOffset, closeOffset, scaleAId, scaleBId, closeDist){
+  scaleAId = scaleAId || 'y'; scaleBId = scaleBId || 'y1'; closeDist = closeDist || 26;
+  return function(ctx){
+    const i = ctx.dataIndex;
+    const a = dataA[i], b = dataB[i];
+    if(a==null || b==null || isNaN(a) || isNaN(b)) return farOffset;
+    const chart = ctx.chart;
+    const yA = chart.scales[scaleAId], yB = chart.scales[scaleBId];
+    if(!yA || !yB) return farOffset;
+    const pxA = yA.getPixelForValue(a);
+    const pxB = yB.getPixelForValue(b);
+    return Math.abs(pxA-pxB) < closeDist ? closeOffset : farOffset;
+  };
+}
 // Tratamiento visual "ensaye pendiente": cuando state.ensayePendiente está activo
 // (celda TABLA!A2 = "Proyección"), la última barra/punto de las gráficas que dependen
 // de ensaye se dibuja hueca/punteada, para avisar que ese valor puede cambiar cuando
@@ -604,7 +622,9 @@ function renderCharts(){
      mk:()=>({labels, datasets:[
         {label:'M³ Bombeados', type:'bar', data:dias.map(d=>d.m3_bombeados), backgroundColor:'rgba(21,96,130,.32)', yAxisID:'y2', order:3,
          datalabels:{
-           display:true, anchor:'end', align:'top', offset:2, clip:false, rotation:-20,
+           display:true, anchor:'end', align:'top',
+           offset:offsetDodge(dias.map(d=>d.m3_bombeados), dias.map(d=>d.sol_rica_au), 2, 26, 'y2', 'y', 34),
+           clip:false, rotation:-20,
            font:{size:10, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
@@ -612,7 +632,7 @@ function renderCharts(){
          }},
         {label:'Sol Rica Au', type:'line', data:dias.map(d=>d.sol_rica_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, yAxisID:'y', order:1, ...applyEnsayeLine(GOLD, dias.length),
          datalabels:{
-           display:true, anchor:'end', align:'top', offset:6, clip:false,
+           display:true, anchor:'end', align:'top', offset:offsetDodge(dias.map(d=>d.sol_rica_au), dias.map(d=>d.sol_rica_ag), 6, 20), clip:false,
            font:{size:10, weight:'bold'}, color:GOLD, backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
@@ -620,7 +640,7 @@ function renderCharts(){
         {label:'Sol Estéril Au', type:'line', data:dias.map(d=>d.sol_esteril_au), borderColor:GOLD, backgroundColor:GOLD, borderDash:[4,3], tension:.25, yAxisID:'y', order:1, ...applyEnsayeLine(GOLD, dias.length)},
         {label:'Sol Rica Ag', type:'line', data:dias.map(d=>d.sol_rica_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, yAxisID:'y1', order:2, ...applyEnsayeLine(SILVER, dias.length),
          datalabels:{
-           display:true, anchor:'end', align:'bottom', offset:6, clip:false,
+           display:true, anchor:'end', align:'bottom', offset:offsetDodge(dias.map(d=>d.sol_rica_au), dias.map(d=>d.sol_rica_ag), 6, 20), clip:false,
            font:{size:10, weight:'bold'}, color:SILVER, backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : Math.round(v)
@@ -692,7 +712,7 @@ function renderCharts(){
      mk:()=>({labels, datasets:[
         {label:'Ley Au', data:dias.map(d=>d.ley_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, yAxisID:'y', ...applyEnsayeLine(GOLD, dias.length),
          datalabels:{
-           display:true, anchor:'end', align:'top', offset:2, clip:false,
+           display:true, anchor:'end', align:'top', offset:offsetDodge(dias.map(d=>d.ley_au), dias.map(d=>d.ley_ag), 2, 14), clip:false,
            font:{size:8, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
@@ -702,7 +722,7 @@ function renderCharts(){
          datalabels:{display:false}},
         {label:'Ley Ag', data:dias.map(d=>d.ley_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, yAxisID:'y1', ...applyEnsayeLine(SILVER, dias.length),
          datalabels:{
-           display:true, anchor:'end', align:'bottom', offset:2, clip:false,
+           display:true, anchor:'end', align:'bottom', offset:offsetDodge(dias.map(d=>d.ley_au), dias.map(d=>d.ley_ag), 2, 14), clip:false,
            font:{size:8, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
@@ -726,7 +746,7 @@ function renderCharts(){
      mk:()=>({labels, datasets:[
         {label:'Recuperación Au', data:dias.map(d=>d.recuperacion_au*100), borderColor:GOLD, backgroundColor:GOLD, tension:.25, ...applyEnsayeLine(GOLD, dias.length),
          datalabels:{
-           display:true, anchor:'end', align:'top', offset:2, clip:false,
+           display:true, anchor:'end', align:'top', offset:offsetDodge(dias.map(d=>d.recuperacion_au*100), dias.map(d=>d.recuperacion_ag*100), 2, 14, 'y', 'y'), clip:false,
            font:{size:8, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
@@ -734,7 +754,7 @@ function renderCharts(){
          }},
         {label:'Recuperación Ag', data:dias.map(d=>d.recuperacion_ag*100), borderColor:SILVER, backgroundColor:SILVER, tension:.25, ...applyEnsayeLine(SILVER, dias.length),
          datalabels:{
-           display:true, anchor:'end', align:'bottom', offset:2, clip:false,
+           display:true, anchor:'end', align:'bottom', offset:offsetDodge(dias.map(d=>d.recuperacion_au*100), dias.map(d=>d.recuperacion_ag*100), 2, 14, 'y', 'y'), clip:false,
            font:{size:8, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
