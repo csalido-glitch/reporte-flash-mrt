@@ -1407,7 +1407,9 @@ function checkUploadPin(){
 
 function handleFile(file){
   if(IS_LOCKED_COPY) return; // copia archivada: no admite nuevos datos
-  if(!checkUploadPin()) return;
+  // La contraseña ya se pidió antes de llegar aquí (al hacer clic o al soltar el
+  // archivo), para que el selector de archivos / el arrastre solo se habilite
+  // después de una contraseña correcta, no al revés.
   const reader = new FileReader();
   reader.onload = async function(e){
     // Mientras se procesa/guarda este archivo, el auto-refresh se salta su ciclo
@@ -1439,12 +1441,14 @@ function handleFile(file){
 
 const dz = document.getElementById('dropzone');
 const fi = document.getElementById('fileInput');
-dz.addEventListener('click', ()=>fi.click());
+dz.addEventListener('click', ()=>{ if(!IS_LOCKED_COPY && checkUploadPin()) fi.click(); });
 fi.addEventListener('change', ()=>{ if(fi.files[0]) handleFile(fi.files[0]); fi.value=''; });
 dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('drag'); });
 dz.addEventListener('dragleave', ()=> dz.classList.remove('drag'));
 dz.addEventListener('drop', e=>{
   e.preventDefault(); dz.classList.remove('drag');
+  if(IS_LOCKED_COPY) return;
+  if(!checkUploadPin()) return;
   if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
 });
 
@@ -1499,6 +1503,7 @@ document.getElementById('btnReset').onclick = async ()=>{
       return;
     }
   }
+  window.scrollTo({top:0, behavior:'smooth'});
   location.reload();
 };
 
@@ -1515,6 +1520,7 @@ document.getElementById('btnExport').onclick = ()=>{
   a.href = url; a.download = 'reporte_diario_mrt_'+state.mes+'.html';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  window.scrollTo({top:0, behavior:'smooth'});
 };
 
 function applyLockIfNeeded(){
@@ -1565,6 +1571,7 @@ document.getElementById('btnMaint').onclick = async ()=>{
     isMaintAdmin = true;
     applyMaintenanceUI();
     renderAll();
+    window.scrollTo({top:0, behavior:'smooth'});
   } else {
     if(!confirm('¿Reactivar el reporte para todos?')) return;
     state.paused = false;
