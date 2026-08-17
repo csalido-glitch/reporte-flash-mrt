@@ -245,7 +245,7 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
   <div class="charts-grid" id="chartsGrid"></div>
 
   <div class="dropzone-discreet" id="dropzone">
-    Arrastra aquí el Balance Metalúrgico Diario del mes (.xlsm) o haz clic para elegirlo
+    Actualizar BD
     <input type="file" id="fileInput" accept=".xlsx,.xlsm" style="display:none">
   </div>
 
@@ -731,14 +731,18 @@ function renderCharts(){
      scales:{ x:{stacked:true}, y:{stacked:true, beginAtZero:true} }},
     // Fila 4
     {id:'ch2', title:'Trituración Diaria', type:'bar', alwaysLabels:true,
-     mk:()=>({labels, datasets:[{label:'TON Trituración Seco', data:dias.map(d=>d.ton_trituracion_seco), backgroundColor:highlightColors(GOLD,n,selIdx),
+     mk:()=>({labels, datasets:[{label:'TON Trituración Húmeda', data:dias.map(d=>d.ton_humedas_trituracion), backgroundColor:highlightColors(GOLD,n,selIdx),
         datalabels:{
           display:true, anchor:'end', align:'top', offset:2, clip:false, rotation:-20,
           font:{size:10, weight:'bold'}, color: dlTextColor(),
           backgroundColor: dlBgColor(), borderRadius:3,
           padding:{top:1, bottom:1, left:3, right:3},
           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
-        }}]})},
+        }}]}),
+     badges:()=>[
+       {label:'Ton. Húmedas Acumuladas', value: fmt(dias.reduce((a,d)=>a+(Number(d.ton_humedas_trituracion)||0),0),0), color:GOLD},
+       {label:'Promedio', value: fmt(promSimple(dias,'ton_humedas_trituracion'),0), color:GOLD},
+     ]},
     // Fila 5
     {id:'ch6', title:'Comportamiento Leyes Alimentación - Cola Planta', type:'line', alwaysLabels:true,
      mk:()=>({labels, datasets:[
@@ -805,16 +809,53 @@ function renderCharts(){
        {label:'Proyección Ag', value:fmt(proyValue(dias,'proy_recup_ag')*100,1)+'%', color:SILVER, dash:true},
      ]},
     // Fila 6
-    {id:'ch5', title:'Eficiencia de Precipitación Au / Ag (%)', type:'line',
-     mk:()=>({labels, datasets:[
-        {label:'Au', data:dias.map(d=>d.eficiencia_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, ...applyEnsayeLine(GOLD, dias.length)},
-        {label:'Ag', data:dias.map(d=>d.eficiencia_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, ...applyEnsayeLine(SILVER, dias.length)},
-     ]}),
-     scales:{ y:{ type:'linear', min:0, max:100 }, x:{ ticks:{ callback: ensayeTickCallback(dias.length-1) } } },
-     badges:()=>[
-       {label:'Efic Au Promedio', value:fmt(promSimple(dias,'eficiencia_au'),1)+'%', color:GOLD},
-       {label:'Efic Ag Promedio', value:fmt(promSimple(dias,'eficiencia_ag'),1)+'%', color:SILVER},
-     ]},
+    {id:'ch5', title:'Eficiencia de Precipitación Au / Ag (%)', custom:true,
+     customHtml:()=>{
+        const auProm = fmt(promSimple(dias,'eficiencia_au'),1);
+        const agProm = fmt(promSimple(dias,'eficiencia_ag'),1);
+        return `<div class="chart-badges">
+          <span><span style="color:${GOLD};"><b>Efic Au Promedio:</b></span> <b class="chart-badge-value">${auProm}%</b></span>
+          <span><span style="color:${SILVER};"><b>Efic Ag Promedio:</b></span> <b class="chart-badge-value">${agProm}%</b></span>
+        </div>
+        <div class="canvas-wrap" style="height:150px"><canvas id="ch5a"></canvas></div>
+        <div class="canvas-wrap" style="height:160px; margin-top:6px;"><canvas id="ch5b"></canvas></div>`;
+     },
+     // Au y Ag suelen andar ambos en 97-99%: en una sola gráfica de 0-100 se ven
+     // pegadas y casi indistinguibles. Se separan en dos mini-gráficas apiladas
+     // (Au arriba, Ag abajo), cada una con su propia escala 90-100 para que se
+     // note bien la variación día a día de cada una.
+     customInit:()=>{
+        destroyChart('ch5a'); destroyChart('ch5b');
+        const dlFor = (color)=>({
+          display: showDataLabels, anchor:'end', align:'top', offset:4, clip:false,
+          font:{size:10, weight:'bold'}, color: dlTextColor(), backgroundColor: dlBgColor(), borderRadius:3,
+          padding:{top:1, bottom:1, left:3, right:3},
+          formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
+        });
+        const topPad = showDataLabels ? 26 : 8;
+        charts['ch5a'] = new Chart(document.getElementById('ch5a'), {
+          type:'line',
+          data:{ labels, datasets:[{label:'Au', data:dias.map(d=>d.eficiencia_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, ...applyEnsayeLine(GOLD, dias.length), datalabels:dlFor(GOLD)}] },
+          options:{
+            responsive:true, maintainAspectRatio:false,
+            devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
+            layout:{ padding:{ top: topPad } },
+            plugins:{ legend:{display:true, position:'top', align:'end', labels:{boxWidth:10, font:{size:9}}} },
+            scales: withDefaultXTicks({ x:{ ticks:{ display:false } }, y:{ type:'linear', min:90, max:100 } })
+          }
+        });
+        charts['ch5b'] = new Chart(document.getElementById('ch5b'), {
+          type:'line',
+          data:{ labels, datasets:[{label:'Ag', data:dias.map(d=>d.eficiencia_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, ...applyEnsayeLine(SILVER, dias.length), datalabels:dlFor(SILVER)}] },
+          options:{
+            responsive:true, maintainAspectRatio:false,
+            devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
+            layout:{ padding:{ top: topPad } },
+            plugins:{ legend:{display:true, position:'top', align:'end', labels:{boxWidth:10, font:{size:9}}} },
+            scales: withDefaultXTicks({ x:{ ticks:{ callback: ensayeTickCallback(dias.length-1) } }, y:{ type:'linear', min:90, max:100 } })
+          }
+        });
+     }},
     {id:'ch13', title:'NaCN Kg/Ton (Real vs Proyección)', type:'bar', alwaysLabels:true,
      mk:()=>({labels, datasets:[
         {label:'NaCN Kg/Ton', data:dias.map(d=>d.nacn_real), backgroundColor:highlightColors('#5B9BD5',n,selIdx),
@@ -876,7 +917,7 @@ function renderCharts(){
     return `<div class="chart-box${c.full?' full-row':''}" style="grid-column:${c.full?'1 / -1':'span '+(c.colSpan||2)}; ${widthStyle}"><h3>${c.title}</h3>${deltaHtml}${badgesHtml}<div class="canvas-wrap"><canvas id="${c.id}"></canvas></div>${noteHtml}</div>`;
   }).join('');
   CH.forEach(c=>{
-    if(c.custom) return;
+    if(c.custom){ if(c.customInit) c.customInit(); return; }
     destroyChart(c.id);
     const built = c.mk();
 
