@@ -125,6 +125,7 @@ button.action:hover{filter:brightness(1.08);}
 .chart-box h3{ margin:0 0 8px; font-size:13px; color:var(--navy); }
 .chart-box .canvas-wrap{ position:relative; height:320px; }
 .chart-badges{ display:flex; gap:22px; justify-content:center; flex-wrap:wrap; font-size:12.5px; margin:-4px 0 2px; }
+.chart-note{ text-align:center; font-size:11px; color:#999; margin-top:6px; font-style:italic; }
 .chart-badges b{ font-size:15px; }
 .chart-badges-proy{ margin:0 0 8px; }
 .chart-delta{ text-align:center; font-size:13px; font-weight:700; margin:-2px 0 6px; }
@@ -171,6 +172,7 @@ body[data-theme="dark"] .stock-box .val{background:#20262c;border-color:#3a444c;
 body[data-theme="dark"] .chart-box{background:#20262c;border-color:#333c44;}
 body[data-theme="dark"] .chart-box h3{color:#e2e2e2;}
 body[data-theme="dark"] .chart-badge-value{color:#e2e2e2;}
+body[data-theme="dark"] .chart-note{color:#8a8f94;}
 body[data-theme="dark"] .stock-proc-head,body[data-theme="dark"] .stock-proc-empty{color:#9a9587;}
 body[data-theme="dark"] .stock-proc-name,body[data-theme="dark"] .stock-proc-val{color:#e2e2e2;}
 body[data-theme="dark"] .stock-proc-bar-wrap{background:#3a3325;}
@@ -659,8 +661,8 @@ function renderCharts(){
        {label:'Sol Rica Au Promedio', value: fmt(promSimple(dias,'sol_rica_au'),2), color:GOLD},
        {label:'Sol Rica Ag Promedio', value: fmt(promSimple(dias,'sol_rica_ag'),1), color:SILVER},
      ]},
-    {id:'stockProc', title:'Stock por Procedencia', full:true, widthPct:75, custom:true, customHtml: stockProcedenciaHtml},
-    {id:'chMezcla', title:'Mezcla Alimentada por Procedencia (Diario)', type:'bar', full:true, alwaysLabels:true,
+    {id:'stockProc', title:'Stock Estimado por Procedencia', full:true, widthPct:75, custom:true, customHtml: stockProcedenciaHtml, note:'Tonelaje Húmedo'},
+    {id:'chMezcla', title:'Mezcla Alimentada por Procedencia (Diario)', type:'bar', full:true, alwaysLabels:true, note:'Tonelaje Húmedo',
      mk:()=>{
         const procSet = new Set();
         dias.forEach(d=> Object.keys(d.mezcla||{}).forEach(k=>procSet.add(k)));
@@ -807,7 +809,8 @@ function renderCharts(){
   grid.innerHTML = CH.map(c=>{
     if(c.custom){
       const customWidthStyle = c.widthPct ? `width:${c.widthPct}%; max-width:${c.widthPct}%; margin:0 auto; justify-self:center;` : '';
-      return `<div class="chart-box${c.full?' full-row':''}" style="grid-column:${c.full?'1 / -1':'span '+(c.colSpan||2)}; ${customWidthStyle}"><h3>${c.title}</h3>${c.customHtml()}</div>`;
+      const noteHtml = c.note ? `<div class="chart-note">${c.note}</div>` : '';
+      return `<div class="chart-box${c.full?' full-row':''}" style="grid-column:${c.full?'1 / -1':'span '+(c.colSpan||2)}; ${customWidthStyle}"><h3>${c.title}</h3>${c.customHtml()}${noteHtml}</div>`;
     }
     const badgeSpan = (b)=>{
       // El color de la serie solo identifica la etiqueta (nombre); el valor va en
@@ -839,7 +842,8 @@ function renderCharts(){
       deltaHtml = `<div class="chart-delta" style="color:${color};">${arrow} ${sign}${fmt(dl.diff,dl.dec)} ${dl.unit} (${sign}${fmt(dl.pct,1)}%) vs Ptto</div>`;
     }
     const widthStyle = c.widthPct ? `width:${c.widthPct}%; max-width:${c.widthPct}%; margin:0 auto; justify-self:center;` : '';
-    return `<div class="chart-box${c.full?' full-row':''}" style="grid-column:${c.full?'1 / -1':'span '+(c.colSpan||2)}; ${widthStyle}"><h3>${c.title}</h3>${deltaHtml}${badgesHtml}<div class="canvas-wrap"><canvas id="${c.id}"></canvas></div></div>`;
+    const noteHtml = c.note ? `<div class="chart-note">${c.note}</div>` : '';
+    return `<div class="chart-box${c.full?' full-row':''}" style="grid-column:${c.full?'1 / -1':'span '+(c.colSpan||2)}; ${widthStyle}"><h3>${c.title}</h3>${deltaHtml}${badgesHtml}<div class="canvas-wrap"><canvas id="${c.id}"></canvas></div>${noteHtml}</div>`;
   }).join('');
   CH.forEach(c=>{
     if(c.custom) return;
@@ -929,7 +933,10 @@ function stockProcedenciaHtml(){
   const list = state.stockProcedencia || [];
   const last = lastDiaConDato();
   const fechaLabel = last ? diaLabel(state.dias[last-1]) : '';
-  const totalTxt = fmt(state.stock ? state.stock.stock_estimado : null, 0);
+  // El total se suma directo de las procedencias que se muestran en la lista (no de
+  // un dato general aparte), para que siempre cuadre con lo que se ve en pantalla.
+  const totalCalc = list.length ? list.reduce((a,p)=>a+(Number(p.valor)||0),0) : (state.stock ? state.stock.stock_estimado : null);
+  const totalTxt = fmt(totalCalc, 0);
   if(!list.length){
     return `<div class="stock-proc-head"><span>Stock al día ${fechaLabel}: ${totalTxt} t</span></div><div class="stock-proc-empty">Sin desglose por procedencia en este archivo.</div>`;
   }
