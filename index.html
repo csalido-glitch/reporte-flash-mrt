@@ -512,7 +512,7 @@ function renderFlash(){
   <div class="flash-wrap">
     <div class="stock-box">
       <div class="lbl">Stock Estimado</div>
-      <div class="val">${fmt(state.stock.stock_estimado,0)}</div>
+      <div class="val">${fmt(stockEstimadoTotal(),0)}</div>
     </div>
     <div class="flash-card">
       <div class="flash-title">Cieneguita Mining — Reporte Flash</div>
@@ -927,16 +927,21 @@ function colorForProcedencia(nombre){
   if(!procColorMap[nombre]) procColorMap[nombre] = MEZCLA_PALETTE[procColorIdx++ % MEZCLA_PALETTE.length];
   return procColorMap[nombre];
 }
+// Total de Stock Estimado: se suma directo de las procedencias que se muestran en
+// "Stock Estimado por Procedencia" (no de un dato general aparte), para que este
+// mismo número cuadre siempre con la caja de arriba del Flash y con esa gráfica.
+function stockEstimadoTotal(){
+  const list = state.stockProcedencia || [];
+  if(list.length) return list.reduce((a,p)=>a+(Number(p.valor)||0),0);
+  return state.stock ? state.stock.stock_estimado : null;
+}
 // Desglose de Stock por procedencia: bloque de HTML (no es una gráfica de Chart.js) con
 // una barra por procedencia, ordenado de mayor a menor.
 function stockProcedenciaHtml(){
   const list = state.stockProcedencia || [];
   const last = lastDiaConDato();
   const fechaLabel = last ? diaLabel(state.dias[last-1]) : '';
-  // El total se suma directo de las procedencias que se muestran en la lista (no de
-  // un dato general aparte), para que siempre cuadre con lo que se ve en pantalla.
-  const totalCalc = list.length ? list.reduce((a,p)=>a+(Number(p.valor)||0),0) : (state.stock ? state.stock.stock_estimado : null);
-  const totalTxt = fmt(totalCalc, 0);
+  const totalTxt = fmt(stockEstimadoTotal(), 0);
   if(!list.length){
     return `<div class="stock-proc-head"><span>Stock al día ${fechaLabel}: ${totalTxt} t</span></div><div class="stock-proc-empty">Sin desglose por procedencia en este archivo.</div>`;
   }
