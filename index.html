@@ -1441,7 +1441,13 @@ function handleFile(file){
 
 const dz = document.getElementById('dropzone');
 const fi = document.getElementById('fileInput');
-dz.addEventListener('click', ()=>{ if(!IS_LOCKED_COPY && checkUploadPin()) fi.click(); });
+dz.addEventListener('click', (e)=>{
+  // fi.click() dispara un evento de clic sobre el input que burbujea de vuelta a dz
+  // (fi está dentro de dz): sin este filtro, ese burbujeo re-disparaba este mismo
+  // listener y pedía la contraseña dos veces sin llegar a abrir el selector.
+  if(e.target === fi) return;
+  if(!IS_LOCKED_COPY && checkUploadPin()) fi.click();
+});
 fi.addEventListener('change', ()=>{ if(fi.files[0]) handleFile(fi.files[0]); fi.value=''; });
 dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('drag'); });
 dz.addEventListener('dragleave', ()=> dz.classList.remove('drag'));
