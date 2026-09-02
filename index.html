@@ -376,7 +376,28 @@ async function registerVisit(){
   if(!state.visitas) state.visitas = {total:0, porDia:{}};
   state.visitas.total = (state.visitas.total||0) + 1;
   state.visitas.porDia[hoy] = (state.visitas.porDia[hoy]||0) + 1;
-  await saveState();
+  try{
+    // Blindaje adicional: en vez de guardar el "dias/totales/stock" que esta pestaña
+    // tenga en memoria (podría llevar un rato abierta y estar desactualizada), se
+    // vuelve a leer la fila más reciente justo antes de guardar y solo se le suma el
+    // contador de visitas encima, para nunca arriesgarse a pisar una captura reciente.
+    const { data: rows, error } = await sb.from('flash_reportes').select('periodo,data').order('updated_at',{ascending:false}).limit(1);
+    if(error) throw error;
+    if(rows && rows.length){
+      const fresh = rows[0].data || {};
+      fresh.visitas = state.visitas;
+      const { error: upErr } = await sb.from('flash_reportes').upsert({
+        periodo: rows[0].periodo,
+        data: fresh,
+        updated_at: new Date().toISOString()
+      });
+      if(upErr) throw upErr;
+    } else {
+      await saveState();
+    }
+  }catch(e){
+    console.error('No se pudo registrar la visita', e);
+  }
   sessionStorage.setItem('flashVisitCounted', '1');
   renderVisitas();
 }
@@ -508,7 +529,13 @@ function renderDayChips(){
     chip.textContent = i;
     chip.title = hasData ? diaLabel(d) : 'sin datos';
     if(hasData){
-      chip.onclick = ()=>{ state.selectedDay = i; saveState(); renderAll(); };
+      // Solo cambia qué día se está VIENDO (algo local de quien mira la pantalla).
+      // OJO: nunca debe llamar a saveState() aquí — eso reescribiría en la base de
+      // datos compartida el "dias"/"totales"/"stock" completos con lo que esa pestaña
+      // tenga en memoria en ese momento, y si esa pestaña llevaba un rato abierta con
+      // datos desactualizados, un simple clic para ver un día borraría el último día
+      // capturado por otra persona (esto causó el bug de "el día 31 desaparece solo").
+      chip.onclick = ()=>{ state.selectedDay = i; renderAll(); };
     }
     if(i===last && state.ensayePendiente){
       chip.classList.add('day-chip-proy');
