@@ -232,6 +232,12 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
 
   <div class="locked-banner" id="lockedBanner" style="display:none">🔒 Copia archivada de <b id="lockedMes"></b> — solo lectura, no admite nuevos datos.</div>
 
+  <div class="locked-banner" id="historyBanner" style="display:none">
+    📁 <b>Histórico</b> (solo lectura) — mes:
+    <select id="historySelect" style="font-size:12px;padding:2px 6px;border-radius:4px;border:1px solid #c9b27a;"></select>
+    &nbsp;·&nbsp;<a href="javascript:void(0)" id="historyBackLink" style="color:#8a6a17;">volver al mes en vivo</a>
+  </div>
+
   <div class="sticky-head" id="stickyHead">
     <p class="last-updated" id="lastUpdated"></p>
     <div class="toolbar">
@@ -258,6 +264,8 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
   <div class="discreet-actions">
     <button class="maint-footer-link" id="btnExport">💾 Guardar copia de este mes</button>
     <button class="maint-footer-link" id="btnReset">🔄 Restablecer (mes nuevo)</button>
+    <button class="maint-footer-link" id="btnVerHistorial">📅 Histórico</button>
+    <button class="maint-footer-link" id="btnExportXlsx">📥 Exportar a Excel</button>
     <button class="maint-footer-link theme-toggle" id="btnTheme">🌙 Modo oscuro</button>
   </div>
 
@@ -269,14 +277,34 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
 
 <div class="pin-modal-overlay" id="pinModalOverlay" style="display:none;">
   <div class="pin-modal-box">
-    <div class="pin-modal-icon">🔒</div>
-    <div class="pin-modal-title">Contraseña para actualizar datos</div>
+    <div class="pin-modal-icon" id="pinModalIcon">🔒</div>
+    <div class="pin-modal-title" id="pinModalTitle">Contraseña para actualizar datos</div>
     <div class="pin-modal-sub">Ingresa la contraseña para continuar</div>
     <input type="password" class="pin-modal-input" id="pinModalInput" placeholder="••••••••">
     <div class="pin-modal-error" id="pinModalError" style="display:none;">Contraseña incorrecta.</div>
     <div class="pin-modal-btns">
       <button class="pin-modal-btn pin-modal-cancel" id="pinModalCancel">Cancelar</button>
       <button class="pin-modal-btn pin-modal-ok" id="pinModalOk">Continuar</button>
+    </div>
+  </div>
+</div>
+
+<div class="pin-modal-overlay" id="exportModalOverlay" style="display:none;">
+  <div class="pin-modal-box" style="width:320px;text-align:left;">
+    <div class="pin-modal-title" style="text-align:center;margin-bottom:10px;">📥 Exportar a Excel</div>
+    <label style="display:block;font-size:12.5px;margin-bottom:10px;">
+      <input type="radio" name="exportScope" id="exportScopeMes" checked>
+      Un mes específico:
+      <select id="exportMesSelect" style="margin-left:4px;font-size:12px;padding:2px 4px;max-width:150px;"></select>
+    </label>
+    <label style="display:block;font-size:12.5px;">
+      <input type="radio" name="exportScope" id="exportScopeTodo">
+      Toda la base de datos (todos los meses)
+    </label>
+    <div class="pin-modal-error" id="exportModalError" style="display:none;">No hay meses capturados en la base de datos.</div>
+    <div class="pin-modal-btns">
+      <button class="pin-modal-btn pin-modal-cancel" id="exportModalCancel">Cancelar</button>
+      <button class="pin-modal-btn pin-modal-ok" id="exportModalOk">Exportar</button>
     </div>
   </div>
 </div>
@@ -291,6 +319,12 @@ const IS_LOCKED_COPY = false;
 const SUPABASE_URL = 'https://vknnwhivhqzbyeqnnegy.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrbm53aGl2aHF6YnllcW5uZWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyMjA3ODAsImV4cCI6MjEwMTc5Njc4MH0._1bIE726QDVcWnN9LaC8CKoM2IVoCNA4ncouyx2Zl5Y';
 const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+// Pestaña de historial: se abre con ?historial=1 (opcionalmente ?ver=2026-08 para ir
+// directo a un mes). Es de solo lectura: no auto-refresh, no sube archivos, no toca
+// la fila "en vivo" de ningún mes — nada más lee lo que ya está capturado en la BD.
+const _historyParams = new URLSearchParams(location.search);
+const IS_HISTORY_TAB = _historyParams.has('historial') || _historyParams.has('ver');
+const HISTORY_INITIAL_PERIODO = _historyParams.get('ver') || null;
 const BASE_DATA = {"mes": "2026-08", "dias": [{"dia": 1, "fecha": "2026-08-01", "ton_humedas_trituracion": 1230, "horas_trituracion": 12.66, "molido_humedo": 1086.2999999999884, "molido_seco": 1008.4159599999891, "horas_molienda": 19.6, "ley_au": 1.4177857133954919, "ley_ag": 73.59864586038431, "recuperacion_au": 0.9336000488703918, "recuperacion_ag": 0.706347071760919, "m3_bombeados": 2842.1, "sol_rica_au": 0.5216232081911263, "sol_rica_ag": 21.04729419795222, "sol_esteril_au": 0.008507849829351537, "sol_esteril_ag": 0.18452832764505123, "oz_precipitadas_au": 46.88624472121968, "oz_precipitadas_ag": 1906.3486021540264, "precio_au_usd": 4054.64, "oz_eq_au": 74.14639406934688, "p80_real": 49.8147994167011, "ton_trituracion_seco": 1141.8374507918024, "ton_molienda_seco": 1008.4159599999891, "eficiencia_au": 98.36896639264675, "eficiencia_ag": 99.1232681697251, "proy_ton_acum": 1096.774193548387, "real_ton_acum": 1008.4159599999891, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 67.25806451612904, "real_oz_acum": 74.14639406934688, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 2.141973238900367, "comentario": "*Relación alimentación Realito", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 69.93170058640911}, {"dia": 2, "fecha": "2026-08-02", "ton_humedas_trituracion": 1595, "horas_trituracion": 17.83, "molido_humedo": 1267.0999999999767, "molido_seco": 1179.7100299999786, "horas_molienda": 23.3, "ley_au": 1.526855764953952, "ley_ag": 75.40459528007919, "recuperacion_au": 0.9570429389020111, "recuperacion_ag": 0.7383980056550622, "m3_bombeados": 2834.16, "sol_rica_au": 0.5595594744121716, "sol_rica_ag": 21.007031120331952, "sol_esteril_au": 0.010444674965421856, "sol_esteril_ag": 0.3731473029045643, "oz_precipitadas_au": 50.0355403768416, "oz_precipitadas_ag": 1880.1670031806639, "precio_au_usd": 4054.72, "oz_eq_au": 77.01814778625157, "p80_real": 62.503351678717166, "ton_trituracion_seco": 1484.1294781690592, "ton_molienda_seco": 1179.7100299999786, "eficiencia_au": 98.1334111130199, "eficiencia_ag": 98.22370281280058, "proy_ton_acum": 2193.548387096774, "real_ton_acum": 2188.1259899999677, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 134.51612903225808, "real_oz_acum": 151.16454185559846, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 1.8309584093305022, "comentario": "*Relación alimentación Realito", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 69.68070115140058}, {"dia": 3, "fecha": "2026-08-03", "ton_humedas_trituracion": 1330, "horas_trituracion": 16.990000000000002, "molido_humedo": 1202, "molido_seco": 1108.9051000000004, "horas_molienda": 23.8, "ley_au": 1.9259949936202674, "ley_ag": 84.35938335931453, "recuperacion_au": 0.9463965552094978, "recuperacion_ag": 0.7768202775920946, "m3_bombeados": 2722.56, "sol_rica_au": 0.6814851904090269, "sol_rica_ag": 25.30263328631876, "sol_esteril_au": 0.011051480959097321, "sol_esteril_ag": 0.3732277856135402, "oz_precipitadas_au": 58.684631721408, "oz_precipitadas_ag": 2182.129210124076, "precio_au_usd": 4048.58, "oz_eq_au": 90.33929792797598, "p80_real": 62.69452324098787, "ton_trituracion_seco": 1223.7409939475451, "ton_molienda_seco": 1108.9051000000004, "eficiencia_au": 98.37832411993219, "eficiencia_ag": 98.52494488858066, "proy_ton_acum": 3290.322580645161, "real_ton_acum": 3297.031089999968, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 201.77419354838713, "real_oz_acum": 241.50383978357445, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 1.9478673152463621, "comentario": "*Relación alimentación Realito", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 68.93546739315512}, {"dia": 4, "fecha": "2026-08-04", "ton_humedas_trituracion": 1694, "horas_trituracion": 19, "molido_humedo": 1079, "molido_seco": 991.4310200000002, "horas_molienda": 21.6, "ley_au": 1.3731356707398568, "ley_ag": 61.46823279747701, "recuperacion_au": 0.9630912722674175, "recuperacion_ag": 0.7081906916747469, "m3_bombeados": 2873.2799999999997, "sol_rica_au": 0.6699953224189776, "sol_rica_ag": 24.404455061810896, "sol_esteril_au": 0.010499164717674574, "sol_esteril_ag": 0.2344861343133979, "oz_precipitadas_au": 60.92300280600576, "oz_precipitadas_ag": 2232.7758359100635, "precio_au_usd": 4154.86, "oz_eq_au": 93.90256241807467, "p80_real": 61.81270688100919, "ton_trituracion_seco": 1556.3543906498176, "ton_molienda_seco": 991.4310200000002, "eficiencia_au": 98.43294954959269, "eficiencia_ag": 99.03916668608458, "proy_ton_acum": 4387.096774193548, "real_ton_acum": 4288.462109999969, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 2.178668970837729, "comentario": "*Relación alimentación Realito", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 67.70180870131986}, {"dia": 5, "fecha": "2026-08-05", "ton_humedas_trituracion": 800, "horas_trituracion": 12.33, "molido_humedo": 1016.0000000000291, "molido_seco": 927.3775600000268, "horas_molienda": 23.5, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 2880.3, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 4271.09, "oz_eq_au": 0, "p80_real": 66.76173270356028, "ton_trituracion_seco": 730.2398533261116, "ton_molienda_seco": 927.3775600000268, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 2.424039675922216, "comentario": "*Relación alimentación Realito", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 69.11148867313916}, {"dia": 6, "fecha": "2026-08-06", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 7, "fecha": "2026-08-07", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 8, "fecha": "2026-08-08", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 9, "fecha": "2026-08-09", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 10, "fecha": "2026-08-10", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 11, "fecha": "2026-08-11", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 12, "fecha": "2026-08-12", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 13, "fecha": "2026-08-13", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 14, "fecha": "2026-08-14", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 15, "fecha": "2026-08-15", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 16, "fecha": "2026-08-16", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 17, "fecha": "2026-08-17", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 18, "fecha": "2026-08-18", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 19, "fecha": "2026-08-19", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 20, "fecha": "2026-08-20", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 21, "fecha": "2026-08-21", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 22, "fecha": "2026-08-22", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 23, "fecha": "2026-08-23", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 24, "fecha": "2026-08-24", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 25, "fecha": "2026-08-25", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 26, "fecha": "2026-08-26", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 27, "fecha": "2026-08-27", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 28, "fecha": "2026-08-28", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 29, "fecha": "2026-08-29", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 30, "fecha": "2026-08-30", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 31, "fecha": "2026-08-31", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}], "totales": {"proy_ton_total": 5483.870967741936, "real_ton_total": 5215.839669999996, "proy_oz_total": 269.03225806451616, "real_oz_total": 335.40640220164914}, "stock": {"toneladas_recibidas": 347400.9, "diferencia": 19884.28999999992, "mineral_triturado": 7342, "stock_estimado": 27226.28999999992}};
 const COLORS = ['#5B9BD5','#ED7D31','#9a9a9a','#4EA72E','#B8912A','#A02B93','#156082','#E8A33D','#70AD47','#264478'];
 const MESES_ES = {1:'ene',2:'feb',3:'mar',4:'abr',5:'may',6:'jun',7:'jul',8:'ago',9:'sep',10:'oct',11:'nov',12:'dic'};
@@ -1505,14 +1539,18 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
 // Usa un cuadro propio (no el prompt() nativo del navegador): un prompt() nativo consume
 // el "gesto del usuario" y en algunos navegadores eso impedía que, justo después, se
 // pudiera abrir el selector de archivos con fi.click() en el mismo clic.
-function checkUploadPin(){
+// checkPin: candado genérico reutilizable, usa el mismo cuadro visual para cualquier
+// contraseña (actualizar datos, exportar, etc.) — solo cambia el texto y el valor esperado.
+function checkPin(expectedPin, title){
   return new Promise((resolve)=>{
     const overlay = document.getElementById('pinModalOverlay');
     const input = document.getElementById('pinModalInput');
     const errorEl = document.getElementById('pinModalError');
     const btnOk = document.getElementById('pinModalOk');
     const btnCancel = document.getElementById('pinModalCancel');
+    const titleEl = document.getElementById('pinModalTitle');
 
+    if(titleEl) titleEl.textContent = title || 'Contraseña para actualizar datos';
     input.value = '';
     errorEl.style.display = 'none';
     overlay.style.display = 'flex';
@@ -1525,7 +1563,7 @@ function checkUploadPin(){
       input.removeEventListener('keydown', onKeydown);
     }
     function onOk(){
-      if(input.value === 'cesarG83'){ cleanup(); resolve(true); }
+      if(input.value === expectedPin){ cleanup(); resolve(true); }
       else { errorEl.style.display = 'block'; input.value=''; input.focus(); }
     }
     function onCancel(){ cleanup(); resolve(false); }
@@ -1537,6 +1575,12 @@ function checkUploadPin(){
     btnCancel.addEventListener('click', onCancel);
     input.addEventListener('keydown', onKeydown);
   });
+}
+function checkUploadPin(){
+  return checkPin('cesarG83', 'Contraseña para actualizar datos');
+}
+function checkExportPin(){
+  return checkPin('cesar_salido', 'Contraseña para exportar a Excel');
 }
 
 function handleFile(file){
@@ -1671,6 +1715,7 @@ function applyLockIfNeeded(){
   document.getElementById('btnReset').style.display = 'none';
   document.getElementById('btnExport').style.display = 'none';
   document.getElementById('btnMaint').style.display = 'none';
+  document.getElementById('btnExportXlsx').style.display = 'none';
   const banner = document.getElementById('lockedBanner');
   banner.style.display = 'block';
   document.getElementById('lockedMes').textContent = state.mes || '';
@@ -1729,7 +1774,223 @@ document.getElementById('btnTheme').onclick = ()=>{
 };
 applyTheme(localStorage.getItem('flashTheme') === 'dark');
 
+// ── Exportar a Excel (mes específico o toda la base de datos) ──────────────
+const DIAS_COLS_EXPORT = [
+  ['dia','Día'], ['fecha','Fecha'],
+  ['ton_humedas_trituracion','Ton. Húmedas Trituración'], ['horas_trituracion','Horas Trituración'],
+  ['molido_humedo','Molido Húmedo'], ['molido_seco','Molido Seco'], ['horas_molienda','Horas Molienda'],
+  ['ley_au','Ley Au (g/t)'], ['ley_ag','Ley Ag (g/t)'],
+  ['recuperacion_au','Recuperación Au'], ['recuperacion_ag','Recuperación Ag'],
+  ['m3_bombeados','M³ Bombeados'],
+  ['sol_rica_au','Sol. Rica Au'], ['sol_rica_ag','Sol. Rica Ag'],
+  ['sol_esteril_au','Sol. Estéril Au'], ['sol_esteril_ag','Sol. Estéril Ag'],
+  ['oz_precipitadas_au','Oz Precipitadas Au'], ['oz_precipitadas_ag','Oz Precipitadas Ag'],
+  ['precio_au_usd','Precio Au (USD)'], ['ratio_au_ag','Ratio Au/Ag'], ['oz_eq_au','Oz Eq. Au'],
+  ['p80_real','P80 Real'], ['ton_trituracion_seco','Ton. Trituración Seco'], ['ton_molienda_seco','Ton. Molienda Seco'],
+  ['eficiencia_au','Eficiencia Au'], ['eficiencia_ag','Eficiencia Ag'],
+  ['proy_ton_acum','Proy. Ton. Acum.'], ['real_ton_acum','Real Ton. Acum.'],
+  ['proy_oz_dia','Proy. Oz Día'], ['proy_oz_acum','Proy. Oz Acum.'], ['real_oz_acum','Real Oz Acum.'],
+  ['proy_p80','Proy. P80'], ['proy_ley_au_banda','Proy. Ley Au Banda'], ['proy_ley_ag_banda','Proy. Ley Ag Banda'],
+  ['proy_recup_au','Proy. Recup. Au'], ['proy_recup_ag','Proy. Recup. Ag'], ['proy_molienda_dia','Proy. Molienda Día'],
+  ['nacn_real','NaCN Real'], ['proy_nacn','Proy. NaCN'],
+  ['mezcla_total','Mezcla Total'], ['comentario','Comentario'],
+];
+function labelPeriodo(periodo){
+  const [y,m] = String(periodo).split('-').map(Number);
+  return (MESES_ES_FULL[m]||periodo) + ' ' + y;
+}
+function lastDiaConDatoDe(dias){
+  let last = 0;
+  (dias||[]).forEach(d=>{ if(d && d.ton_humedas_trituracion>0) last = d.dia; });
+  return last;
+}
+function buildSheetForPeriod(periodo, d){
+  const rows = [];
+  rows.push(['Reporte Flash — ' + labelPeriodo(periodo)]);
+  rows.push([]);
+  rows.push(DIAS_COLS_EXPORT.map(c=>c[1]));
+  const dias = d.dias || [];
+  const last = lastDiaConDatoDe(dias);
+  dias.forEach(dia=>{
+    if(!dia || (last>0 && dia.dia>last)) return;
+    rows.push(DIAS_COLS_EXPORT.map(c=>{
+      const v = dia[c[0]];
+      return (v===undefined || v===null) ? '' : v;
+    }));
+  });
+  rows.push([]);
+  rows.push(['TOTALES DEL MES']);
+  const tot = d.totales || {};
+  rows.push(['Proy. Ton. Total', tot.proy_ton_total ?? '']);
+  rows.push(['Real Ton. Total', tot.real_ton_total ?? '']);
+  rows.push(['Proy. Oz Total', tot.proy_oz_total ?? '']);
+  rows.push(['Real Oz Total', tot.real_oz_total ?? '']);
+  rows.push([]);
+  rows.push(['STOCK']);
+  const st = d.stock || {};
+  rows.push(['Toneladas Recibidas', st.toneladas_recibidas ?? '']);
+  rows.push(['Diferencia', st.diferencia ?? '']);
+  rows.push(['Mineral Triturado', st.mineral_triturado ?? '']);
+  rows.push(['Stock Estimado', st.stock_estimado ?? '']);
+  return XLSX.utils.aoa_to_sheet(rows);
+}
+function safeSheetName(periodo){
+  // Los nombres de hoja en Excel no admiten ciertos caracteres y tienen máx. 31 chars;
+  // "2026-08" ya cumple, esto es solo por seguridad ante formatos inesperados.
+  return String(periodo).replace(/[\\/?*[\]:]/g,'-').slice(0,31);
+}
+async function poblarSelectorExport(){
+  const sel = document.getElementById('exportMesSelect');
+  if(!sel) return [];
+  let rows = null;
+  if(sb){
+    const res = await sb.from('flash_reportes').select('periodo').order('periodo',{ascending:false});
+    if(!res.error) rows = res.data;
+  }
+  if(!rows || !rows.length){
+    // Sin conexión a la base o sin filas: al menos ofrece el mes que ya está cargado en esta pestaña.
+    rows = [{periodo: state.mes}];
+  }
+  sel.innerHTML = rows.map(r=> `<option value="${r.periodo}">${labelPeriodo(r.periodo)}</option>`).join('');
+  if(rows.some(r=>r.periodo===state.mes)) sel.value = state.mes;
+  return rows.map(r=>r.periodo);
+}
+// Modal de selección de alcance (mes específico / toda la BD), mismo patrón de promesa que checkPin.
+function pedirOpcionExportar(){
+  return new Promise(async (resolve)=>{
+    const overlay = document.getElementById('exportModalOverlay');
+    const radioMes = document.getElementById('exportScopeMes');
+    const radioTodo = document.getElementById('exportScopeTodo');
+    const sel = document.getElementById('exportMesSelect');
+    const errorEl = document.getElementById('exportModalError');
+    const btnOk = document.getElementById('exportModalOk');
+    const btnCancel = document.getElementById('exportModalCancel');
+
+    errorEl.style.display = 'none';
+    radioMes.checked = true; radioTodo.checked = false;
+    const periodos = await poblarSelectorExport();
+    if(!periodos.length){ errorEl.style.display = 'block'; }
+    overlay.style.display = 'flex';
+
+    function cleanup(){
+      overlay.style.display = 'none';
+      btnOk.removeEventListener('click', onOk);
+      btnCancel.removeEventListener('click', onCancel);
+    }
+    function onOk(){
+      if(radioTodo.checked){ cleanup(); resolve({scope:'todo'}); }
+      else {
+        if(!sel.value){ errorEl.style.display = 'block'; return; }
+        cleanup(); resolve({scope:'mes', periodo: sel.value});
+      }
+    }
+    function onCancel(){ cleanup(); resolve(null); }
+    btnOk.addEventListener('click', onOk);
+    btnCancel.addEventListener('click', onCancel);
+  });
+}
+async function generarExcelExport(opcion){
+  const wb = XLSX.utils.book_new();
+  if(opcion.scope === 'mes'){
+    let d;
+    if(opcion.periodo === state.mes){
+      d = {dias: state.dias, totales: state.totales, stock: state.stock};
+    } else if(sb){
+      const { data, error } = await sb.from('flash_reportes').select('data').eq('periodo', opcion.periodo).maybeSingle();
+      if(error || !data || !data.data){ alert('No se encontraron datos capturados para ese mes.'); return; }
+      d = data.data;
+    } else { alert('No hay conexión a la base de datos.'); return; }
+    XLSX.utils.book_append_sheet(wb, buildSheetForPeriod(opcion.periodo, d), safeSheetName(opcion.periodo));
+    XLSX.writeFile(wb, 'Flash_Export_'+opcion.periodo+'.xlsx');
+  } else {
+    if(!sb){ alert('No hay conexión a la base de datos.'); return; }
+    const { data: rows, error } = await sb.from('flash_reportes').select('periodo,data').order('periodo',{ascending:true});
+    if(error || !rows || !rows.length){ alert('No se encontraron meses capturados en la base de datos.'); return; }
+    // Hoja de resumen general primero, para tener de un vistazo los totales de todos los meses.
+    const resumenRows = [['Periodo','Mes','Real Ton. Total','Proy. Ton. Total','Real Oz Total','Proy. Oz Total','Stock Estimado']];
+    rows.forEach(r=>{
+      const d = r.data || {};
+      const tot = d.totales || {}; const st = d.stock || {};
+      resumenRows.push([r.periodo, labelPeriodo(r.periodo), tot.real_ton_total ?? '', tot.proy_ton_total ?? '', tot.real_oz_total ?? '', tot.proy_oz_total ?? '', st.stock_estimado ?? '']);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumenRows), 'Resumen General');
+    rows.forEach(r=>{
+      XLSX.utils.book_append_sheet(wb, buildSheetForPeriod(r.periodo, r.data||{}), safeSheetName(r.periodo));
+    });
+    XLSX.writeFile(wb, 'Flash_Export_Completo_'+hoyLocal()+'.xlsx');
+  }
+}
+document.getElementById('btnExportXlsx').onclick = async ()=>{
+  if(!(await checkExportPin())) return;
+  const opcion = await pedirOpcionExportar();
+  if(!opcion) return;
+  await generarExcelExport(opcion);
+  window.scrollTo({top:0, behavior:'smooth'});
+};
+
+// ── Pestaña de historial (mes anterior) ─────────────────────────────────────
+// Solo lectura: puebla el selector con los meses que ya tienen datos capturados
+// en la base, y al elegir uno lo carga y renderiza con las mismas funciones de
+// siempre. Nunca llama a saveState() ni arranca el auto-refresh, así que no hay
+// forma de que esta pestaña pise datos del mes en vivo.
+async function poblarSelectorHistorial(selectedPeriodo){
+  const sel = document.getElementById('historySelect');
+  if(!sel || !sb) return [];
+  const { data: rows, error } = await sb.from('flash_reportes').select('periodo').order('periodo',{ascending:false});
+  if(error || !rows || !rows.length){ sel.innerHTML = '<option>Sin meses capturados</option>'; return []; }
+  sel.innerHTML = rows.map(r=>{
+    const [y,m] = r.periodo.split('-').map(Number);
+    const label = (MESES_ES_FULL[m]||r.periodo) + ' ' + y;
+    return `<option value="${r.periodo}">${label}</option>`;
+  }).join('');
+  if(selectedPeriodo) sel.value = selectedPeriodo;
+  return rows.map(r=>r.periodo);
+}
+async function cargarMesHistorico(periodo){
+  if(!sb || !periodo) return false;
+  const { data, error } = await sb.from('flash_reportes').select('data').eq('periodo', periodo).maybeSingle();
+  if(error || !data || !data.data){ alert('No se encontraron datos capturados para ese mes.'); return false; }
+  const d = data.data;
+  state = Object.assign(state, {
+    mes: periodo, dias: d.dias||[], totales: d.totales||{}, stock: d.stock||{},
+    stockProcedencia: d.stockProcedencia||[], ensayePendiente: !!d.ensayePendiente,
+  });
+  state.selectedDay = Math.max(1, lastDiaConDato());
+  history.replaceState(null, '', location.pathname + '?ver=' + encodeURIComponent(periodo));
+  renderAll();
+  return true;
+}
+function applyHistoryModeUI(){
+  document.getElementById('dropzone').style.display = 'none';
+  document.getElementById('btnReset').style.display = 'none';
+  document.getElementById('btnVerHistorial').style.display = 'none';
+  document.getElementById('btnMaint').style.display = 'none';
+  document.getElementById('btnExportXlsx').style.display = 'none';
+  document.getElementById('historyBanner').style.display = 'block';
+  document.title = 'Histórico — Reporte Flash MRT Cieneguita';
+}
+document.getElementById('btnVerHistorial').onclick = ()=>{
+  window.open(location.pathname + '?historial=1', '_blank');
+};
+document.getElementById('historySelect').addEventListener('change', (e)=>{ cargarMesHistorico(e.target.value); });
+document.getElementById('historyBackLink').onclick = ()=>{
+  window.close();
+  setTimeout(()=>{ location.href = location.pathname; }, 150); // por si el navegador no deja cerrar la pestaña
+};
+
 (async ()=>{
+  if(IS_HISTORY_TAB){
+    applyHistoryModeUI();
+    const periodos = await poblarSelectorHistorial(HISTORY_INITIAL_PERIODO);
+    // sin mes pedido por URL: por default el mes inmediato anterior al más reciente
+    // (periodos[0] es el más reciente/en vivo, periodos[1] el anterior a ese)
+    const periodoInicial = HISTORY_INITIAL_PERIODO || periodos[1] || periodos[0];
+    if(periodoInicial){
+      document.getElementById('historySelect').value = periodoInicial;
+      await cargarMesHistorico(periodoInicial);
+    }
+    return;
+  }
   await loadState();
   applyLockIfNeeded();
   applyMaintenanceUI();
@@ -1743,9 +2004,10 @@ applyTheme(localStorage.getItem('flashTheme') === 'dark');
 // Auto-refresh: relee la base de datos cada 5 min, pero solo mientras la pestaña está
 // visible en la pantalla de alguien (Page Visibility API). Se pausa al ocultarse/minimizar
 // y, al volver a mostrarse, dispara una recarga inmediata (por si algo cambió mientras
-// estaba fuera) y reanuda el temporizador. No corre en copias archivadas, y se salta el
-// ciclo si hay una carga/parseo de Excel en curso, para no pisar cambios sin guardar.
-if(!IS_LOCKED_COPY){
+// estaba fuera) y reanuda el temporizador. No corre en copias archivadas ni en la pestaña
+// de historial (solo lectura), y se salta el ciclo si hay una carga/parseo de Excel en
+// curso, para no pisar cambios sin guardar.
+if(!IS_LOCKED_COPY && !IS_HISTORY_TAB){
   const AUTOREFRESH_MS = 5*60*1000;
   let autoRefreshTimer = null;
   async function autoRefreshTick(){
