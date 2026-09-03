@@ -1718,11 +1718,22 @@ window.addEventListener('focus', ()=>{
 });
 dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('drag'); });
 dz.addEventListener('dragleave', ()=> dz.classList.remove('drag'));
-dz.addEventListener('drop', async (e)=>{
-  e.preventDefault(); dz.classList.remove('drag');
-  if(IS_LOCKED_COPY) return;
+// El "soltar" se maneja a nivel de TODA la ventana (no solo dentro del recuadro chiquito
+// del dropzone): si el archivo cae unos pixeles afuera del recuadro (fácil que pase si el
+// puntero del mouse no se ve bien, como en el bug ya conocido de Windows/Chrome), sin esto
+// el navegador agarra el archivo y navega/abre esa pestaña directamente en vez de subirlo,
+// lo cual se siente como que "arrastrar y soltar no funciona". Con el preventDefault puesto
+// en toda la ventana, cualquier punto de la página admite el soltar y el archivo se procesa
+// igual. El recuadro sigue siendo el que se resalta visualmente al arrastrar por encima.
+window.addEventListener('dragover', e=> e.preventDefault());
+window.addEventListener('drop', async (e)=>{
+  e.preventDefault();
+  dz.classList.remove('drag');
+  if(IS_LOCKED_COPY || IS_HISTORY_TAB) return;
+  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if(!file) return;
   if(!(await checkUploadPin())) return;
-  if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  handleFile(file);
 });
 
 function emptyDataset(){
