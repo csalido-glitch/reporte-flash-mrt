@@ -390,6 +390,36 @@ async function saveState(){
     alert('No se pudo guardar en la base de datos (revisa tu conexión a internet). Los cambios no quedaron guardados para los demás.');
   }
 }
+// Guarda solo los campos indicados sobre la fila MÁS RECIENTE de la base de datos, en
+// vez de escribir el "dias/totales/stock/stockProcedencia" que esta pestaña tenga en
+// memoria en ese momento. Se usa para acciones que solo deberían tocar un campo puntual
+// (pausar/reactivar mantenimiento, contador de visitas): si se usara saveState() a secas
+// aquí, una pestaña abierta desde antes de la última carga de datos podría "pisar" sin
+// querer una captura más reciente subida desde otra pestaña (el mismo bug que causó que
+// el día 31 desapareciera solo, ahora aplicado a Mantenimiento/Stock por Procedencia).
+async function guardarSoloCampos(campos){
+  if(IS_LOCKED_COPY || !sb) return false;
+  try{
+    const { data: rows, error } = await sb.from('flash_reportes').select('periodo,data').order('updated_at',{ascending:false}).limit(1);
+    if(error) throw error;
+    if(rows && rows.length){
+      const fresh = Object.assign({}, rows[0].data, campos);
+      const { error: upErr } = await sb.from('flash_reportes').upsert({
+        periodo: rows[0].periodo,
+        data: fresh,
+        updated_at: new Date().toISOString()
+      });
+      if(upErr) throw upErr;
+    } else {
+      await saveState();
+    }
+    return true;
+  }catch(e){
+    console.error('No se pudo guardar en la base de datos', e);
+    alert('No se pudo guardar en la base de datos (revisa tu conexión a internet).');
+    return false;
+  }
+}
 // Fecha local (no UTC) en formato YYYY-MM-DD, para que el corte del día del
 // contador de visitas sea a medianoche real de quien lo ve, no a medianoche UTC.
 function hoyLocal(){
@@ -1626,9 +1656,26 @@ dz.addEventListener('click', async (e)=>{
   // listener y pedía la contraseña dos veces sin llegar a abrir el selector.
   if(e.target === fi) return;
   if(IS_LOCKED_COPY) return;
-  if(await checkUploadPin()) fi.click();
+  if(await checkUploadPin()){
+    // En algunos navegadores (sobre todo Windows), abrir el selector de archivos justo
+    // en el instante en que se cierra el cuadro de contraseña deja "perdido" el puntero
+    // del mouse (invisible) hasta que lo mueves o haces clic en otro lado. Quitar el foco
+    // del botón que quedó activo y dar un pequeño respiro antes de abrir el diálogo le da
+    // tiempo al navegador de repintar el cursor con normalidad.
+    if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    setTimeout(()=> fi.click(), 30);
+  }
 });
 fi.addEventListener('change', ()=>{ if(fi.files[0]) handleFile(fi.files[0]); fi.value=''; });
+// Cuando el diálogo nativo del selector de archivos se cierra (elijas un archivo o
+// canceles), la ventana recupera el foco. En algunos equipos con Windows, justo en
+// ese momento el puntero del mouse se queda invisible hasta que lo mueves, aunque los
+// clics sigan funcionando bien (es un bug de repintado del navegador/sistema, no algo
+// que rompa la funcionalidad). Alternar el cursor del body fuerza a que se repinte.
+window.addEventListener('focus', ()=>{
+  document.body.style.cursor = 'wait';
+  requestAnimationFrame(()=>{ document.body.style.cursor = ''; });
+});
 dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('drag'); });
 dz.addEventListener('dragleave', ()=> dz.classList.remove('drag'));
 dz.addEventListener('drop', async (e)=>{
@@ -1752,7 +1799,7 @@ document.getElementById('btnMaint').onclick = async ()=>{
   if(!state.paused){
     if(!confirm('¿Activar modo mantenimiento? El reporte se ocultará para todos (incluyéndote) hasta que lo reactives.')) return;
     state.paused = true;
-    await saveState();
+    await guardarSoloCampos({paused:true});
     location.reload();
   } else if(!isMaintAdmin){
     isMaintAdmin = true;
@@ -1762,7 +1809,7 @@ document.getElementById('btnMaint').onclick = async ()=>{
   } else {
     if(!confirm('¿Reactivar el reporte para todos?')) return;
     state.paused = false;
-    await saveState();
+    await guardarSoloCampos({paused:false});
     location.reload();
   }
 };
