@@ -271,7 +271,7 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
 
 </div>
 <div class="footer-bar"></div>
-<div style="text-align:center;font-size:10px;color:#bbb;padding:4px 0 8px;">Build generado: 2026-08-07 13:45</div>
+<div style="text-align:center;font-size:10px;color:#bbb;padding:4px 0 8px;">Build generado: 2026-09-02 (fix Mantenimiento + Stock por Procedencia)</div>
 <button class="maint-footer-link" id="btnMaint">🔧 Mantenimiento</button>
 <div id="visitasCounter" style="text-align:center;font-size:10px;color:#bbb;padding:2px 0 8px;"></div>
 
@@ -1277,6 +1277,22 @@ function parseComentariosTabla(aoaT){
   return {};
 }
 
+// Fechas cortas en español dentro de un texto, tipo "Stock al dia  01-sep-26" o
+// "31-ago-26" (con espacios variables). Se usa para poder comparar/elegir entre varias
+// coincidencias por fecha real, en vez de por su posición en la hoja.
+const MESES_ABR_TXT = {ene:0,feb:1,mar:2,abr:3,may:4,jun:5,jul:6,ago:7,sep:8,oct:9,nov:10,dic:11};
+function parseFechaCortaTexto(txt){
+  const m = String(txt).match(/(\d{1,2})\s*[-\/]\s*([A-Za-zÁÉÍÓÚáéíóú]{3})\s*[-\/]\s*(\d{2,4})/);
+  if(!m) return null;
+  const dd = parseInt(m[1],10);
+  const mm = MESES_ABR_TXT[m[2].toLowerCase().replace(/[áéíóú]/g,c=>({á:'a',é:'e',í:'i',ó:'o',ú:'u'}[c]))];
+  if(mm==null) return null;
+  let yy = parseInt(m[3],10);
+  if(yy<100) yy += 2000;
+  const d = new Date(yy, mm, dd);
+  return isNaN(d.getTime()) ? null : d.getTime();
+}
+
 // ALIM PROCEDENCIA: desglose de Stock por procedencia (foto más reciente, no por día).
 // Se ubica por texto ("Stock al dia..." y "Realito" como ancla de encabezados), no por
 // celda/columna fija, para que el bloque pueda crecer hacia la derecha si se agrega una
@@ -1284,24 +1300,48 @@ function parseComentariosTabla(aoaT){
 // cuya columna esté visible en el Excel (no oculta); las que el propio archivo oculta no
 // se muestran, sin importar su valor (el total general no se ve afectado, se calcula aparte).
 function parseStockProcedencia(aoa, ws, rangeStartCol){
-  let stockRow = -1;
-  for(let r=0;r<aoa.length && stockRow<0;r++){
+  // Puede haber más de un bloque "Stock al dia ..." en la hoja (un atajo de referencia
+  // rápida y el cálculo detallado suelen repetir el mismo dato, pero también pueden
+  // quedar bloques de meses anteriores sin borrar). Antes se tomaba el primero que
+  // aparecía leyendo de arriba hacia abajo, lo cual devolvía datos viejos si un bloque
+  // anterior quedaba más arriba que el vigente. Ahora se juntan TODAS las coincidencias
+  // y se elige la de fecha más reciente (leyendo la fecha del propio texto); si ninguna
+  // trae una fecha reconocible, se usa como respaldo la última coincidencia de la hoja.
+  const candidatos = [];
+  for(let r=0;r<aoa.length;r++){
     const row = aoa[r]||[];
     for(let c=0;c<row.length;c++){
-      if(row[c]!=null && normTxt(row[c]).startsWith('STOCK AL DIA')){ stockRow = r; break; }
+      if(row[c]!=null && normTxt(row[c]).startsWith('STOCK AL DIA')){
+        candidatos.push({row:r, col:c, fecha: parseFechaCortaTexto(row[c])});
+      }
     }
   }
-  if(stockRow<0) return [];
+  if(!candidatos.length) return [];
+  const ningunaTieneFecha = candidatos.every(c=>c.fecha==null);
+  let elegido = candidatos[0];
+  for(const cand of candidatos){
+    if(ningunaTieneFecha) elegido = cand; // sin fecha reconocible en ninguna: se queda con la última recorrida
+    else if(cand.fecha!=null && (elegido.fecha==null || cand.fecha >= elegido.fecha)) elegido = cand;
+  }
+  const stockRow = elegido.row;
   // La fila de encabezados con los nombres de procedencia es la más cercana hacia arriba
-  // que contenga "REALITO" (columna ancla presente en todas las variantes de este bloque).
-  // Esa misma columna marca el inicio del bloque: se lee hacia la derecha desde ahí (no
-  // desde la columna 0), porque a la izquierda puede haber datos sueltos de otras tablas
-  // de la misma hoja que comparten renglón por coincidencia.
+  // que contenga "REALITO". Primero se busca justo en la columna esperada (la inmediata
+  // a la derecha de donde apareció el texto "Stock al dia", que es el patrón observado
+  // en este archivo) para no confundirse con el encabezado de OTRO bloque que por
+  // coincidencia también diga "REALITO" en un rango de filas cercano; si no aparece ahí,
+  // se cae al barrido amplio de antes como respaldo.
   let hdrRow = -1, anchorCol = -1;
-  for(let r=stockRow-1;r>=0 && hdrRow<0;r--){
+  for(let r=stockRow-1;r>=Math.max(0,stockRow-15);r--){
     const row = aoa[r]||[];
-    for(let c=0;c<row.length;c++){
-      if(row[c]!=null && normTxt(row[c])==='REALITO'){ hdrRow = r; anchorCol = c; break; }
+    const c = elegido.col+1;
+    if(row[c]!=null && normTxt(row[c])==='REALITO'){ hdrRow = r; anchorCol = c; break; }
+  }
+  if(hdrRow<0){
+    for(let r=stockRow-1;r>=0 && hdrRow<0;r--){
+      const row = aoa[r]||[];
+      for(let c=0;c<row.length;c++){
+        if(row[c]!=null && normTxt(row[c])==='REALITO'){ hdrRow = r; anchorCol = c; break; }
+      }
     }
   }
   if(hdrRow<0) return [];
