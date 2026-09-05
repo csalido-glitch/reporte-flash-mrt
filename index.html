@@ -335,7 +335,6 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
 
   <div class="discreet-actions">
     <button class="maint-footer-link" id="btnExport">💾 Guardar copia de este mes</button>
-    <button class="maint-footer-link" id="btnReset">🔄 Restablecer (mes nuevo)</button>
     <button class="maint-footer-link" id="btnExportXlsx">📥 Exportar a Excel</button>
     <button class="maint-footer-link theme-toggle" id="btnTheme">🌙 Modo oscuro</button>
   </div>
@@ -1913,31 +1912,6 @@ document.getElementById('chkTrend').addEventListener('change', (e)=>{
   showTrend = e.target.checked;
   renderCharts();
 });
-document.getElementById('btnReset').onclick = async ()=>{
-  if(!(await checkUploadPin())) return;
-  if(!confirm('¿Restablecer? Esto borra todos los días capturados para empezar limpio con el mes nuevo (asegúrate de haber guardado una copia primero).')) return;
-  if(sb){
-    try{
-      // Se guarda un mes vacío en vez de solo borrar el registro: si se borrara sin más,
-      // al recargar la página lo volvería a sembrar con los datos que trae el propio
-      // archivo (respaldo incluido), y el restablecer parecería no hacer nada.
-      const empty = emptyDataset();
-      const { error } = await sb.from('flash_reportes').upsert({
-        periodo: state.mes,
-        data: {mes: state.mes, dias: empty.dias, totales: empty.totales, stock: empty.stock, stockProcedencia: [], paused: state.paused, ensayePendiente: false, visitas: state.visitas, datosSubidosEn: null},
-        updated_at: new Date().toISOString()
-      });
-      if(error) throw error;
-    }catch(e){
-      console.error('Error al restablecer en la base de datos', e);
-      alert('No se pudo restablecer en la base de datos (revisa tu conexión a internet).');
-      return;
-    }
-  }
-  window.scrollTo({top:0, behavior:'smooth'});
-  location.reload();
-};
-
 document.getElementById('btnExport').onclick = ()=>{
   let newHtml = document.documentElement.outerHTML.replace(
     /const BASE_DATA = \{.*?\};\s*\n/s,
@@ -1957,7 +1931,6 @@ document.getElementById('btnExport').onclick = ()=>{
 function applyLockIfNeeded(){
   if(!IS_LOCKED_COPY) return;
   document.getElementById('dropzone').style.display = 'none';
-  document.getElementById('btnReset').style.display = 'none';
   document.getElementById('btnExport').style.display = 'none';
   document.getElementById('btnMaint').style.display = 'none';
   document.getElementById('btnExportXlsx').style.display = 'none';
@@ -2207,7 +2180,6 @@ async function cargarMesHistorico(periodo){
 }
 function applyHistoryModeUI(){
   document.getElementById('dropzone').style.display = 'none';
-  document.getElementById('btnReset').style.display = 'none';
   document.getElementById('btnVerHistorial').style.display = 'none';
   document.getElementById('btnMaint').style.display = 'none';
   document.getElementById('btnExportXlsx').style.display = 'none';
