@@ -1456,6 +1456,34 @@ function renderAll(){
   renderCharts();
 }
 
+// ── Reacomodo tras cambiar el zoom o el tamaño de la ventana ────────────────
+// Al hacer zoom rápido (Ctrl + rueda, o +/- repetido) la rejilla quedaba con las
+// tarjetas descuadradas y los canvas con el tamaño viejo, y no se componía hasta
+// recargar. Chart.js redimensiona el canvas, pero el devicePixelRatio se fija al
+// CREAR la gráfica: con el zoom ese valor cambia y ya no coincide. Por eso aquí
+// se vuelve a construir todo en vez de solo redimensionar.
+// Va con retardo: mientras alguien machaca el zoom no tiene caso reconstruir en
+// cada paso, solo cuando se queda quieto.
+let _dprPrevio = window.devicePixelRatio || 1;
+let _anchoPrevio = window.innerWidth;
+let _tempReacomodo = null;
+function reacomodarPorZoom(){
+  clearTimeout(_tempReacomodo);
+  _tempReacomodo = setTimeout(()=>{
+    const dprAhora = window.devicePixelRatio || 1;
+    const anchoAhora = window.innerWidth;
+    if(Math.abs(dprAhora - _dprPrevio) < 0.001 && anchoAhora === _anchoPrevio) return;
+    _dprPrevio = dprAhora;
+    _anchoPrevio = anchoAhora;
+    if(state.paused && !isMaintAdmin) return;   // en mantenimiento no hay gráficas que rehacer
+    try{ renderAll(); }
+    catch(e){ console.error('No se pudo reacomodar tras el zoom', e); }
+  }, 300);
+}
+window.addEventListener('resize', reacomodarPorZoom);
+// Safari y algunos Android no disparan 'resize' con el zoom de pellizco.
+if(window.visualViewport) window.visualViewport.addEventListener('resize', reacomodarPorZoom);
+
 const stickyHeadEl = document.getElementById('stickyHead');
 window.addEventListener('scroll', ()=>{
   if(window.scrollY>4) stickyHeadEl.classList.add('stuck'); else stickyHeadEl.classList.remove('stuck');
