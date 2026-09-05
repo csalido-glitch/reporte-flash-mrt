@@ -317,7 +317,6 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
         <div class="day-chips" id="dayChips"></div>
       </div>
       <div class="btns">
-        <label class="chart-toggle"><input type="checkbox" id="chkDataLabels"> Etiquetas de datos</label>
         <label class="chart-toggle"><input type="checkbox" id="chkTrend"> Tendencia</label>
         <button class="action" id="btnVerHistorial">📅 Histórico</button>
       </div>
@@ -448,7 +447,9 @@ const COLORS = ['#5B9BD5','#ED7D31','#9a9a9a','#4EA72E','#B8912A','#A02B93','#15
 const MESES_ES = {1:'ene',2:'feb',3:'mar',4:'abr',5:'may',6:'jun',7:'jul',8:'ago',9:'sep',10:'oct',11:'nov',12:'dic'};
 const MESES_ES_FULL = {1:'Enero',2:'Febrero',3:'Marzo',4:'Abril',5:'Mayo',6:'Junio',7:'Julio',8:'Agosto',9:'Septiembre',10:'Octubre',11:'Noviembre',12:'Diciembre'};
 
-let showDataLabels = false;
+// Las etiquetas de datos van siempre encendidas: se acomodan solas (rotacionAuto),
+// así que ya no hace falta un interruptor para apagarlas cuando se encimaban.
+const showDataLabels = true;
 let showTrend = false;
 if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') { Chart.register(ChartDataLabels); }
 
@@ -702,6 +703,60 @@ function selloSubida(iso){
     hora: String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0')
   };
 }
+// ── Etiquetas de datos: rotación automática ─────────────────────────────────
+// Se calcula UNA rotación por gráfica (no una por etiqueta, eso se vería
+// descuadrado): se mide la etiqueta más ancha del conjunto y se compara contra
+// el ancho que le toca a cada categoría. Si caben derechas se quedan en 0°; si
+// no, van tomando ángulo en pasos de 15° hasta quedar verticales (-90°, que se
+// leen de abajo hacia arriba). Se recalcula al redimensionar la ventana, así que
+// la misma gráfica puede salir a 0° en la pantalla de la oficina y a -45° en una
+// laptop angosta, sin que nadie toque nada.
+function rotacionAuto(ctx){
+  const chart = ctx.chart, area = chart.chartArea;
+  if(!area || !area.width) return 0;
+  const datos = ctx.dataset.data || [];
+  const n = datos.length || 1;
+  const disponible = area.width / n;
+  const cache = chart.$rotCache || (chart.$rotCache = {});
+  const clave = ctx.datasetIndex + '|' + Math.round(area.width) + '|' + n;
+  if(cache[clave] !== undefined) return cache[clave];
+  const dl = ctx.dataset.datalabels || {};
+  const f = dl.font || {};
+  const c2d = chart.ctx;
+  c2d.save();
+  c2d.font = (f.weight||'normal') + ' ' + (f.size||10) + 'px ' + (f.family||'system-ui, sans-serif');
+  const fmt = (typeof dl.formatter === 'function') ? dl.formatter : (v)=>String(v);
+  let ancho = 0;
+  for(const v of datos){
+    let t = '';
+    try{ t = String(fmt(v, ctx) ?? ''); }catch(e){ t = ''; }
+    if(t) ancho = Math.max(ancho, c2d.measureText(t).width);
+  }
+  c2d.restore();
+  // Una etiqueta girada θ grados ocupa, a lo ancho:  W·cos θ + H·sin θ .
+  // Se prueba en pasos de 15° y se toma el PRIMER ángulo que ya cabe, para no
+  // girar más de lo necesario. Detalle contraintuitivo: girar poquito no ayuda
+  // (el alto empieza a estorbar antes de que el ancho ceda), por eso a veces
+  // salta de 0° a 45° sin pasar por 15°.
+  let rot = 0;
+  if(ancho > 0){
+    const W = ancho + 6;                                  // texto + holgura
+    const H = (f.size||10) * 1.25 + 4;                    // alto de la etiqueta
+    rot = -90;
+    for(const g of [0,15,30,45,60,75,90]){
+      const r = g * Math.PI / 180;
+      if(W*Math.cos(r) + H*Math.sin(r) <= disponible){ rot = -g; break; }
+    }
+  }
+  cache[clave] = rot;
+  return rot;
+}
+// Espacio superior que hay que reservar: con etiquetas verticales el texto crece
+// hacia arriba, y sin este colchón quedaría cortado por el borde del canvas.
+function padSuperior(nCategorias){
+  return (nCategorias >= 12) ? 58 : 38;
+}
+
 function renderLastUpdated(){
   const el = document.getElementById('lastUpdated');
   const last = lastDiaConDato();
@@ -841,7 +896,7 @@ function renderCharts(){
      mk:()=>({labels, datasets:[
         {label:'TON Molienda Seco', data:dias.map(d=>d.ton_molienda_seco), backgroundColor:highlightColors(GOLD,n,selIdx),
          datalabels:{
-           display:true, anchor:'end', align:'top', offset:2, clip:false, rotation:-20,
+           display:true, anchor:'end', align:'top', offset:2, clip:false, rotation: rotacionAuto,
            font:{size:10, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
@@ -854,6 +909,7 @@ function renderCharts(){
     {id:'ch11', title:'Real vs Ptto (Tonelaje acumulado del mes)', type:'bar', colSpan:1, alwaysLabels:true,
      mk:()=>({labels:['Proyección','Real'], datasets:[{label:'Tonelaje', data:[state.totales.proy_ton_total, state.totales.real_ton_total], backgroundColor:['#5B9BD5',GOLD],
         datalabels:{
+           rotation: rotacionAuto,
           display:true, anchor:'end', align:'top', offset:2, clip:false,
           font:{size:11, weight:'bold'}, color: dlTextColor(),
           backgroundColor: dlBgColor(), borderRadius:3,
@@ -866,7 +922,7 @@ function renderCharts(){
      mk:()=>({labels, datasets:[
         {label:'Oz Eq Precipitadas', data:dias.map(d=>d.oz_eq_au), ...applyEnsayeBar(highlightColors(GOLD,n,selIdx)),
          datalabels:{
-           display:true, anchor:'end', align:'top', offset:2, clip:false, rotation:-20,
+           display:true, anchor:'end', align:'top', offset:2, clip:false, rotation: rotacionAuto,
            font:{size:10, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
@@ -880,6 +936,7 @@ function renderCharts(){
     {id:'ch12', title:'Proyección vs Real (Oz Eq Au acumulado del mes)', type:'bar', colSpan:1, alwaysLabels:true,
      mk:()=>({labels:['Proyección','Real'], datasets:[{label:'Oz Eq Au', data:[state.totales.proy_oz_total, state.totales.real_oz_total], ...applyEnsayeBar(['#5B9BD5',GOLD]),
         datalabels:{
+           rotation: rotacionAuto,
           display:true, anchor:'end', align:'top', offset:2, clip:false,
           font:{size:11, weight:'bold'}, color: dlTextColor(),
           backgroundColor: dlBgColor(), borderRadius:3,
@@ -895,7 +952,7 @@ function renderCharts(){
          datalabels:{
            display:true, anchor:'end', align:'top',
            offset:offsetDodge(dias.map(d=>d.m3_bombeados), dias.map(d=>d.sol_rica_au), 2, 26, 'y2', 'y', 34),
-           clip:false, rotation:-20,
+           clip:false, rotation: rotacionAuto,
            font:{size:10, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
@@ -903,6 +960,7 @@ function renderCharts(){
          }},
         {label:'Sol Rica Au', type:'line', data:dias.map(d=>d.sol_rica_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, yAxisID:'y', order:1, ...applyEnsayeLine(GOLD, dias.length),
          datalabels:{
+           rotation: rotacionAuto,
            display:true, anchor:'end', align:'top', offset:offsetDodge(dias.map(d=>d.sol_rica_au), dias.map(d=>d.sol_rica_ag), 6, 20), clip:false,
            font:{size:10, weight:'bold'}, color:GOLD, backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
@@ -911,6 +969,7 @@ function renderCharts(){
         {label:'Sol Estéril Au', type:'line', data:dias.map(d=>d.sol_esteril_au), borderColor:GOLD, backgroundColor:GOLD, borderDash:[4,3], tension:.25, yAxisID:'y', order:1, ...applyEnsayeLine(GOLD, dias.length)},
         {label:'Sol Rica Ag', type:'line', data:dias.map(d=>d.sol_rica_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, yAxisID:'y1', order:2, ...applyEnsayeLine(SILVER, dias.length),
          datalabels:{
+           rotation: rotacionAuto,
            display:true, anchor:'end', align:'bottom', offset:offsetDodge(dias.map(d=>d.sol_rica_au), dias.map(d=>d.sol_rica_ag), 6, 20), clip:false,
            font:{size:10, weight:'bold'}, color:SILVER, backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
@@ -944,6 +1003,7 @@ function renderCharts(){
           backgroundColor: colorForProcedencia(name),
           stack: 'mezcla',
           datalabels:{
+           rotation: rotacionAuto,
             display:(ctx)=> ctx.dataset.data[ctx.dataIndex] > 0,
             anchor:'center', align:'center',
             font:{size:10, weight:'bold'}, color:'#fff',
@@ -957,6 +1017,7 @@ function renderCharts(){
           data: dias.map(d=> d.mezcla_total||0),
           borderColor:'transparent', backgroundColor:'transparent', pointRadius:0, borderWidth:0,
           datalabels:{
+           rotation: rotacionAuto,
             display:(ctx)=> ctx.dataset.data[ctx.dataIndex] > 0,
             anchor:'end', align:'top', offset:2,
             font:{size:8, weight:'bold'}, color: dlTextColor(),
@@ -972,7 +1033,7 @@ function renderCharts(){
     {id:'ch2', title:'Trituración Diaria', type:'bar', alwaysLabels:true,
      mk:()=>({labels, datasets:[{label:'TON Trituración Húmeda', data:dias.map(d=>d.ton_humedas_trituracion), backgroundColor:highlightColors(GOLD,n,selIdx),
         datalabels:{
-          display:true, anchor:'end', align:'top', offset:2, clip:false, rotation:-20,
+          display:true, anchor:'end', align:'top', offset:2, clip:false, rotation: rotacionAuto,
           font:{size:10, weight:'bold'}, color: dlTextColor(),
           backgroundColor: dlBgColor(), borderRadius:3,
           padding:{top:1, bottom:1, left:3, right:3},
@@ -987,6 +1048,7 @@ function renderCharts(){
      mk:()=>({labels, datasets:[
         {label:'Ley Au', data:dias.map(d=>d.ley_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, yAxisID:'y', ...applyEnsayeLine(GOLD, dias.length),
          datalabels:{
+           rotation: rotacionAuto,
            display:true, anchor:'end', align:'top', offset:offsetDodge(dias.map(d=>d.ley_au), dias.map(d=>d.ley_ag), 2, 14), clip:false,
            font:{size:8, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
@@ -997,6 +1059,7 @@ function renderCharts(){
          datalabels:{display:false}},
         {label:'Ley Ag', data:dias.map(d=>d.ley_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, yAxisID:'y1', ...applyEnsayeLine(SILVER, dias.length),
          datalabels:{
+           rotation: rotacionAuto,
            display:true, anchor:'end', align:'bottom', offset:offsetDodge(dias.map(d=>d.ley_au), dias.map(d=>d.ley_ag), 2, 14), clip:false,
            font:{size:8, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
@@ -1021,6 +1084,7 @@ function renderCharts(){
      mk:()=>({labels, datasets:[
         {label:'Recuperación Au', data:dias.map(d=>d.recuperacion_au*100), borderColor:GOLD, backgroundColor:GOLD, tension:.25, ...applyEnsayeLine(GOLD, dias.length),
          datalabels:{
+           rotation: rotacionAuto,
            display:true, anchor:'end', align:'top', offset:offsetDodge(dias.map(d=>d.recuperacion_au*100), dias.map(d=>d.recuperacion_ag*100), 2, 14, 'y', 'y'), clip:false,
            font:{size:8, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
@@ -1029,6 +1093,7 @@ function renderCharts(){
          }},
         {label:'Recuperación Ag', data:dias.map(d=>d.recuperacion_ag*100), borderColor:SILVER, backgroundColor:SILVER, tension:.25, ...applyEnsayeLine(SILVER, dias.length),
          datalabels:{
+           rotation: rotacionAuto,
            display:true, anchor:'end', align:'bottom', offset:offsetDodge(dias.map(d=>d.recuperacion_au*100), dias.map(d=>d.recuperacion_ag*100), 2, 14, 'y', 'y'), clip:false,
            font:{size:8, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
@@ -1066,15 +1131,22 @@ function renderCharts(){
      customInit:()=>{
         destroyChart('ch5a'); destroyChart('ch5b');
         const dlFor = (color)=>({
-          display: showDataLabels, anchor:'end', align:'top', offset:4, clip:false,
+          display: showDataLabels, rotation: rotacionAuto, anchor:'end', align:'top', offset:4, clip:false,
           font:{size:10, weight:'bold'}, color: dlTextColor(), backgroundColor: dlBgColor(), borderRadius:3,
           padding:{top:1, bottom:1, left:3, right:3},
           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
         });
-        const topPad = showDataLabels ? 26 : 8;
+        const topPad = padSuperior(labels.length) - 18;
+        // La tendencia también aplica aquí: son gráficas de línea y el interruptor
+        // debe surtir efecto en todas, no solo en las de la rejilla principal.
+        const tendenciaDe = (datos, color)=> (showTrend && (datos||[]).length >= 3) ? [{
+          label:'Tendencia', type:'line', data: linearTrend(datos),
+          borderColor:'#8a8a8a', backgroundColor:'#8a8a8a', borderDash:[6,3], borderWidth:1.5,
+          pointRadius:0, fill:false, tension:0, datalabels:{display:false}
+        }] : [];
         charts['ch5a'] = new Chart(document.getElementById('ch5a'), {
           type:'line',
-          data:{ labels, datasets:[{label:'Au', data:dias.map(d=>d.eficiencia_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, ...applyEnsayeLine(GOLD, dias.length), datalabels:dlFor(GOLD)}] },
+          data:{ labels, datasets:[{label:'Au', data:dias.map(d=>d.eficiencia_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, ...applyEnsayeLine(GOLD, dias.length), datalabels:dlFor(GOLD)}, ...tendenciaDe(dias.map(d=>d.eficiencia_au))] },
           options:{
             responsive:true, maintainAspectRatio:false,
             devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
@@ -1085,7 +1157,7 @@ function renderCharts(){
         });
         charts['ch5b'] = new Chart(document.getElementById('ch5b'), {
           type:'line',
-          data:{ labels, datasets:[{label:'Ag', data:dias.map(d=>d.eficiencia_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, ...applyEnsayeLine(SILVER, dias.length), datalabels:dlFor(SILVER)}] },
+          data:{ labels, datasets:[{label:'Ag', data:dias.map(d=>d.eficiencia_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, ...applyEnsayeLine(SILVER, dias.length), datalabels:dlFor(SILVER)}, ...tendenciaDe(dias.map(d=>d.eficiencia_ag))] },
           options:{
             responsive:true, maintainAspectRatio:false,
             devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
@@ -1099,7 +1171,7 @@ function renderCharts(){
      mk:()=>({labels, datasets:[
         {label:'NaCN Kg/Ton', data:dias.map(d=>d.nacn_real), backgroundColor:highlightColors('#5B9BD5',n,selIdx),
          datalabels:{
-           display:true, anchor:'end', align:'top', offset:2, clip:false, rotation:-20,
+           display:true, anchor:'end', align:'top', offset:2, clip:false, rotation: rotacionAuto,
            font:{size:10, weight:'bold'}, color: dlTextColor(),
            backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
@@ -1160,9 +1232,11 @@ function renderCharts(){
     destroyChart(c.id);
     const built = c.mk();
 
-    // Tendencia opcional: regresión lineal sobre el dataset principal (solo en
-    // gráficas por día; las de 2 barras Proyección/Real no aplican).
-    if(showTrend && built.labels === labels && built.datasets.length){
+    // Tendencia opcional: regresión lineal sobre el dataset principal. Aplica a
+    // todas las gráficas, de barras y de líneas, siempre que haya al menos 3
+    // puntos — con 2 (las de Proyección vs Real) la "tendencia" sería la recta
+    // que pasa por ambos y no diría nada.
+    if(showTrend && built.datasets.length && (built.labels||[]).length >= 3){
       const base = built.datasets[0];
       if(Array.isArray(base.data)){
         built.datasets.push({
@@ -1176,7 +1250,8 @@ function renderCharts(){
           pointRadius: 0,
           fill: false,
           tension: 0,
-          yAxisID: base.yAxisID || undefined
+          yAxisID: base.yAxisID || undefined,
+          datalabels: {display:false}   // la línea de tendencia no lleva etiquetas
         });
       }
     }
@@ -1202,7 +1277,7 @@ function renderCharts(){
         responsive:true,
         maintainAspectRatio:false,
         devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
-        layout: { padding: { top: (showDataLabels || c.alwaysLabels) ? 38 : 0 } },
+        layout: { padding: { top: padSuperior((built.labels||[]).length) } },
         plugins:{legend:{display: built.datasets.length>1, position:'bottom', labels:{boxWidth:12, font:{size:10}, padding:8,
           filter:(item)=> !(c.alwaysLabels && String(item.text||'').startsWith('Proyección'))}}, tooltip: tooltipOpts, datalabels: datalabelsOpts},
         scales: withDefaultXTicks(c.scales || {})
@@ -1904,10 +1979,6 @@ function emptyDataset(){
   };
 }
 
-document.getElementById('chkDataLabels').addEventListener('change', (e)=>{
-  showDataLabels = e.target.checked;
-  renderCharts();
-});
 document.getElementById('chkTrend').addEventListener('change', (e)=>{
   showTrend = e.target.checked;
   renderCharts();
