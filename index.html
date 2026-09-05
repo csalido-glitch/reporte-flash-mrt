@@ -32,8 +32,8 @@ body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#fafafa;color:#
   font-size:9px; color:#c2c2c2; line-height:1.6; text-align:right;
 }
 .site-note .code-glyph{ font-family:ui-monospace,SFMono-Regular,Consolas,monospace; color:var(--gold-dark); letter-spacing:-.5px; }
-.site-note a{ color:#a8a8a8; text-decoration:underline; }
-.site-note a:hover{ color:var(--gold-dark); }
+.site-note a, .site-note button{ color:#a8a8a8; text-decoration:underline; background:none; border:none; padding:0; font:inherit; cursor:pointer; }
+.site-note a:hover, .site-note button:hover{ color:var(--gold-dark); }
 /* ── Buzón de comentarios ──────────────────────────────────────────────── */
 .cmt-wrap{max-width:820px;margin:6px auto 0;}
 .cmt-toggle{display:block;width:100%;text-align:center;background:none;border:none;cursor:pointer;
@@ -60,6 +60,24 @@ body[data-theme="dark"] .cmt-toggle{color:var(--gold);}
 .cmt-msg.err{display:block;color:#c0392b;background:#fdecea;border:1px solid #f5c6c0;}
 .cmt-msg.ok{display:block;color:#1e7e46;background:#e8f6ee;border:1px solid #bfe3ce;}
 /* blog */
+.acerca-panel{max-width:620px;}
+.acerca-head .sub{font-size:10px;color:#7c858d;margin-top:2px;}
+.acerca-body{padding:4px 20px 18px;}
+.acerca-bloque{padding:12px 0;border-bottom:1px solid #e3e6e9;}
+.acerca-bloque:last-of-type{border-bottom:none;}
+.acerca-bloque h5{margin:0 0 4px;font-size:11.5px;color:var(--navy);}
+.acerca-bloque p{margin:0;font-size:11.5px;line-height:1.65;color:#3c454d;}
+.acerca-cta{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px;}
+.acerca-btn{background:var(--navy);color:#fff;border:none;border-radius:4px;padding:8px 15px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;}
+.acerca-btn.sec{background:none;color:var(--navy);border:1px solid #cdd4da;}
+.acerca-ficha{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:13px;padding-top:11px;border-top:1px solid #e3e6e9;font-size:10px;color:#7c858d;}
+.acerca-ficha b{color:#3c454d;font-weight:600;}
+body[data-theme="dark"] .acerca-bloque{border-color:#2f373e;}
+body[data-theme="dark"] .acerca-bloque h5{color:var(--gold);}
+body[data-theme="dark"] .acerca-bloque p{color:#dfe3e6;}
+body[data-theme="dark"] .acerca-ficha{border-color:#2f373e;}
+body[data-theme="dark"] .acerca-ficha b{color:#cfd5da;}
+body[data-theme="dark"] .acerca-btn.sec{color:var(--gold);border-color:#3a444c;}
 .cmt-modal{position:fixed;inset:0;background:rgba(20,25,30,.55);z-index:60;display:none;align-items:flex-start;justify-content:center;padding:26px 14px;overflow-y:auto;}
 .cmt-modal.abierto{display:flex;}
 .cmt-panel{background:#fafafa;border-radius:8px;width:100%;max-width:820px;box-shadow:0 10px 40px rgba(0,0,0,.3);overflow:hidden;}
@@ -340,7 +358,7 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
 
 </div>
 <div class="footer-bar"></div>
-<div style="text-align:center;font-size:10px;color:#bbb;padding:4px 0 8px;">Build generado: 4-sep-26</div>
+<div id="buildTag" style="text-align:center;font-size:10px;color:#bbb;padding:4px 0 8px;">Build generado: 5-sep-26</div>
 <button class="maint-footer-link" id="btnMaint">🔧 Mantenimiento</button>
 <div id="visitasCounter" style="text-align:center;font-size:10px;color:#bbb;padding:2px 0 8px;"></div>
 
@@ -373,6 +391,45 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
 
 <button class="maint-footer-link" id="btnVerComentarios">🗒 Ver comentarios</button>
 
+<div class="cmt-modal" id="acercaModal">
+  <div class="cmt-panel acerca-panel">
+    <div class="cmt-panel-head acerca-head">
+      <div>
+        <h4>Reporte Flash — Balance Metalúrgico Diario</h4>
+        <div class="sub">Minera Río Tinto · Unidad Cieneguita</div>
+      </div>
+      <button class="cmt-cerrar" id="acercaCerrar" title="Cerrar">✕</button>
+    </div>
+    <div class="acerca-body">
+      <div class="acerca-bloque">
+        <h5>¿Qué es esto?</h5>
+        <p>Está publicado para informar el status general de los principales indicadores de la
+        operación de la Planta de Beneficio MRT Unidad Cieneguita.</p>
+      </div>
+      <div class="acerca-bloque">
+        <h5>¿De dónde salen los números?</h5>
+        <p>Del <b>Balance Metalúrgico Diario</b> del mes. Cada día se actualiza al reporte y de ahí se
+        leen el resumen, la dinámica, Merrill-Crowe, las proyecciones y la alimentación por
+        procedencia.</p>
+      </div>
+      <div class="acerca-bloque">
+        <h5>¿Viste algo raro o te falta algo?</h5>
+        <p>Escríbelo en el buzón del pie de la página. Llega directo a quien mantiene el reporte, con
+        el día que tenías en pantalla, para poder revisarlo.</p>
+        <div class="acerca-cta">
+          <button class="acerca-btn" id="acercaComentar">Dejar un comentario</button>
+          <button class="acerca-btn sec" id="acercaHistorial">Ver el histórico por mes</button>
+        </div>
+      </div>
+      <div class="acerca-ficha">
+        <span>Mantiene: <b>Planta de Beneficio</b></span>
+        <span id="acercaBuild"></span>
+        <span>Mes en pantalla: <b id="acercaMes">—</b></span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="cmt-modal" id="cmtModal">
   <div class="cmt-panel">
     <div class="cmt-panel-head">
@@ -388,7 +445,7 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
 
 <div class="site-note">
   <span class="code-glyph">&lt;/&gt;</span>
-  <a href="mailto:csalido@mrtcorporativo.mx?subject=Reporte%20Flash%20MRT%20%E2%80%94%20comentarios">Acerca de este sitio</a>
+  <button type="button" id="lnkAcerca">Acerca de este sitio</button>
   <span>Se agradecen las correcciones, sugerencias y comentarios.</span>
 </div>
 
@@ -2510,6 +2567,50 @@ if(!IS_LOCKED_COPY){
   const envoltura = document.querySelector('.cmt-wrap'); if(envoltura) envoltura.style.display = 'none';
   const btnVer  = document.getElementById('btnVerComentarios'); if(btnVer) btnVer.style.display = 'none';
 }
+
+// ── Ficha "Acerca de este sitio" ────────────────────────────────────────────
+// Antes el enlace abría el correo de César; ahora abre esta ficha, que explica
+// qué es el reporte y encamina la retroalimentación al buzón, que es donde sirve.
+(function(){
+  const modal = document.getElementById('acercaModal');
+  const abrir = document.getElementById('lnkAcerca');
+  if(!modal || !abrir) return;
+  function cerrar(){ modal.classList.remove('abierto'); }
+  abrir.addEventListener('click', ()=>{
+    const build = document.getElementById('buildTag');
+    document.getElementById('acercaBuild').innerHTML =
+      build ? build.textContent.replace('Build generado:', 'Build: <b>') + '</b>' : '';
+    document.getElementById('acercaMes').textContent = state.mes ? mesCorto(state.mes) : '—';
+    modal.classList.add('abierto');
+  });
+  document.getElementById('acercaCerrar').addEventListener('click', cerrar);
+  modal.addEventListener('click', (e)=>{ if(e.target === modal) cerrar(); });
+
+  // Lleva al formulario que ya existe al pie: lo despliega si está plegado.
+  const btnComentar = document.getElementById('acercaComentar');
+  const envoltura = document.querySelector('.cmt-wrap');
+  if(!envoltura || IS_LOCKED_COPY){
+    if(btnComentar) btnComentar.style.display = 'none';
+  } else {
+    btnComentar.addEventListener('click', ()=>{
+      cerrar();
+      const caja = document.getElementById('cmtBox');
+      const tog  = document.getElementById('cmtToggle');
+      if(caja && caja.hidden){ caja.hidden = false; tog.setAttribute('aria-expanded','true'); }
+      envoltura.scrollIntoView({behavior:'smooth', block:'center'});
+      setTimeout(()=>{ const n = document.getElementById('cmtNombre'); if(n) n.focus(); }, 450);
+    });
+  }
+
+  // El histórico no aplica dentro de la propia pestaña de histórico ni en copias.
+  const btnHist = document.getElementById('acercaHistorial');
+  const origHist = document.getElementById('btnVerHistorial');
+  if(!origHist || IS_HISTORY_TAB || IS_LOCKED_COPY){
+    if(btnHist) btnHist.style.display = 'none';
+  } else {
+    btnHist.addEventListener('click', ()=>{ cerrar(); origHist.click(); });
+  }
+})();
 </script>
 </body>
 </html>
