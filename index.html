@@ -561,6 +561,13 @@ function escapeYSaltos(txt){
     .map(b => esc(b).replace(/\r\n|\r|\n/g, '<br>'))
     .join('<div class="flash-note-sep"></div>');
 }
+// "2026-09" -> "sep-26". La llave del renglon en Supabase (state.mes) NO cambia:
+// esto es solo para mostrar en pantalla.
+function mesCorto(periodo){
+  const [y,m] = String(periodo).split('-').map(Number);
+  if(!m || !MESES_ES[m]) return String(periodo);
+  return MESES_ES[m]+'-'+String(y).slice(2);
+}
 function diaLabel(d){
   if(!d || !d.fecha) return '';
   const [y,m,day] = d.fecha.split('-').map(Number);
@@ -1686,7 +1693,7 @@ function handleFile(file){
       const parsed = parseDailyWorkbookDynamic(wb, XLSX);
       if(parsed.error){ alert('No reconozco este archivo: '+parsed.error); return; }
       if(parsed.mes !== state.mes){
-        if(!confirm('Este archivo parece ser de '+parsed.mes+' y tu vista actual es de '+state.mes+'. ¿Reemplazar la vista con este nuevo mes? (se recomienda primero "Guardar copia" del mes actual)')) return;
+        if(!confirm('Este archivo parece ser de '+mesCorto(parsed.mes)+' y tu vista actual es de '+mesCorto(state.mes)+'. ¿Reemplazar la vista con este nuevo mes? (se recomienda primero "Guardar copia" del mes actual)')) return;
       }
       state.mes = parsed.mes; state.dias = parsed.dias; state.totales = parsed.totales; state.stock = parsed.stock; state.stockProcedencia = parsed.stockProcedencia; state.ensayePendiente = parsed.ensayePendiente;
       const last = lastDiaConDato();
@@ -1697,7 +1704,7 @@ function handleFile(file){
       state.datosSubidosEn = new Date().toISOString();
       await saveState();
       renderAll();
-      alert('Datos diarios actualizados: '+last+' día(s) con información en '+state.mes+'. Ya quedaron guardados en la base de datos compartida.');
+      alert('Datos diarios actualizados: '+last+' día(s) con información en '+mesCorto(state.mes)+'. Ya quedaron guardados en la base de datos compartida.');
       window.scrollTo({top:0, behavior:'smooth'});
     }catch(err){
       console.error(err);
@@ -1837,7 +1844,7 @@ function applyLockIfNeeded(){
   document.getElementById('btnExportXlsx').style.display = 'none';
   const banner = document.getElementById('lockedBanner');
   banner.style.display = 'block';
-  document.getElementById('lockedMes').textContent = state.mes || '';
+  document.getElementById('lockedMes').textContent = state.mes ? mesCorto(state.mes) : '';
 }
 
 // Modo mantenimiento: mientras state.paused sea true, cualquier visitante que NO se
@@ -1970,7 +1977,7 @@ async function poblarSelectorExport(){
     // Sin conexión a la base o sin filas: al menos ofrece el mes que ya está cargado en esta pestaña.
     rows = [{periodo: state.mes}];
   }
-  sel.innerHTML = rows.map(r=> `<option value="${r.periodo}">${labelPeriodo(r.periodo)}</option>`).join('');
+  sel.innerHTML = rows.map(r=> `<option value="${r.periodo}">${mesCorto(r.periodo)}</option>`).join('');
   if(rows.some(r=>r.periodo===state.mes)) sel.value = state.mes;
   return rows.map(r=>r.periodo);
 }
