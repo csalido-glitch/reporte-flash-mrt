@@ -1318,8 +1318,13 @@ function renderCharts(){
       const real = (ctx.parsed.y||0) / f;
       return ctx.dataset.label + ': ' + (Math.round(real*1000)/1000);
     }}} : {};
+    // Opciones por omisión: las usan las gráficas cuyos datasets no traen su propio
+    // bloque de etiquetas (Ratio $Au/$Ag, entre otras). Aquí también va la rotación
+    // automática; sin esto, esas gráficas se quedaban con las etiquetas derechas y
+    // encimadas.
     const datalabelsOpts = {
       display: showDataLabels,
+      rotation: rotacionAuto,
       anchor: 'end', align: 'top', offset: 2, clip: false,
       font: {size:8}, color: dlTextColor(),
       backgroundColor: dlBgColor(),
