@@ -2311,6 +2311,13 @@ function applyHistoryModeUI(){
   document.getElementById('btnVerHistorial').style.display = 'none';
   document.getElementById('btnMaint').style.display = 'none';
   document.getElementById('btnExportXlsx').style.display = 'none';
+  // El histórico es solo lectura: no lleva formulario de comentarios ni buzón.
+  // Un comentario desde aquí quedaría amarrado a un mes viejo y confundiría más
+  // de lo que ayuda; el buzón vive en la página en vivo.
+  const cmtWrapHist = document.querySelector('.cmt-wrap');
+  if(cmtWrapHist) cmtWrapHist.style.display = 'none';
+  const btnVerCmtHist = document.getElementById('btnVerComentarios');
+  if(btnVerCmtHist) btnVerCmtHist.style.display = 'none';
   document.getElementById('historyBanner').style.display = 'block';
   document.title = 'Histórico — Reporte Flash MRT Cieneguita';
 }
@@ -2589,7 +2596,7 @@ if(!IS_LOCKED_COPY){
   // Lleva al formulario que ya existe al pie: lo despliega si está plegado.
   const btnComentar = document.getElementById('acercaComentar');
   const envoltura = document.querySelector('.cmt-wrap');
-  if(!envoltura || IS_LOCKED_COPY){
+  if(!envoltura || IS_LOCKED_COPY || IS_HISTORY_TAB){
     if(btnComentar) btnComentar.style.display = 'none';
   } else {
     btnComentar.addEventListener('click', ()=>{
