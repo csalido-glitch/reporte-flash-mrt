@@ -2342,8 +2342,11 @@ async function cmtEnviar(){
     document.getElementById('cmtTexto').value = '';
     document.getElementById('cmtTipo').value = '';
   }catch(e){
+    // Se muestra el mensaje real de la base: decir "revisa tu internet" cuando en
+    // realidad faltan permisos manda a buscar el problema al lugar equivocado.
     console.error('No se pudo guardar el comentario', e);
-    cmtMostrarMsg('No se pudo guardar el comentario (revisa tu conexión a internet).','err');
+    const detalle = (e && (e.message || e.hint || e.details)) ? (' — ' + (e.message || e.hint || e.details)) : '';
+    cmtMostrarMsg('No se pudo guardar el comentario' + cmtEsc(detalle) + '. Si el problema sigue, avísale a César.','err');
   }
   cmtRevisarForma();
 }
