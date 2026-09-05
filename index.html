@@ -271,7 +271,7 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
 
 </div>
 <div class="footer-bar"></div>
-<div style="text-align:center;font-size:10px;color:#bbb;padding:4px 0 8px;">Build generado: 2026-09-02 (fix Mantenimiento + Stock por Procedencia)</div>
+<div style="text-align:center;font-size:10px;color:#bbb;padding:4px 0 8px;">Build generado: 2026-09-04</div>
 <button class="maint-footer-link" id="btnMaint">🔧 Mantenimiento</button>
 <div id="visitasCounter" style="text-align:center;font-size:10px;color:#bbb;padding:2px 0 8px;"></div>
 
@@ -351,7 +351,7 @@ function linearTrend(values){
   return values.map((v,i)=> (v===null || v===undefined || isNaN(v)) ? null : slope*i + intercept);
 }
 
-let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, stockProcedencia: BASE_DATA.stockProcedencia || [], selectedDay: 1, paused: false, ensayePendiente: BASE_DATA.ensayePendiente || false, visitas: BASE_DATA.visitas || {total:0, porDia:{}} };
+let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, stockProcedencia: BASE_DATA.stockProcedencia || [], selectedDay: 1, paused: false, ensayePendiente: BASE_DATA.ensayePendiente || false, visitas: BASE_DATA.visitas || {total:0, porDia:{}}, datosSubidosEn: BASE_DATA.datosSubidosEn || null };
 let isMaintAdmin = false; // solo dura mientras la pestaña esté abierta; no se guarda en la BD
 
 async function loadState(){
@@ -367,7 +367,7 @@ async function loadState(){
       } else {
         // la tabla está vacía todavía: sembramos con los datos que ya traía el archivo,
         // para que el piloto no arranque en ceros
-        await sb.from('flash_reportes').upsert({periodo: state.mes, data:{mes:state.mes,dias:state.dias,totales:state.totales,stock:state.stock,stockProcedencia:state.stockProcedencia,paused:state.paused,ensayePendiente:state.ensayePendiente,visitas:state.visitas}});
+        await sb.from('flash_reportes').upsert({periodo: state.mes, data:{mes:state.mes,dias:state.dias,totales:state.totales,stock:state.stock,stockProcedencia:state.stockProcedencia,paused:state.paused,ensayePendiente:state.ensayePendiente,visitas:state.visitas,datosSubidosEn:state.datosSubidosEn}});
       }
     }catch(e){
       console.error('No se pudo conectar a la base de datos, se muestran los datos de respaldo incluidos en el archivo.', e);
@@ -381,7 +381,7 @@ async function saveState(){
   try{
     const { error } = await sb.from('flash_reportes').upsert({
       periodo: state.mes,
-      data: {mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, paused:state.paused, ensayePendiente:state.ensayePendiente, visitas:state.visitas},
+      data: {mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, paused:state.paused, ensayePendiente:state.ensayePendiente, visitas:state.visitas, datosSubidosEn:state.datosSubidosEn},
       updated_at: new Date().toISOString()
     });
     if(error) throw error;
@@ -567,12 +567,29 @@ function diaLabel(d){
   return day+'-'+MESES_ES[m]+'-'+String(y).slice(2);
 }
 
+// Devuelve {fecha:'3-sep-26', hora:'18:42'} en horario local del navegador, o null.
+function selloSubida(iso){
+  if(!iso) return null;
+  const t = new Date(iso);
+  if(isNaN(t.getTime())) return null;
+  return {
+    fecha: t.getDate()+'-'+MESES_ES[t.getMonth()+1]+'-'+String(t.getFullYear()).slice(2),
+    hora: String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0')
+  };
+}
 function renderLastUpdated(){
   const el = document.getElementById('lastUpdated');
   const last = lastDiaConDato();
   if(!last){ el.textContent = 'Sin datos diarios capturados aún.'; return; }
   const d = state.dias[last-1];
-  el.textContent = 'Datos actualizados hasta: ' + diaLabel(d) + ' (día '+last+' de '+state.mes+')';
+  let txt = 'Datos actualizados hasta: ' + diaLabel(d);
+  const sub = selloSubida(state.datosSubidosEn);
+  if(sub){
+    // Si la subida fue el mismo día que el último dato, no se repite la fecha.
+    txt += (sub.fecha === diaLabel(d)) ? ' · subido a las '+sub.hora
+                                       : ' · subido el '+sub.fecha+' a las '+sub.hora;
+  }
+  el.textContent = txt;
 }
 
 function renderSelectedDayLabel(){
@@ -1674,6 +1691,10 @@ function handleFile(file){
       state.mes = parsed.mes; state.dias = parsed.dias; state.totales = parsed.totales; state.stock = parsed.stock; state.stockProcedencia = parsed.stockProcedencia; state.ensayePendiente = parsed.ensayePendiente;
       const last = lastDiaConDato();
       state.selectedDay = Math.max(1,last);
+      // Sello de cuándo se subió este archivo, para mostrarlo junto a la fecha del
+      // último dato. No se usa updated_at de la tabla porque ese campo lo tocan
+      // también el contador de visitas y el modo mantenimiento.
+      state.datosSubidosEn = new Date().toISOString();
       await saveState();
       renderAll();
       alert('Datos diarios actualizados: '+last+' día(s) con información en '+state.mes+'. Ya quedaron guardados en la base de datos compartida.');
@@ -1777,7 +1798,7 @@ document.getElementById('btnReset').onclick = async ()=>{
       const empty = emptyDataset();
       const { error } = await sb.from('flash_reportes').upsert({
         periodo: state.mes,
-        data: {mes: state.mes, dias: empty.dias, totales: empty.totales, stock: empty.stock, stockProcedencia: [], paused: state.paused, ensayePendiente: false, visitas: state.visitas},
+        data: {mes: state.mes, dias: empty.dias, totales: empty.totales, stock: empty.stock, stockProcedencia: [], paused: state.paused, ensayePendiente: false, visitas: state.visitas, datosSubidosEn: null},
         updated_at: new Date().toISOString()
       });
       if(error) throw error;
@@ -1794,7 +1815,7 @@ document.getElementById('btnReset').onclick = async ()=>{
 document.getElementById('btnExport').onclick = ()=>{
   let newHtml = document.documentElement.outerHTML.replace(
     /const BASE_DATA = \{.*?\};\s*\n/s,
-    'const BASE_DATA = '+JSON.stringify({mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, paused:false, ensayePendiente:state.ensayePendiente, visitas:state.visitas})+';\n'
+    'const BASE_DATA = '+JSON.stringify({mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, paused:false, ensayePendiente:state.ensayePendiente, visitas:state.visitas, datosSubidosEn:state.datosSubidosEn})+';\n'
   );
   // La copia guardada queda archivada: no admite arrastrar más archivos ni restablecer.
   newHtml = newHtml.replace('const IS_LOCKED_COPY = false;', 'const IS_LOCKED_COPY = true;');
