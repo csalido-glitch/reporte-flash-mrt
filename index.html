@@ -26,6 +26,67 @@ body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#fafafa;color:#
   text-align:center; white-space:nowrap;
 }
 .header-banner .subtitle{ font-size:clamp(8px, 0.75vw, 12px); color:#444; margin-top:2px; text-align:center; }
+.site-note{
+  display:flex; align-items:baseline; justify-content:flex-end; gap:6px; flex-wrap:wrap;
+  max-width:1300px; margin:0 auto; padding:0 20px 16px;
+  font-size:9px; color:#c2c2c2; line-height:1.6; text-align:right;
+}
+.site-note .code-glyph{ font-family:ui-monospace,SFMono-Regular,Consolas,monospace; color:var(--gold-dark); letter-spacing:-.5px; }
+.site-note a{ color:#a8a8a8; text-decoration:underline; }
+.site-note a:hover{ color:var(--gold-dark); }
+/* ── Buzón de comentarios ──────────────────────────────────────────────── */
+.cmt-box{max-width:820px;margin:14px auto 0;padding:14px 16px;border:1px solid var(--line-soft,#e3e6e9);border-radius:6px;background:#fff;}
+.cmt-box h4{margin:0 0 3px;font-size:13px;color:var(--navy);}
+.cmt-box .cmt-sub{font-size:10px;color:#7c858d;margin:0 0 12px;}
+.cmt-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.cmt-grid .ancho{grid-column:1/-1;}
+.cmt-grid label{display:block;font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#7c858d;margin-bottom:3px;}
+.cmt-grid label .req{color:#c0392b;}
+.cmt-grid input,.cmt-grid select,.cmt-grid textarea{width:100%;font:inherit;font-size:12px;padding:7px 9px;border:1px solid #d4d9dd;border-radius:4px;background:#fff;color:#2b3238;}
+.cmt-grid textarea{resize:vertical;min-height:64px;}
+.cmt-grid .falta{border-color:#e8a29a;background:#fffafa;}
+.cmt-pie{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px;}
+.cmt-nota{font-size:9px;color:#7c858d;}
+.cmt-btn{background:var(--navy);color:#fff;border:none;border-radius:4px;padding:8px 18px;font-size:12px;font-weight:600;cursor:pointer;}
+.cmt-btn[disabled]{background:#c3c9ce;cursor:not-allowed;}
+.cmt-msg{margin-top:9px;font-size:10px;border-radius:4px;padding:6px 9px;display:none;}
+.cmt-msg.err{display:block;color:#c0392b;background:#fdecea;border:1px solid #f5c6c0;}
+.cmt-msg.ok{display:block;color:#1e7e46;background:#e8f6ee;border:1px solid #bfe3ce;}
+/* blog */
+.cmt-modal{position:fixed;inset:0;background:rgba(20,25,30,.55);z-index:60;display:none;align-items:flex-start;justify-content:center;padding:26px 14px;overflow-y:auto;}
+.cmt-modal.abierto{display:flex;}
+.cmt-panel{background:#fafafa;border-radius:8px;width:100%;max-width:820px;box-shadow:0 10px 40px rgba(0,0,0,.3);overflow:hidden;}
+.cmt-panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 18px 10px;border-bottom:1px solid #e3e6e9;}
+.cmt-panel-head h4{margin:0;font-size:14px;color:var(--navy);}
+.cmt-panel-head .cnt{font-size:10px;color:#7c858d;margin-top:2px;}
+.cmt-orden{font-size:10px;color:#7c858d;}
+.cmt-orden button,.cmt-cerrar{background:none;border:none;color:#9aa2a8;text-decoration:underline;font-size:10px;cursor:pointer;padding:0;}
+.cmt-cerrar{font-size:16px;text-decoration:none;color:#98a1a8;line-height:1;}
+.cmt-lista{padding:2px 18px 18px;}
+.cmt-item{display:flex;gap:11px;padding:13px 0;border-bottom:1px solid #e3e6e9;}
+.cmt-item.hecho{opacity:.55;}
+.cmt-num{flex:0 0 26px;font-size:10px;color:#b3bac0;padding-top:2px;font-variant-numeric:tabular-nums;}
+.cmt-cont{flex:1;min-width:0;}
+.cmt-meta{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;margin-bottom:4px;}
+.cmt-quien{font-size:12px;font-weight:700;color:var(--navy);}
+.cmt-area{font-size:10px;color:#7c858d;}
+.cmt-cuando{font-size:10px;color:#a8b0b6;margin-left:auto;font-variant-numeric:tabular-nums;}
+.cmt-chip{font-size:8.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 6px;border-radius:9px;}
+.chip-cor{background:#fdecea;color:#b03a2e;}
+.chip-sug{background:#eaf1f8;color:#1b3a5c;}
+.chip-dud{background:#fdf4e0;color:#8a6d0b;}
+.cmt-texto{font-size:12px;line-height:1.55;margin:0;white-space:pre-wrap;overflow-wrap:anywhere;}
+.cmt-vista{font-size:9px;color:#aab1b7;margin-top:5px;}
+.cmt-acc{margin-top:6px;display:flex;gap:12px;flex-wrap:wrap;}
+.cmt-acc button{background:none;border:none;font-size:9.5px;color:#9aa2a8;text-decoration:underline;cursor:pointer;padding:0;}
+.cmt-sello{font-size:8.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#1e7e46;background:#e8f6ee;border-radius:9px;padding:2px 6px;}
+.cmt-vacio{font-size:11px;color:#98a1a8;padding:20px 0;text-align:center;}
+body[data-theme="dark"] .cmt-box{background:#20262c;border-color:#333c44;}
+body[data-theme="dark"] .cmt-box h4,body[data-theme="dark"] .cmt-quien,body[data-theme="dark"] .cmt-panel-head h4{color:var(--gold);}
+body[data-theme="dark"] .cmt-grid input,body[data-theme="dark"] .cmt-grid select,body[data-theme="dark"] .cmt-grid textarea{background:#171c21;border-color:#3a444c;color:#e2e2e2;}
+body[data-theme="dark"] .cmt-panel{background:#181d22;}
+body[data-theme="dark"] .cmt-panel-head,body[data-theme="dark"] .cmt-item{border-color:#2f373e;}
+body[data-theme="dark"] .cmt-texto{color:#dfe3e6;}
 .footer-bar{height:10px;background:linear-gradient(90deg,var(--navy),var(--gold));}
 .container{max-width:1300px;margin:0 auto;padding:16px 20px 30px;}
 
@@ -177,6 +238,9 @@ body[data-theme="dark"] .maint-screen{color:#aaa;}
 body[data-theme="dark"] .maint-screen h2{color:#e2e2e2;}
 body[data-theme="dark"] .maint-screen p{color:#999;}
 body[data-theme="dark"] .maint-footer-link{color:#666;}
+body[data-theme="dark"] .site-note{color:#565b60;}
+body[data-theme="dark"] .site-note a{color:#6d7378;}
+body[data-theme="dark"] .site-note a:hover{color:var(--gold);}
 body[data-theme="dark"] .maint-footer-link:hover{color:#999;}
 body[data-theme="dark"] .sticky-head{background:#15191d;}
 body[data-theme="dark"] .day-chip.empty{background:#333;color:#777;}
@@ -273,7 +337,49 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
 <div class="footer-bar"></div>
 <div style="text-align:center;font-size:10px;color:#bbb;padding:4px 0 8px;">Build generado: 4-sep-26</div>
 <button class="maint-footer-link" id="btnMaint">🔧 Mantenimiento</button>
+<div class="cmt-box" id="cmtBox">
+  <h4>Comentarios y sugerencias</h4>
+  <p class="cmt-sub">¿Viste un dato raro, te falta algo, se te ocurre una mejora? Cuéntanos. Todos los campos son obligatorios.</p>
+  <div class="cmt-grid">
+    <div><label>Nombre <span class="req">*</span></label><input id="cmtNombre" maxlength="60" autocomplete="name" placeholder="Tu nombre"></div>
+    <div><label>Área <span class="req">*</span></label><input id="cmtArea" maxlength="40" placeholder="Planta, Laboratorio, Mantenimiento…"></div>
+    <div class="ancho"><label>Tipo <span class="req">*</span></label>
+      <select id="cmtTipo">
+        <option value="">— Elige una opción —</option>
+        <option value="Corrección">Corrección — hay un dato mal</option>
+        <option value="Sugerencia">Sugerencia — se podría mejorar</option>
+        <option value="Duda">Duda — no entiendo algo</option>
+      </select></div>
+    <div class="ancho"><label>Comentario <span class="req">*</span></label>
+      <textarea id="cmtTexto" maxlength="1000" placeholder="Cuéntanos con detalle…"></textarea></div>
+  </div>
+  <div class="cmt-pie">
+    <span class="cmt-nota">Se guarda el mes y el día que tienes en pantalla, para poder revisarlo. <span id="cmtRestantes"></span></span>
+    <button class="cmt-btn" id="cmtEnviar" disabled>Enviar comentario</button>
+  </div>
+  <div class="cmt-msg" id="cmtMsg"></div>
+</div>
+
+<button class="maint-footer-link" id="btnVerComentarios">🗒 Ver comentarios</button>
+
+<div class="cmt-modal" id="cmtModal">
+  <div class="cmt-panel">
+    <div class="cmt-panel-head">
+      <div><h4>Buzón del Reporte Flash</h4><div class="cnt" id="cmtConteo"></div></div>
+      <span class="cmt-orden">Orden: <b id="cmtOrdenActual">de aparición</b> · <button id="cmtOrdenToggle">más recientes primero</button></span>
+      <button class="cmt-cerrar" id="cmtCerrar" title="Cerrar">✕</button>
+    </div>
+    <div class="cmt-lista" id="cmtLista"></div>
+  </div>
+</div>
+
 <div id="visitasCounter" style="text-align:center;font-size:10px;color:#bbb;padding:2px 0 8px;"></div>
+
+<div class="site-note">
+  <span class="code-glyph">&lt;/&gt;</span>
+  <a href="mailto:csalido@mrtcorporativo.mx?subject=Reporte%20Flash%20MRT%20%E2%80%94%20comentarios">Acerca de este sitio</a>
+  <span>Se agradecen las correcciones, sugerencias y comentarios.</span>
+</div>
 
 <div class="pin-modal-overlay" id="pinModalOverlay" style="display:none;">
   <div class="pin-modal-box">
@@ -2161,6 +2267,180 @@ if(!IS_LOCKED_COPY && !IS_HISTORY_TAB){
     }
   });
   if(document.visibilityState === 'visible') startAutoRefresh();
+}
+
+// ── Buzón de comentarios ────────────────────────────────────────────────────
+// El formulario es público (cualquiera puede escribir); la lista se abre con la
+// misma contraseña de subida de datos. Igual que el resto de la app, esa
+// contraseña vive en el HTML: es un candado de conveniencia, no de seguridad.
+const CMT_MAX_TEXTO = 1000;
+const CMT_MAX_POR_SESION = 3;
+const CMT_TIPO_CHIP = {'Corrección':'chip-cor','Sugerencia':'chip-sug','Duda':'chip-dud'};
+// El comentario lo escribe cualquiera y se pinta con innerHTML: se escapa siempre.
+function cmtEsc(v){
+  return String(v==null?'':v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+let cmtOrdenAsc = true;      // true = orden de aparición (el más viejo primero)
+let cmtDesbloqueado = false; // ya metió la contraseña en esta pestaña
+
+function cmtEnviadosEnSesion(){
+  return Number(sessionStorage.getItem('flashCmtEnviados') || 0);
+}
+function cmtCamposFaltantes(){
+  const faltan = [];
+  if(!document.getElementById('cmtNombre').value.trim()) faltan.push('Nombre');
+  if(!document.getElementById('cmtArea').value.trim())   faltan.push('Área');
+  if(!document.getElementById('cmtTipo').value)          faltan.push('Tipo');
+  if(!document.getElementById('cmtTexto').value.trim())  faltan.push('Comentario');
+  return faltan;
+}
+function cmtRevisarForma(){
+  const btn = document.getElementById('cmtEnviar');
+  const restantesEl = document.getElementById('cmtRestantes');
+  const quedan = CMT_MAX_POR_SESION - cmtEnviadosEnSesion();
+  restantesEl.textContent = quedan < CMT_MAX_POR_SESION ? ('Te quedan '+Math.max(0,quedan)+' de '+CMT_MAX_POR_SESION+' comentarios en esta sesión.') : '';
+  btn.disabled = (cmtCamposFaltantes().length > 0) || quedan <= 0;
+}
+function cmtMostrarMsg(texto, clase){
+  const el = document.getElementById('cmtMsg');
+  el.className = 'cmt-msg ' + clase;
+  el.innerHTML = texto;
+}
+async function cmtEnviar(){
+  const faltan = cmtCamposFaltantes();
+  ['cmtNombre','cmtArea','cmtTipo','cmtTexto'].forEach(id=>document.getElementById(id).classList.remove('falta'));
+  if(faltan.length){
+    if(!document.getElementById('cmtNombre').value.trim()) document.getElementById('cmtNombre').classList.add('falta');
+    if(!document.getElementById('cmtArea').value.trim())   document.getElementById('cmtArea').classList.add('falta');
+    if(!document.getElementById('cmtTipo').value)          document.getElementById('cmtTipo').classList.add('falta');
+    if(!document.getElementById('cmtTexto').value.trim())  document.getElementById('cmtTexto').classList.add('falta');
+    cmtMostrarMsg('Falta capturar: <b>'+faltan.join('</b>, <b>')+'</b>. No se registra hasta que estén todos.','err');
+    return;
+  }
+  if(cmtEnviadosEnSesion() >= CMT_MAX_POR_SESION){
+    cmtMostrarMsg('Ya enviaste '+CMT_MAX_POR_SESION+' comentarios en esta sesión. Vuelve a abrir la página si necesitas mandar otro.','err');
+    return;
+  }
+  if(!sb){ cmtMostrarMsg('No hay conexión a la base de datos. Intenta más tarde.','err'); return; }
+  const btn = document.getElementById('cmtEnviar');
+  btn.disabled = true;
+  try{
+    const { error } = await sb.from('flash_comentarios').insert({
+      nombre: document.getElementById('cmtNombre').value.trim().slice(0,60),
+      area:   document.getElementById('cmtArea').value.trim().slice(0,40),
+      tipo:   document.getElementById('cmtTipo').value,
+      comentario: document.getElementById('cmtTexto').value.trim().slice(0,CMT_MAX_TEXTO),
+      periodo: state.mes || null,
+      dia: state.selectedDay || null
+    });
+    if(error) throw error;
+    sessionStorage.setItem('flashCmtEnviados', String(cmtEnviadosEnSesion()+1));
+    const ahora = selloSubida(new Date().toISOString());
+    cmtMostrarMsg('✓ Gracias. Tu comentario quedó registrado el '+ahora.fecha+' a las '+ahora.hora+'.','ok');
+    document.getElementById('cmtTexto').value = '';
+    document.getElementById('cmtTipo').value = '';
+  }catch(e){
+    console.error('No se pudo guardar el comentario', e);
+    cmtMostrarMsg('No se pudo guardar el comentario (revisa tu conexión a internet).','err');
+  }
+  cmtRevisarForma();
+}
+function cmtFechaHora(iso){
+  const s = selloSubida(iso);
+  return s ? (s.fecha + ' · ' + s.hora) : '';
+}
+async function cmtCargarLista(){
+  const lista = document.getElementById('cmtLista');
+  const conteo = document.getElementById('cmtConteo');
+  lista.innerHTML = '<div class="cmt-vacio">Cargando…</div>';
+  if(!sb){ lista.innerHTML = '<div class="cmt-vacio">Sin conexión a la base de datos.</div>'; return; }
+  let filas = [];
+  try{
+    const { data, error } = await sb.from('flash_comentarios').select('*').order('id',{ascending:true});
+    if(error) throw error;
+    filas = data || [];
+  }catch(e){
+    console.error('No se pudieron leer los comentarios', e);
+    lista.innerHTML = '<div class="cmt-vacio">No se pudieron leer los comentarios.</div>';
+    return;
+  }
+  const pendientes = filas.filter(f=>!f.atendido).length;
+  conteo.textContent = filas.length + (filas.length===1?' comentario':' comentarios') + ' · ' + pendientes + ' sin atender';
+  if(!filas.length){ lista.innerHTML = '<div class="cmt-vacio">Todavía no hay comentarios.</div>'; return; }
+  // El número (#1, #2…) es siempre el orden de llegada, aunque se invierta la vista.
+  const numerado = filas.map((f,i)=>({f, n:i+1}));
+  const vista = cmtOrdenAsc ? numerado : numerado.slice().reverse();
+  lista.innerHTML = vista.map(({f,n})=>{
+    const chip = CMT_TIPO_CHIP[f.tipo] || 'chip-sug';
+    const vistaTxt = f.periodo ? ('Estaba viendo: '+mesCorto(f.periodo)+(f.dia?(', día '+f.dia):'')) : '';
+    const acciones = f.atendido
+      ? '<span class="cmt-sello">Atendido</span><button data-cmt-reabrir="'+f.id+'">reabrir</button>'
+      : '<button data-cmt-hecho="'+f.id+'">marcar atendido</button><button data-cmt-borrar="'+f.id+'">borrar</button>';
+    return '<div class="cmt-item'+(f.atendido?' hecho':'')+'">'
+      + '<div class="cmt-num">#'+n+'</div><div class="cmt-cont">'
+      + '<div class="cmt-meta"><span class="cmt-quien">'+cmtEsc(f.nombre)+'</span>'
+      + '<span class="cmt-area">'+cmtEsc(f.area)+'</span>'
+      + '<span class="cmt-chip '+chip+'">'+cmtEsc(f.tipo)+'</span>'
+      + '<span class="cmt-cuando">'+cmtFechaHora(f.creado_en)+'</span></div>'
+      + '<p class="cmt-texto">'+cmtEsc(f.comentario)+'</p>'
+      + (vistaTxt ? '<div class="cmt-vista">'+vistaTxt+'</div>' : '')
+      + '<div class="cmt-acc">'+acciones+'</div>'
+      + '</div></div>';
+  }).join('');
+}
+async function cmtMarcar(id, valor){
+  try{
+    const { error } = await sb.from('flash_comentarios').update({atendido: valor}).eq('id', id);
+    if(error) throw error;
+  }catch(e){ console.error('No se pudo actualizar el comentario', e); alert('No se pudo actualizar el comentario.'); }
+  cmtCargarLista();
+}
+async function cmtBorrar(id){
+  if(!confirm('¿Borrar este comentario? No se puede deshacer.')) return;
+  try{
+    const { error } = await sb.from('flash_comentarios').delete().eq('id', id);
+    if(error) throw error;
+  }catch(e){ console.error('No se pudo borrar el comentario', e); alert('No se pudo borrar el comentario.'); }
+  cmtCargarLista();
+}
+if(!IS_LOCKED_COPY){
+  ['cmtNombre','cmtArea','cmtTipo','cmtTexto'].forEach(id=>{
+    const el = document.getElementById(id);
+    el.addEventListener('input', ()=>{ el.classList.remove('falta'); cmtRevisarForma(); });
+    el.addEventListener('change', ()=>{ el.classList.remove('falta'); cmtRevisarForma(); });
+  });
+  document.getElementById('cmtEnviar').addEventListener('click', cmtEnviar);
+  document.getElementById('btnVerComentarios').addEventListener('click', async ()=>{
+    if(!cmtDesbloqueado){
+      if(!(await checkPin('cesarG83','Contraseña para ver los comentarios'))) return;
+      cmtDesbloqueado = true;
+    }
+    document.getElementById('cmtModal').classList.add('abierto');
+    cmtCargarLista();
+  });
+  document.getElementById('cmtCerrar').addEventListener('click', ()=>document.getElementById('cmtModal').classList.remove('abierto'));
+  document.getElementById('cmtModal').addEventListener('click', (e)=>{
+    if(e.target.id === 'cmtModal') document.getElementById('cmtModal').classList.remove('abierto');
+  });
+  document.getElementById('cmtOrdenToggle').addEventListener('click', ()=>{
+    cmtOrdenAsc = !cmtOrdenAsc;
+    document.getElementById('cmtOrdenActual').textContent = cmtOrdenAsc ? 'de aparición' : 'más recientes primero';
+    document.getElementById('cmtOrdenToggle').textContent = cmtOrdenAsc ? 'más recientes primero' : 'en orden de aparición';
+    cmtCargarLista();
+  });
+  document.getElementById('cmtLista').addEventListener('click', (e)=>{
+    const b = e.target.closest('button'); if(!b) return;
+    if(b.dataset.cmtHecho)   cmtMarcar(Number(b.dataset.cmtHecho), true);
+    if(b.dataset.cmtReabrir) cmtMarcar(Number(b.dataset.cmtReabrir), false);
+    if(b.dataset.cmtBorrar)  cmtBorrar(Number(b.dataset.cmtBorrar));
+  });
+  cmtRevisarForma();
+} else {
+  // Copia archivada: no admite comentarios nuevos ni consulta del buzón.
+  const cajaCmt = document.getElementById('cmtBox'); if(cajaCmt) cajaCmt.style.display = 'none';
+  const btnVer  = document.getElementById('btnVerComentarios'); if(btnVer) btnVer.style.display = 'none';
 }
 </script>
 </body>
