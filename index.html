@@ -3,7 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <title>Reporte Flash Diario — MRT Cieneguita</title>
+<script>
+// Se marca la vista antes de dibujar nada. Ocultar el buzón hasta que corriera
+// todo el script dejaba un parpadeo en el histórico: alcanzaba a verse el
+// formulario y luego desaparecía.
+(function(){
+  var q = new URLSearchParams(location.search);
+  if(q.has('historial') || q.has('ver')) document.documentElement.setAttribute('data-vista','historial');
+})();
+</script>
 <style>
+html[data-vista="historial"] .cmt-wrap,
+html[data-vista="historial"] #btnVerComentarios{ display:none !important; }
 :root{
   --gold:#B8912A; --gold-dark:#8a6a17; --navy:#1a2733; --gray:#9a9a9a; --gray-lt:#e8e8e8;
   --blue:#5B9BD5; --orange:#ED7D31; --green:#4EA72E; --red:#c0392b;
