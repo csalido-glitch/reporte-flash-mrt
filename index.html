@@ -253,12 +253,19 @@ body[data-theme="dark"] .stock-inline{ background:#20262c; border-color:#3a444c;
 .stock-box .lbl{ font-size:15px; font-weight:700; color:var(--navy); margin-bottom:8px; }
 .stock-box .val{ font-size:30px; font-weight:800; color:var(--gold-dark); background:#fff; border:1px solid #cfd6dc; border-radius:6px; padding:11px; }
 
-.charts-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; }
+/* minmax(0,1fr) y no 1fr a secas: "1fr" equivale a minmax(auto,1fr), o sea que la
+   columna NO puede encogerse por debajo de su contenido. Con un <canvas> adentro
+   que durante el zoom conserva un instante su ancho viejo, esa columna exigía ese
+   ancho y las demás se colapsaban: la tarjeta de 3 columnas quedaba de 60 px con el
+   título partido palabra por palabra, y la de 1 columna se comía la fila. El
+   min-width:0 en la tarjeta y en el contenedor del canvas cierra la misma puerta. */
+.charts-grid{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:14px; }
 @media (max-width:900px){ .charts-grid{ grid-template-columns:1fr; } .chart-box{ grid-column:1 / -1 !important; } }
-.chart-box{ background:#fff; border:1px solid #e6e6e6; border-radius:8px; padding:12px 14px; }
+.chart-box{ background:#fff; border:1px solid #e6e6e6; border-radius:8px; padding:12px 14px; min-width:0; }
 .chart-box.full-row{ grid-column:1 / -1; }
 .chart-box h3{ margin:0 0 8px; font-size:13px; color:var(--navy); }
-.chart-box .canvas-wrap{ position:relative; height:320px; }
+.chart-box .canvas-wrap{ position:relative; height:320px; min-width:0; }
+.canvas-wrap > canvas{ max-width:100%; }
 .chart-badges{ display:flex; gap:22px; justify-content:center; flex-wrap:wrap; font-size:12.5px; margin:-4px 0 2px; }
 .chart-note{ text-align:center; font-size:11px; color:#999; margin-top:6px; font-style:italic; }
 .pin-modal-overlay{ position:fixed; inset:0; background:rgba(20,25,30,.45); display:flex; align-items:center; justify-content:center; z-index:9999; }
