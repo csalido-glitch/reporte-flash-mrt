@@ -314,14 +314,11 @@ body[data-theme="dark"] .mp-paso{ border-color:#333c44; }
 body[data-theme="dark"] .mp-num{ background:#E8B93D; color:#15191d; }
 .mp-cab h4{ margin:0; font-size:13px; color:var(--navy); }
 body[data-theme="dark"] .mp-cab h4{ color:#e2e2e2; }
-.mp-que{ font-size:11px; color:#a09a8a; font-style:italic; }
 .mp-tot{ margin-left:auto; font-size:11px; color:#8a8578; }
 .mp-tot b{ color:var(--navy); font-size:15px; }
 body[data-theme="dark"] .mp-tot b{ color:#e2e2e2; }
 .mp-lienzo{ position:relative; margin-top:8px; min-width:0; }
 .mp-vacio{ font-size:12px; color:#a09a8a; font-style:italic; text-align:center; padding:14px 0 8px; }
-.mp-nota{ font-size:10.5px; color:#a3762b; background:#fdf7e8; border:1px solid #ecdcae; border-radius:4px; padding:6px 9px; margin-top:8px; line-height:1.5; }
-body[data-theme="dark"] .mp-nota{ color:#d8b66a; background:#2a2410; border-color:#4a3f1a; }
 .mp-saldo{ display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; font-size:14px; margin-top:14px; padding-top:12px; border-top:1px solid #eceff1; }
 body[data-theme="dark"] .mp-saldo{ border-color:#333c44; }
 .mp-saldo .op{ color:#b6bcc1; font-size:17px; font-weight:300; }
@@ -1128,7 +1125,7 @@ function renderCharts(){
        {label:'Sol Rica Au Promedio', value: fmt(promSimple(dias,'sol_rica_au'),2), color:GOLD},
        {label:'Sol Rica Ag Promedio', value: fmt(promSimple(dias,'sol_rica_ag'),1), color:SILVER},
      ]},
-    {id:'mineralProc', title:'Mineral por Procedencia — de lo que llega a báscula, a lo que queda en patio',
+    {id:'mineralProc', title:'Mineral por Procedencia',
      full:true, widthPct:80, custom:true,
      customHtml: mineralProcedenciaHtml, customInit: mineralProcedenciaInit, note:'Tonelaje Húmedo'},
     {id:'chMezcla', title:'Mezcla Alimentada por Procedencia (Diario)', type:'bar', full:true, alwaysLabels:true, note:'Tonelaje Húmedo',
@@ -1516,14 +1513,13 @@ function mineralProcedenciaHtml(){
   const cam = s.fl.reduce((a,p)=> a + (p.camiones||0), 0);
   const dif = totFl - totAl;
 
-  const paso = (num, titulo, que, totHtml, id, serie, vacio, nota) => `
+  const paso = (num, titulo, totHtml, id, serie, vacio) => `
     <div class="mp-paso">
       <div class="mp-cab"><span class="mp-num">${num}</span><h4>${titulo}</h4>
-        <span class="mp-que">${que}</span><span class="mp-tot">${totHtml}</span></div>
+        <span class="mp-tot">${totHtml}</span></div>
       ${serie.length
         ? `<div class="mp-lienzo" style="height:${alto(serie.length)}px"><canvas id="${id}"></canvas></div>`
         : `<div class="mp-vacio">${vacio}</div>`}
-      ${nota || ''}
     </div>`;
 
   const vista = `<div class="mp-vista"><span>Ver:</span>
@@ -1541,19 +1537,18 @@ function mineralProcedenciaHtml(){
       : 'Llegó más de lo que se molió: la diferencia se quedó en el patio.'}</p>`;
 
   return vista
-    + paso(1, 'Fletes — recibido', 'solamente lo que llegó',
+    + paso(1, 'Fletes',
         `<b>${fmt(totFl,0)} t</b>${cam ? ' · '+fmt(cam,0)+' camiones' : ''}`,
         'mpFletes', s.fl,
         dia ? 'Sin fletes registrados en este día.' : 'Sin acarreo para este periodo. Los meses que se subieron antes de que el Flash empezara a leer la hoja FLETES no traen el dato: vuelve a subir el Excel de ese mes para llenarlo.')
-    + paso(2, 'Alimentación a planta', 'solamente lo que se alimentó',
+    + paso(2, 'Alimentación a planta',
         `<b>${fmt(totAl,0)} t</b> húmedas`,
         'mpAlim', s.al,
         dia ? 'Sin alimentación registrada en este día.' : 'Sin alimentación registrada en el mes.')
-    + paso(3, 'Stock en patio', 'lo que quedó visible',
+    + paso(3, 'Stock en patio',
         `<b>${fmt(totSt,0)} t</b> húmedas · al ${stockLabel}`,
         'mpStock', s.st,
-        'Sin desglose por procedencia en este archivo.',
-        `<div class="mp-nota">El stock es una <b>foto</b>, no un flujo: no cambia al moverte de día, por eso lleva su propia escala. Se grafica sólo lo que el balance deja visible en el rango — lo que el propio Excel oculta son arrastres, no mineral en patio — y quedan fuera los residuos de menos de 1 t.</div>`)
+        'Sin desglose por procedencia en este archivo.')
     + saldo;
 }
 function mineralProcedenciaInit(){
