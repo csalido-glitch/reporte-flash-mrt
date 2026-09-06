@@ -1557,11 +1557,26 @@ function mineralSeries(){
 // En un telefono el bloque cambia de proporciones: filas mas altas (barras mas gruesas),
 // tipografia mas chica y menos margen para la etiqueta del valor.
 function pantallaAngosta(){ return window.innerWidth < 760; }
-// Etiquetas de la gráfica de Flujo: en un teléfono en vertical no caben. Son 31 días en unos
-// 240 px de área útil (los tres ejes se comen el resto), o sea ~7 px por día, y esa gráfica
-// dibuja TRES etiquetas por día. Al girar el teléfono a horizontal el ancho pasa de ~390 a
-// ~844 px y vuelven solas: el bloque se redibuja en cada cambio de ancho.
-function etiquetasFlujo(){ return showDataLabels && !pantallaAngosta(); }
+// Etiquetas de la gráfica de Flujo: esa gráfica dibuja TRES etiquetas por día, así que lo
+// que decide no es el ancho de la pantalla sino cuántos píxeles le tocan a CADA DÍA. A fin
+// de mes, en un teléfono vertical, son ~7 px por día y queda una sopa de números; al día 4
+// son ~65 px y caben de sobra. Por eso el corte va por px/día y no por orientación: al
+// principio del mes se ven, y se van solas conforme el mes se llena. Al girar el teléfono a
+// horizontal el ancho pasa de ~390 a ~844 px y vuelven todas.
+const PX_POR_DIA_ETIQUETAS = 26;
+function etiquetasFlujo(ctx){
+  if(!showDataLabels) return false;
+  if(!pantallaAngosta()) return true;          // laptop o teléfono acostado: siempre
+  let ancho, n;
+  if(ctx && ctx.chart && ctx.chart.chartArea){ // lo exacto, cuando Chart.js ya midió
+    ancho = ctx.chart.chartArea.width;
+    n = (ctx.chart.data.labels || []).length;
+  } else {                                     // estimación, para decidir el hueco de arriba
+    ancho = window.innerWidth - 130;           // los tres ejes verticales
+    n = lastDiaConDato() || 1;
+  }
+  return n > 0 && (ancho / n) >= PX_POR_DIA_ETIQUETAS;
+}
 function mineralProcedenciaHtml(){
   const s = mineralSeries();
   const suma = arr => arr.reduce((a,p)=> a + p.valor, 0);
