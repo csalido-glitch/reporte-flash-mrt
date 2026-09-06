@@ -302,6 +302,14 @@ body[data-theme="dark"] .pin-modal-cancel{ background:#2b3238; color:#bbb; borde
 .chart-delta{ text-align:center; font-size:13px; font-weight:700; margin:-2px 0 6px; }
 .chart-badge-value{ color:#2a2a2a; }
 .chart-box[style*="span 1"] h3{ font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* En telefono estas cifras se apilaban en cuatro renglones altos y se comian media pantalla
+   antes de que apareciera la grafica. Con letra y separacion mas chicas caben de dos en dos. */
+@media (max-width:760px){
+  .chart-badges{ gap:6px 14px; font-size:10.5px; margin:-2px 0 2px; }
+  .chart-badges b{ font-size:12px; }
+  .chart-delta{ font-size:11.5px; }
+  .chart-box h3{ font-size:12px; }
+}
 .stock-proc-head{ display:flex; justify-content:flex-end; font-size:12px; color:#8a8578; margin:-4px 0 10px; }
 .stock-proc-list{ display:flex; flex-direction:column; gap:7px; }
 .stock-proc-row{ display:grid; grid-template-columns:130px 1fr 70px; align-items:center; gap:8px; padding:3px 6px; border-radius:6px; transition:.15s; }
@@ -1111,10 +1119,11 @@ function renderCharts(){
      delta:()=>computeDelta(state.totales.proy_oz_total, state.totales.real_oz_total, 'oz', 1)},
     // Fila 3
     {id:'ch16', title:'Flujo en M³ / Solución Rica-Estéril (Au / Ag, mg/L)', type:'bar', full:true,
+     dlDisplay: etiquetasFlujo,
      mk:()=>({labels, datasets:[
         {label:'M³ Bombeados', type:'bar', data:dias.map(d=>d.m3_bombeados), backgroundColor:'rgba(21,96,130,.32)', yAxisID:'y2', order:3,
          datalabels:{
-           display:true, anchor:'end', align:'top',
+           display: etiquetasFlujo, anchor:'end', align:'top',
            offset:offsetDodge(dias.map(d=>d.m3_bombeados), dias.map(d=>d.sol_rica_au), 2, 26, 'y2', 'y', 34),
            clip:false, rotation: rotacionAuto,
            font:{size:10, weight:'bold'}, color: dlTextColor(),
@@ -1125,7 +1134,7 @@ function renderCharts(){
         {label:'Sol Rica Au', type:'line', data:dias.map(d=>d.sol_rica_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, yAxisID:'y', order:1, ...applyEnsayeLine(GOLD, dias.length),
          datalabels:{
            rotation: rotacionAuto,
-           display:true, anchor:'end', align:'top', offset:offsetDodge(dias.map(d=>d.sol_rica_au), dias.map(d=>d.sol_rica_ag), 6, 20), clip:false,
+           display: etiquetasFlujo, anchor:'end', align:'top', offset:offsetDodge(dias.map(d=>d.sol_rica_au), dias.map(d=>d.sol_rica_ag), 6, 20), clip:false,
            font:{size:10, weight:'bold'}, color:GOLD, backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
@@ -1134,7 +1143,7 @@ function renderCharts(){
         {label:'Sol Rica Ag', type:'line', data:dias.map(d=>d.sol_rica_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, yAxisID:'y1', order:2, ...applyEnsayeLine(SILVER, dias.length),
          datalabels:{
            rotation: rotacionAuto,
-           display:true, anchor:'end', align:'bottom', offset:offsetDodge(dias.map(d=>d.sol_rica_au), dias.map(d=>d.sol_rica_ag), 6, 20), clip:false,
+           display: etiquetasFlujo, anchor:'end', align:'bottom', offset:offsetDodge(dias.map(d=>d.sol_rica_au), dias.map(d=>d.sol_rica_ag), 6, 20), clip:false,
            font:{size:10, weight:'bold'}, color:SILVER, backgroundColor: dlBgColor(), borderRadius:3,
            padding:{top:1, bottom:1, left:3, right:3},
            formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : Math.round(v)
@@ -1145,7 +1154,11 @@ function renderCharts(){
        y:{ type:'linear', position:'left', min:0, max:1, title:{display:true, text:'Au (mg/L)'} },
        y1:{ type:'linear', position:'right', min:0, max:40, title:{display:true, text:'Ag (mg/L)'}, grid:{drawOnChartArea:false} },
        y2:{ type:'linear', position:'right', title:{display:true, text:'M³'}, grid:{drawOnChartArea:false} },
-       x:{ ticks:{ callback: ensayeTickCallback(dias.length-1) } },
+       // En vertical las 31 fechas se encimaban en un borrón ilegible. Ahí se muestran unas
+       // pocas y derechas; en horizontal y en escritorio vuelven todas, como estaban.
+       x:{ ticks: pantallaAngosta()
+             ? { callback: ensayeTickCallback(dias.length-1), autoSkip:true, maxTicksLimit:5, maxRotation:0, font:{size:9} }
+             : { callback: ensayeTickCallback(dias.length-1) } },
      },
      badges:()=>[
        {label:'M³ Total Acumulado', value: fmt(dias.reduce((a,d)=>a+(Number(d.m3_bombeados)||0),0),0), color:'#5B9BD5'},
@@ -1434,7 +1447,10 @@ function renderCharts(){
     // automática; sin esto, esas gráficas se quedaban con las etiquetas derechas y
     // encimadas.
     const datalabelsOpts = {
-      display: showDataLabels,
+      // c.dlDisplay permite que una gráfica apague sus etiquetas por su cuenta. Hace falta
+      // para las series que NO traen su propio bloque de datalabels (Sol Estéril Au y Ag),
+      // que si no se quedaban dibujando su hilera de numeritos pegada al cero.
+      display: c.dlDisplay || showDataLabels,
       rotation: rotacionAuto,
       anchor: 'end', align: 'top', offset: 2, clip: false,
       font: {size:8}, color: dlTextColor(),
@@ -1450,7 +1466,9 @@ function renderCharts(){
         responsive:true,
         maintainAspectRatio:false,
         devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
-        layout: { padding: { top: padSuperior((built.labels||[]).length) } },
+        // El hueco de arriba existe para que quepan las etiquetas giradas. Si esta grafica
+        // las trae apagadas (Flujo en telefono vertical), ese hueco es aire desperdiciado.
+        layout: { padding: { top: (c.dlDisplay && !c.dlDisplay()) ? 10 : padSuperior((built.labels||[]).length) } },
         plugins:{legend:{display: built.datasets.length>1, position:'bottom', labels:{boxWidth:12, font:{size:10}, padding:8,
           filter:(item)=> !(c.alwaysLabels && String(item.text||'').startsWith('Proyección'))}}, tooltip: tooltipOpts, datalabels: datalabelsOpts},
         scales: withDefaultXTicks(c.scales || {})
@@ -1539,6 +1557,11 @@ function mineralSeries(){
 // En un telefono el bloque cambia de proporciones: filas mas altas (barras mas gruesas),
 // tipografia mas chica y menos margen para la etiqueta del valor.
 function pantallaAngosta(){ return window.innerWidth < 760; }
+// Etiquetas de la gráfica de Flujo: en un teléfono en vertical no caben. Son 31 días en unos
+// 240 px de área útil (los tres ejes se comen el resto), o sea ~7 px por día, y esa gráfica
+// dibuja TRES etiquetas por día. Al girar el teléfono a horizontal el ancho pasa de ~390 a
+// ~844 px y vuelven solas: el bloque se redibuja en cada cambio de ancho.
+function etiquetasFlujo(){ return showDataLabels && !pantallaAngosta(); }
 function mineralProcedenciaHtml(){
   const s = mineralSeries();
   const suma = arr => arr.reduce((a,p)=> a + p.valor, 0);
