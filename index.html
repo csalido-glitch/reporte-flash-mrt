@@ -1638,6 +1638,11 @@ function mineralPinta(id, serie, maxComun){
   const enMiles = max >= 2000 && paso % 500 === 0;
   // Al pasar el mouse, la fila señalada se queda a todo color y las demás se atenúan: con
   // muchas barras del mismo tamaño es fácil perder el renglón a media gráfica.
+  // En pantalla táctil NO aplica: ahí no existe "sacar el mouse", así que al tocar una barra
+  // el resalte se quedaba pegado y el resto de la gráfica gris para siempre. En esos equipos
+  // se apagan el atenuado y el globo de datos — la etiqueta al final de la barra ya trae el
+  // tonelaje y el porcentaje, que era todo lo que el globo agregaba.
+  const sinMouse = !!(window.matchMedia && window.matchMedia('(hover: none)').matches);
   let sel = -1;
   const activa = i => sel < 0 || i === sel;
   charts[id] = new Chart(cv, {
@@ -1668,12 +1673,13 @@ function mineralPinta(id, serie, maxComun){
       // la fila, no hace falta atinarle a la barra — con barras cortas eso era una lata.
       interaction:{ mode:'index', axis:'y', intersect:false },
       onHover:(evt, els, chart)=>{
+        if(sinMouse) return;
         const n = els.length ? els[0].index : -1;
         if(n !== sel){ sel = n; chart.update('none'); }
       },
       plugins:{
         legend:{display:false},
-        tooltip:{ yAlign:'bottom', caretPadding:10, displayColors:false,
+        tooltip:{ enabled: !sinMouse, yAlign:'bottom', caretPadding:10, displayColors:false,
           callbacks:{ label: c => fmt(c.parsed.x,2)+' t' } }
       },
       scales:{
@@ -1692,7 +1698,10 @@ function mineralPinta(id, serie, maxComun){
       }
     }
   });
-  cv.addEventListener('mouseleave', ()=>{ if(sel !== -1){ sel = -1; charts[id] && charts[id].update('none'); } });
+  // Red de seguridad: cualquier forma de "ya solté" devuelve la gráfica a color pleno.
+  const soltar = ()=>{ if(sel !== -1){ sel = -1; charts[id] && charts[id].update('none'); } };
+  ['mouseleave','pointerleave','pointercancel','pointerup','touchend','touchcancel']
+    .forEach(ev => cv.addEventListener(ev, soltar));
 }
 
 // Alto real de la barra pegajosa de arriba (titulo + chips de dia + Tendencia/Historico).
