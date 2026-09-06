@@ -246,6 +246,19 @@ body[data-theme="dark"] .stock-inline{ background:#20262c; border-color:#3a444c;
 .flash-table .val{ text-align:center; font-weight:700; color:var(--navy); }
 .flash-note{ text-align:justify; text-align-last:center; font-style:italic; font-size:15px; color:#777; padding:11px 16px; line-height:1.5; white-space:normal; }
 .flash-note-sep{ height:1px; background:#e4e4e4; margin:10px 30px; }
+/* El cuadro principal en telefono. La tarjeta es width:fit-content con overflow:hidden,
+   asi que la tabla se salia y la cuarta columna — las Oz del dia — quedaba recortada. Aqui
+   se achica todo lo justo para que las cuatro columnas quepan sin recortar nada. */
+@media (max-width:760px){
+  .flash-card{ width:100%; }
+  .flash-title{ font-size:14.5px; padding:8px 6px; }
+  .flash-day-row{ font-size:13px; padding:6px 9px; gap:7px; }
+  .flash-day-left{ gap:6px; }
+  .stock-inline{ font-size:10.5px; padding:2px 6px; }
+  .flash-table{ font-size:12px; width:100%; }
+  .flash-table td{ padding:4px 5px; max-width:none; }
+  .flash-note{ font-size:12px; padding:9px 11px; }
+}
 .stock-box{
   background:#eef2f5; border:1px solid #cfd6dc; border-radius:8px; padding:19px; text-align:center;
   min-width:203px; flex:0 0 auto;
@@ -300,7 +313,16 @@ body[data-theme="dark"] .stock-proc-row:hover{ background:#3a3210; }
 .stock-proc-val{ font-size:12px; color:var(--navy); text-align:right; }
 .stock-proc-empty{ font-size:12.5px; color:#8a8578; }
 /* Bloque "Mineral por Procedencia": tres pasos apilados — fletes, alimentación, stock. */
-.mp-vista{ display:flex; align-items:center; justify-content:flex-end; gap:6px; font-size:11px; color:#8a8578; margin:-4px 0 10px; }
+/* Los botones de vista se quedan pegados mientras el bloque esta en pantalla: el bloque es
+   alto y, al llegar al tercer panel, el interruptor que lo controla ya se habia ido para
+   arriba. --cabecera lo mide el JS, porque la barra de dias cambia de alto segun el ancho. */
+.mp-vista{ display:flex; align-items:center; justify-content:flex-end; gap:6px; font-size:11px;
+  color:#8a8578; position:sticky; top:var(--cabecera, 0px); z-index:6;
+  /* El fondo se estira hasta los bordes de la tarjeta (los -14px son su padding) para que
+     las barras pasen POR DEBAJO y no se asomen por los lados de los botones. */
+  background:#fff; margin:-4px -14px 10px; padding:6px 14px 7px;
+  border-bottom:1px solid #eceff1; }
+body[data-theme="dark"] .mp-vista{ background:#20262c; border-bottom-color:#333c44; }
 .mp-pill{ border:1px solid #d8dde1; background:#fff; color:#5a656d; border-radius:20px; padding:3px 11px; font-size:11px; cursor:pointer; font-family:inherit; }
 .mp-pill:hover{ border-color:var(--gold); }
 .mp-pill.on{ background:var(--navy); border-color:var(--navy); color:#fff; font-weight:600; }
@@ -1673,12 +1695,21 @@ function mineralPinta(id, serie, maxComun){
   cv.addEventListener('mouseleave', ()=>{ if(sel !== -1){ sel = -1; charts[id] && charts[id].update('none'); } });
 }
 
+// Alto real de la barra pegajosa de arriba (titulo + chips de dia + Tendencia/Historico).
+// Cambia con el ancho de la pantalla porque los chips se van acomodando en mas renglones,
+// asi que se mide en vez de dejarlo fijo.
+function ajustaCabecera(){
+  const sh = document.querySelector('.sticky-head');
+  const alto = sh ? Math.round(sh.getBoundingClientRect().height) : 0;
+  document.documentElement.style.setProperty('--cabecera', alto + 'px');
+}
 function renderAll(){
   renderDayChips();
   renderSelectedDayLabel();
   renderLastUpdated();
   renderFlash();
   renderCharts();
+  ajustaCabecera();
 }
 
 // ── Reacomodo tras cambiar el zoom o el tamaño de la ventana ────────────────
@@ -1706,6 +1737,10 @@ function reacomodarPorZoom(){
   }, 300);
 }
 window.addEventListener('resize', reacomodarPorZoom);
+// El alto de la barra pegajosa se re-mide en cada resize aunque no toque redibujar:
+// reacomodarPorZoom se salta el trabajo si el ancho no cambio, pero la barra puede haber
+// cambiado de alto sola (los chips de dia se reacomodan al llegar datos nuevos).
+window.addEventListener('resize', ajustaCabecera);
 // Safari y algunos Android no disparan 'resize' con el zoom de pellizco.
 if(window.visualViewport) window.visualViewport.addEventListener('resize', reacomodarPorZoom);
 
