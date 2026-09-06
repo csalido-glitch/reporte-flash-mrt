@@ -319,14 +319,6 @@ body[data-theme="dark"] .mp-cab h4{ color:#e2e2e2; }
 body[data-theme="dark"] .mp-tot b{ color:#e2e2e2; }
 .mp-lienzo{ position:relative; margin-top:8px; min-width:0; }
 .mp-vacio{ font-size:12px; color:#a09a8a; font-style:italic; text-align:center; padding:14px 0 8px; }
-.mp-saldo{ display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; font-size:14px; margin-top:14px; padding-top:12px; border-top:1px solid #eceff1; }
-body[data-theme="dark"] .mp-saldo{ border-color:#333c44; }
-.mp-saldo .op{ color:#b6bcc1; font-size:17px; font-weight:300; }
-.mp-saldo b{ color:var(--navy); }
-body[data-theme="dark"] .mp-saldo b{ color:#e2e2e2; }
-.mp-saldo .neg{ color:#a32d2d; font-weight:800; }
-.mp-saldo .pos{ color:#008300; font-weight:800; }
-.mp-pie{ font-size:11.5px; color:#8a8578; text-align:center; margin:7px 0 0; }
 .small-note{font-size:11px;color:#888;margin-top:8px;}
 
 body[data-theme="dark"]{background:#15191d;color:#e2e2e2;}
@@ -1127,7 +1119,7 @@ function renderCharts(){
      ]},
     {id:'mineralProc', title:'Mineral por Procedencia',
      full:true, widthPct:80, custom:true,
-     customHtml: mineralProcedenciaHtml, customInit: mineralProcedenciaInit, note:'Tonelaje Húmedo'},
+     customHtml: mineralProcedenciaHtml, customInit: mineralProcedenciaInit},
     {id:'chMezcla', title:'Mezcla Alimentada por Procedencia (Diario)', type:'bar', full:true, alwaysLabels:true, note:'Tonelaje Húmedo',
      mk:()=>{
         const procSet = new Set();
@@ -1511,7 +1503,6 @@ function mineralProcedenciaHtml(){
   const stockLabel = last ? diaLabel(state.dias[last-1]) : '';
   const totFl = suma(s.fl), totAl = suma(s.al), totSt = suma(s.st);
   const cam = s.fl.reduce((a,p)=> a + (p.camiones||0), 0);
-  const dif = totFl - totAl;
 
   const paso = (num, titulo, totHtml, id, serie, vacio) => `
     <div class="mp-paso">
@@ -1527,15 +1518,6 @@ function mineralProcedenciaHtml(){
       <button type="button" class="mp-pill${mineralVista==='dia'?' on':''}" onclick="setMineralVista('dia')">Día seleccionado</button>
     </div>`;
 
-  const saldo = `<div class="mp-saldo">
-      <span>Recibido <b>${fmt(totFl,0)} t</b></span><span class="op">−</span>
-      <span>Alimentado <b>${fmt(totAl,0)} t</b></span><span class="op">=</span>
-      <span class="${dif<0?'neg':'pos'}">${dif<0?'−':'+'}${fmt(Math.abs(dif),0)} t</span>
-    </div>
-    <p class="mp-pie">${dif<0
-      ? 'Se molió más de lo que llegó: la diferencia salió del patio, y por eso el stock baja.'
-      : 'Llegó más de lo que se molió: la diferencia se quedó en el patio.'}</p>`;
-
   return vista
     + paso(1, 'Fletes',
         `<b>${fmt(totFl,0)} t</b>${cam ? ' · '+fmt(cam,0)+' camiones' : ''}`,
@@ -1548,8 +1530,7 @@ function mineralProcedenciaHtml(){
     + paso(3, 'Stock en patio',
         `<b>${fmt(totSt,0)} t</b> húmedas · al ${stockLabel}`,
         'mpStock', s.st,
-        'Sin desglose por procedencia en este archivo.')
-    + saldo;
+        'Sin desglose por procedencia en este archivo.');
 }
 function mineralProcedenciaInit(){
   ['mpFletes','mpAlim','mpStock'].forEach(destroyChart);
