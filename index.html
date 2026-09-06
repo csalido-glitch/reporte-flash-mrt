@@ -299,6 +299,37 @@ body[data-theme="dark"] .stock-proc-row:hover{ background:#3a3210; }
 .stock-proc-bar{ background:#C99700; height:100%; border-radius:4px; }
 .stock-proc-val{ font-size:12px; color:var(--navy); text-align:right; }
 .stock-proc-empty{ font-size:12.5px; color:#8a8578; }
+/* Bloque "Mineral por Procedencia": tres pasos apilados — fletes, alimentación, stock. */
+.mp-vista{ display:flex; align-items:center; justify-content:flex-end; gap:6px; font-size:11px; color:#8a8578; margin:-4px 0 10px; }
+.mp-pill{ border:1px solid #d8dde1; background:#fff; color:#5a656d; border-radius:20px; padding:3px 11px; font-size:11px; cursor:pointer; font-family:inherit; }
+.mp-pill:hover{ border-color:var(--gold); }
+.mp-pill.on{ background:var(--navy); border-color:var(--navy); color:#fff; font-weight:600; }
+body[data-theme="dark"] .mp-pill{ background:#20262c; border-color:#3a4249; color:#bbb; }
+body[data-theme="dark"] .mp-pill.on{ background:#E8B93D; border-color:#E8B93D; color:#15191d; }
+.mp-paso{ border-top:1px solid #eceff1; padding-top:11px; margin-top:13px; }
+.mp-paso:first-of-type{ border-top:0; padding-top:0; margin-top:0; }
+body[data-theme="dark"] .mp-paso{ border-color:#333c44; }
+.mp-cab{ display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; }
+.mp-num{ width:19px; height:19px; border-radius:50%; background:var(--navy); color:#fff; font-size:10px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; align-self:center; }
+body[data-theme="dark"] .mp-num{ background:#E8B93D; color:#15191d; }
+.mp-cab h4{ margin:0; font-size:13px; color:var(--navy); }
+body[data-theme="dark"] .mp-cab h4{ color:#e2e2e2; }
+.mp-que{ font-size:11px; color:#a09a8a; font-style:italic; }
+.mp-tot{ margin-left:auto; font-size:11px; color:#8a8578; }
+.mp-tot b{ color:var(--navy); font-size:15px; }
+body[data-theme="dark"] .mp-tot b{ color:#e2e2e2; }
+.mp-lienzo{ position:relative; margin-top:8px; min-width:0; }
+.mp-vacio{ font-size:12px; color:#a09a8a; font-style:italic; text-align:center; padding:14px 0 8px; }
+.mp-nota{ font-size:10.5px; color:#a3762b; background:#fdf7e8; border:1px solid #ecdcae; border-radius:4px; padding:6px 9px; margin-top:8px; line-height:1.5; }
+body[data-theme="dark"] .mp-nota{ color:#d8b66a; background:#2a2410; border-color:#4a3f1a; }
+.mp-saldo{ display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; font-size:14px; margin-top:14px; padding-top:12px; border-top:1px solid #eceff1; }
+body[data-theme="dark"] .mp-saldo{ border-color:#333c44; }
+.mp-saldo .op{ color:#b6bcc1; font-size:17px; font-weight:300; }
+.mp-saldo b{ color:var(--navy); }
+body[data-theme="dark"] .mp-saldo b{ color:#e2e2e2; }
+.mp-saldo .neg{ color:#a32d2d; font-weight:800; }
+.mp-saldo .pos{ color:#008300; font-weight:800; }
+.mp-pie{ font-size:11.5px; color:#8a8578; text-align:center; margin:7px 0 0; }
 .small-note{font-size:11px;color:#888;margin-top:8px;}
 
 body[data-theme="dark"]{background:#15191d;color:#e2e2e2;}
@@ -578,7 +609,7 @@ function linearTrend(values){
   return values.map((v,i)=> (v===null || v===undefined || isNaN(v)) ? null : slope*i + intercept);
 }
 
-let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, stockProcedencia: BASE_DATA.stockProcedencia || [], selectedDay: 1, paused: false, ensayePendiente: BASE_DATA.ensayePendiente || false, visitas: BASE_DATA.visitas || {total:0, porDia:{}}, datosSubidosEn: BASE_DATA.datosSubidosEn || null };
+let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, stockProcedencia: BASE_DATA.stockProcedencia || [], fletes: BASE_DATA.fletes || [], selectedDay: 1, paused: false, ensayePendiente: BASE_DATA.ensayePendiente || false, visitas: BASE_DATA.visitas || {total:0, porDia:{}}, datosSubidosEn: BASE_DATA.datosSubidosEn || null };
 let isMaintAdmin = false; // solo dura mientras la pestaña esté abierta; no se guarda en la BD
 
 async function loadState(){
@@ -594,7 +625,7 @@ async function loadState(){
       } else {
         // la tabla está vacía todavía: sembramos con los datos que ya traía el archivo,
         // para que el piloto no arranque en ceros
-        await sb.from('flash_reportes').upsert({periodo: state.mes, data:{mes:state.mes,dias:state.dias,totales:state.totales,stock:state.stock,stockProcedencia:state.stockProcedencia,paused:state.paused,ensayePendiente:state.ensayePendiente,visitas:state.visitas,datosSubidosEn:state.datosSubidosEn}});
+        await sb.from('flash_reportes').upsert({periodo: state.mes, data:{mes:state.mes,dias:state.dias,totales:state.totales,stock:state.stock,stockProcedencia:state.stockProcedencia,fletes:state.fletes,paused:state.paused,ensayePendiente:state.ensayePendiente,visitas:state.visitas,datosSubidosEn:state.datosSubidosEn}});
       }
     }catch(e){
       console.error('No se pudo conectar a la base de datos, se muestran los datos de respaldo incluidos en el archivo.', e);
@@ -608,7 +639,7 @@ async function saveState(){
   try{
     const { error } = await sb.from('flash_reportes').upsert({
       periodo: state.mes,
-      data: {mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, paused:state.paused, ensayePendiente:state.ensayePendiente, visitas:state.visitas, datosSubidosEn:state.datosSubidosEn},
+      data: {mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, fletes:state.fletes, paused:state.paused, ensayePendiente:state.ensayePendiente, visitas:state.visitas, datosSubidosEn:state.datosSubidosEn},
       updated_at: new Date().toISOString()
     });
     if(error) throw error;
@@ -1097,7 +1128,9 @@ function renderCharts(){
        {label:'Sol Rica Au Promedio', value: fmt(promSimple(dias,'sol_rica_au'),2), color:GOLD},
        {label:'Sol Rica Ag Promedio', value: fmt(promSimple(dias,'sol_rica_ag'),1), color:SILVER},
      ]},
-    {id:'stockProc', title:'Stock Estimado por Procedencia', full:true, widthPct:75, custom:true, customHtml: stockProcedenciaHtml, note:'Tonelaje Húmedo'},
+    {id:'mineralProc', title:'Mineral por Procedencia — de lo que llega a báscula, a lo que queda en patio',
+     full:true, widthPct:80, custom:true,
+     customHtml: mineralProcedenciaHtml, customInit: mineralProcedenciaInit, note:'Tonelaje Húmedo'},
     {id:'chMezcla', title:'Mezcla Alimentada por Procedencia (Diario)', type:'bar', full:true, alwaysLabels:true, note:'Tonelaje Húmedo',
      mk:()=>{
         const procSet = new Set();
@@ -1433,26 +1466,171 @@ function stockEstimadoTotal(){
   if(list.length) return list.reduce((a,p)=>a+(Number(p.valor)||0),0);
   return state.stock ? state.stock.stock_estimado : null;
 }
-// Desglose de Stock por procedencia: bloque de HTML (no es una gráfica de Chart.js) con
-// una barra por procedencia, ordenado de mayor a menor.
-function stockProcedenciaHtml(){
-  const list = state.stockProcedencia || [];
+// ── Bloque "Mineral por Procedencia" ───────────────────────────────────────
+// Tres pasos apilados: 1 lo que llegó (FLETES), 2 lo que se alimentó (la misma mezcla
+// diaria de la gráfica de abajo) y 3 lo que quedó en patio (ALIM PROCEDENCIA). Sustituye
+// al antiguo "Stock Estimado por Procedencia", que eran barras de HTML sueltas: al pasar
+// los tres pasos al mismo formato y al mismo color por procedencia, se puede seguir a una
+// procedencia con la vista de un paso al siguiente.
+// 'mes' (acumulado) o 'dia' (solo el día seleccionado arriba). Es preferencia de lectura,
+// no un dato del reporte: no se guarda en la base de datos ni viaja en el export.
+let mineralVista = 'mes';
+function setMineralVista(v){
+  if(mineralVista === v) return;
+  mineralVista = v;
+  renderCharts();
+}
+// Las tres series ya listas para graficar, ordenadas de mayor a menor.
+function mineralSeries(){
+  const dia = (mineralVista === 'dia') ? state.selectedDay : null;
+  const fl = (state.fletes || []).map(p=>({
+    nombre: p.nombre,
+    valor: dia ? Number((p.porDia||{})[dia] || 0) : Number(p.ton || 0),
+    camiones: dia ? null : Number(p.camiones || 0)
+  })).filter(p=> p.valor > 0).sort((a,b)=> b.valor - a.valor);
+
+  const ac = {};
+  (state.dias || []).forEach((d,i)=>{
+    if(dia && (i+1) !== dia) return;
+    const mz = d.mezcla || {};
+    Object.keys(mz).forEach(k=>{ ac[k] = (ac[k]||0) + Number(mz[k]||0); });
+  });
+  const al = Object.keys(ac).map(k=>({nombre:k, valor:ac[k]}))
+              .filter(p=> p.valor > 0).sort((a,b)=> b.valor - a.valor);
+
+  // El stock se deja tal cual lo marca el rango del balance, salvo los residuos de menos
+  // de 1 t: son redondeos y arrastres de procedencias ya inactivas, y salían como barras
+  // de "0 t" que sólo estorban.
+  const st = (state.stockProcedencia || []).map(p=>({nombre:p.nombre, valor:Number(p.valor)||0}))
+              .filter(p=> p.valor >= 1).sort((a,b)=> b.valor - a.valor);
+  return {fl, al, st};
+}
+function mineralProcedenciaHtml(){
+  const s = mineralSeries();
+  const suma = arr => arr.reduce((a,p)=> a + p.valor, 0);
+  const alto = n => Math.max(84, n*26 + 40);
+  const dia = (mineralVista === 'dia') ? state.selectedDay : null;
   const last = lastDiaConDato();
-  const fechaLabel = last ? diaLabel(state.dias[last-1]) : '';
-  const totalTxt = fmt(stockEstimadoTotal(), 0);
-  if(!list.length){
-    return `<div class="stock-proc-head"><span>Stock al día ${fechaLabel}: ${totalTxt} t</span></div><div class="stock-proc-empty">Sin desglose por procedencia en este archivo.</div>`;
-  }
-  const max = Math.max(...list.map(p=>p.valor));
-  const rows = list.map(p=>{
-    const pct = max>0 ? Math.max(2, (p.valor/max*100)) : 0;
-    return `<div class="stock-proc-row">
-      <span class="stock-proc-name">${escapeYSaltos(p.nombre)}</span>
-      <div class="stock-proc-bar-wrap"><div class="stock-proc-bar" style="width:${pct}%"></div></div>
-      <span class="stock-proc-val">${fmt(p.valor,0)}</span>
+  const stockLabel = last ? diaLabel(state.dias[last-1]) : '';
+  const totFl = suma(s.fl), totAl = suma(s.al), totSt = suma(s.st);
+  const cam = s.fl.reduce((a,p)=> a + (p.camiones||0), 0);
+  const dif = totFl - totAl;
+
+  const paso = (num, titulo, que, totHtml, id, serie, vacio, nota) => `
+    <div class="mp-paso">
+      <div class="mp-cab"><span class="mp-num">${num}</span><h4>${titulo}</h4>
+        <span class="mp-que">${que}</span><span class="mp-tot">${totHtml}</span></div>
+      ${serie.length
+        ? `<div class="mp-lienzo" style="height:${alto(serie.length)}px"><canvas id="${id}"></canvas></div>`
+        : `<div class="mp-vacio">${vacio}</div>`}
+      ${nota || ''}
     </div>`;
-  }).join('');
-  return `<div class="stock-proc-head"><span>Stock al día ${fechaLabel}: ${totalTxt} t</span></div><div class="stock-proc-list">${rows}</div>`;
+
+  const vista = `<div class="mp-vista"><span>Ver:</span>
+      <button type="button" class="mp-pill${mineralVista==='mes'?' on':''}" onclick="setMineralVista('mes')">Acumulado del mes</button>
+      <button type="button" class="mp-pill${mineralVista==='dia'?' on':''}" onclick="setMineralVista('dia')">Día seleccionado</button>
+    </div>`;
+
+  const saldo = `<div class="mp-saldo">
+      <span>Recibido <b>${fmt(totFl,0)} t</b></span><span class="op">−</span>
+      <span>Alimentado <b>${fmt(totAl,0)} t</b></span><span class="op">=</span>
+      <span class="${dif<0?'neg':'pos'}">${dif<0?'−':'+'}${fmt(Math.abs(dif),0)} t</span>
+    </div>
+    <p class="mp-pie">${dif<0
+      ? 'Se molió más de lo que llegó: la diferencia salió del patio, y por eso el stock baja.'
+      : 'Llegó más de lo que se molió: la diferencia se quedó en el patio.'}</p>`;
+
+  return vista
+    + paso(1, 'Fletes — recibido', 'solamente lo que llegó',
+        `<b>${fmt(totFl,0)} t</b>${cam ? ' · '+fmt(cam,0)+' camiones' : ''}`,
+        'mpFletes', s.fl,
+        dia ? 'Sin fletes registrados en este día.' : 'Sin acarreo para este periodo. Los meses que se subieron antes de que el Flash empezara a leer la hoja FLETES no traen el dato: vuelve a subir el Excel de ese mes para llenarlo.')
+    + paso(2, 'Alimentación a planta', 'solamente lo que se alimentó',
+        `<b>${fmt(totAl,0)} t</b> húmedas`,
+        'mpAlim', s.al,
+        dia ? 'Sin alimentación registrada en este día.' : 'Sin alimentación registrada en el mes.')
+    + paso(3, 'Stock en patio', 'lo que quedó visible',
+        `<b>${fmt(totSt,0)} t</b> húmedas · al ${stockLabel}`,
+        'mpStock', s.st,
+        'Sin desglose por procedencia en este archivo.',
+        `<div class="mp-nota">El stock es una <b>foto</b>, no un flujo: no cambia al moverte de día, por eso lleva su propia escala. Se grafica sólo lo que el balance deja visible en el rango — lo que el propio Excel oculta son arrastres, no mineral en patio — y quedan fuera los residuos de menos de 1 t.</div>`)
+    + saldo;
+}
+function mineralProcedenciaInit(){
+  ['mpFletes','mpAlim','mpStock'].forEach(destroyChart);
+  const s = mineralSeries();
+  // Los pasos 1 y 2 comparten escala: son flujo del mismo periodo, así que un largo
+  // significa lo mismo en los dos. El 3 lleva escala propia porque es un nivel acumulado;
+  // con escala compartida, en la vista por día las barras de fletes serían invisibles al
+  // lado del stock.
+  const maxFlujo = Math.max(1, ...s.fl.map(p=>p.valor), ...s.al.map(p=>p.valor));
+  mineralPinta('mpFletes', s.fl, maxFlujo);
+  mineralPinta('mpAlim',   s.al, maxFlujo);
+  mineralPinta('mpStock',  s.st, null);
+}
+function mineralPinta(id, serie, maxComun){
+  if(!serie.length) return;
+  const cv = document.getElementById(id);
+  if(!cv) return;
+  const total = serie.reduce((a,p)=> a + p.valor, 0);
+  const base = serie.map(p=> colorForProcedencia(p.nombre));
+  const crudo = maxComun || Math.max(...serie.map(p=>p.valor));
+  const paso = crudo>20000 ? 5000 : crudo>8000 ? 2000 : crudo>2000 ? 500 : crudo>800 ? 200 : 50;
+  const max = Math.ceil(crudo*1.03/paso)*paso;
+  const conAlfa = (hex,a)=>{
+    const n = parseInt(String(hex).slice(1),16);
+    return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
+  };
+  const gris = isDarkTheme() ? '#5a646d' : '#c3c8cc';
+  // Al pasar el mouse, la fila señalada se queda a todo color y las demás se atenúan: con
+  // muchas barras del mismo tamaño es fácil perder el renglón a media gráfica.
+  let sel = -1;
+  const activa = i => sel < 0 || i === sel;
+  charts[id] = new Chart(cv, {
+    type:'bar',
+    data:{ labels: serie.map(p=>p.nombre), datasets:[{
+      data: serie.map(p=>p.valor),
+      backgroundColor: c=> activa(c.dataIndex) ? base[c.dataIndex] : conAlfa(base[c.dataIndex], .25),
+      borderColor: c=> c.dataIndex===sel ? (isDarkTheme()?'#E8B93D':'#1a2733') : 'rgba(0,0,0,0)',
+      borderWidth: c=> c.dataIndex===sel ? 1.5 : 0,
+      borderRadius:3, barPercentage:.78,
+      datalabels:{
+        display:true, anchor:'end', align:'right', offset:5, clip:false,
+        color: c=> activa(c.dataIndex) ? dlTextColor() : gris,
+        font: c=> ({size: c.dataIndex===sel ? 12 : 10.5, weight:'bold'}),
+        formatter: v => fmt(v,0)+' t  ·  '+(total ? Math.round(v/total*100) : 0)+'%'
+      }
+    }]},
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
+      // Sin animación: el bloque se redibuja completo al cambiar de vista o de día, y
+      // animar barras recién creadas dejaba la gráfica congelada a medio crecer.
+      animation:false,
+      layout:{ padding:{ right:112 } },
+      // 'index' sobre el eje Y y sin exigir intersección: basta con estar a la altura de
+      // la fila, no hace falta atinarle a la barra — con barras cortas eso era una lata.
+      interaction:{ mode:'index', axis:'y', intersect:false },
+      onHover:(evt, els, chart)=>{
+        const n = els.length ? els[0].index : -1;
+        if(n !== sel){ sel = n; chart.update('none'); }
+      },
+      plugins:{
+        legend:{display:false},
+        tooltip:{ yAlign:'bottom', caretPadding:10, displayColors:false,
+          callbacks:{ label: c => fmt(c.parsed.x,2)+' t' } }
+      },
+      scales:{
+        x:{ min:0, max:max, ticks:{ font:{size:9}, stepSize:paso,
+              callback: v => v ? (Math.round(v/100)/10)+'k' : 0 },
+            grid:{ color: isDarkTheme() ? 'rgba(255,255,255,.07)' : '#f2f2f2' } },
+        y:{ grid:{display:false}, ticks:{
+              color: c=> c.index===sel ? (isDarkTheme()?'#e2e2e2':'#1a2733') : (sel<0 ? (isDarkTheme()?'#b9b9b9':'#555') : gris),
+              font: c=> ({size:11, weight: c.index===sel ? 'bold' : 'normal'}) } }
+      }
+    }
+  });
+  cv.addEventListener('mouseleave', ()=>{ if(sel !== -1){ sel = -1; charts[id] && charts[id].update('none'); } });
 }
 
 function renderAll(){
@@ -1761,6 +1939,53 @@ function parseMezclaAlimentacion(aoa){
   return out;
 }
 
+// FLETES: acarreo recibido por procedencia. La hoja va en bloques de 6 columnas, uno por
+// procedencia: FECHA | fecha | Camiones | Ton Húmedas | Stock´s | (hueco). El nombre de la
+// procedencia está en la fila de encabezado, dos columnas a la derecha de su "FECHA", así que
+// los bloques se ubican buscando ese texto y no por columna fija: si mañana se agrega una
+// procedencia nueva a la derecha, entra sola.
+// Arriba de los días hay un bloque de totales por MES (jun-25, jul-25, ...) que NO se debe
+// sumar. El día 1 se ubica con findDayOneCell, que exige dos fechas consecutivas separadas por
+// exactamente un día — condición que los renglones mensuales no cumplen, así que ese bloque
+// queda descartado solo.
+function parseFletes(aoa, nDias){
+  if(!aoa || !aoa.length) return [];
+  // Fila de encabezado: la primera de las de arriba que traiga al menos dos "FECHA"
+  // (una sola podría ser cualquier tabla suelta).
+  let hdrRow = -1;
+  for(let r=0;r<Math.min(aoa.length,10) && hdrRow<0;r++){
+    const row = aoa[r]||[];
+    let n = 0;
+    for(let c=0;c<row.length;c++) if(row[c]!=null && normTxt(row[c])==='FECHA') n++;
+    if(n>=2) hdrRow = r;
+  }
+  if(hdrRow<0) return [];
+  const d1 = findDayOneCell(aoa);
+  if(!d1) return [];
+  const hdr = aoa[hdrRow]||[];
+  const nd = Math.max(1, Math.min(31, nDias||31));
+  // Si dos bloques tuvieran el mismo nombre (pasa cuando una procedencia se captura en dos
+  // lados), se suman en uno solo en vez de aparecer dos veces en la gráfica.
+  const acum = new Map();
+  for(let c=0;c<hdr.length;c++){
+    if(hdr[c]==null || normTxt(hdr[c])!=='FECHA') continue;
+    const nombre = hdr[c+2]!=null ? String(hdr[c+2]).trim() : '';
+    if(!nombre) continue;
+    let reg = acum.get(nombre);
+    if(!reg){ reg = {nombre:nombre, ton:0, camiones:0, porDia:{}}; acum.set(nombre, reg); }
+    for(let i=0;i<nd;i++){
+      const row = aoa[d1.row+i]||[];
+      const t = numv(row[c+3]);
+      const cam = numv(row[c+2]);
+      if(t){ reg.ton += t; reg.porDia[i+1] = (reg.porDia[i+1]||0) + t; }
+      if(cam) reg.camiones += cam;
+    }
+  }
+  return Array.from(acum.values())
+    .filter(p=> p.ton>0 || p.camiones>0)
+    .sort((a,b)=> b.ton - a.ton);
+}
+
 function parseDailyWorkbookDynamic(wb, XLSXref){
   const XLSX_ = XLSXref;
   const need = ['RESUMEN','DINÁMICA','MERRILL-CROWE','PROYECCIONES','HUM Y CAB CALC','HISTORICO'];
@@ -1958,7 +2183,19 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
     return {error:'No se encontró la caja "Stock Estimado" en HISTORICO.'};
   }
 
-  return { mes: mesDetectado, dias, totales, stock, stockProcedencia, ensayePendiente };
+  // Fletes recibidos por procedencia. Se lee aquí abajo, y no junto a las otras hojas
+  // opcionales, porque necesita saber cuántos días trae el mes: la hoja FLETES tiene
+  // renglones de sobra (día 31 y hasta el 1 del mes siguiente) que en un mes de 30 días
+  // sumarían acarreo que no es de este periodo.
+  let fletes = [];
+  if(wb.Sheets['FLETES']){
+    try{
+      const aoaF = XLSX_.utils.sheet_to_json(wb.Sheets['FLETES'], {header:1, raw:true, defval:null});
+      fletes = parseFletes(aoaF, dias.length);
+    }catch(e){ console.error('No se pudo leer la hoja FLETES', e); }
+  }
+
+  return { mes: mesDetectado, dias, totales, stock, stockProcedencia, fletes, ensayePendiente };
 }
 
 
@@ -2029,7 +2266,7 @@ function handleFile(file){
       if(parsed.mes !== state.mes){
         if(!confirm('Este archivo parece ser de '+mesCorto(parsed.mes)+' y tu vista actual es de '+mesCorto(state.mes)+'. ¿Reemplazar la vista con este nuevo mes? (se recomienda primero "Guardar copia" del mes actual)')) return;
       }
-      state.mes = parsed.mes; state.dias = parsed.dias; state.totales = parsed.totales; state.stock = parsed.stock; state.stockProcedencia = parsed.stockProcedencia; state.ensayePendiente = parsed.ensayePendiente;
+      state.mes = parsed.mes; state.dias = parsed.dias; state.totales = parsed.totales; state.stock = parsed.stock; state.stockProcedencia = parsed.stockProcedencia; state.fletes = parsed.fletes || []; state.ensayePendiente = parsed.ensayePendiente;
       const last = lastDiaConDato();
       state.selectedDay = Math.max(1,last);
       // Sello de cuándo se subió este archivo, para mostrarlo junto a la fecha del
@@ -2127,7 +2364,7 @@ document.getElementById('chkTrend').addEventListener('change', (e)=>{
 document.getElementById('btnExport').onclick = ()=>{
   let newHtml = document.documentElement.outerHTML.replace(
     /const BASE_DATA = \{.*?\};\s*\n/s,
-    'const BASE_DATA = '+JSON.stringify({mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, paused:false, ensayePendiente:state.ensayePendiente, visitas:state.visitas, datosSubidosEn:state.datosSubidosEn})+';\n'
+    'const BASE_DATA = '+JSON.stringify({mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, fletes:state.fletes, paused:false, ensayePendiente:state.ensayePendiente, visitas:state.visitas, datosSubidosEn:state.datosSubidosEn})+';\n'
   );
   // La copia guardada queda archivada: no admite arrastrar más archivos ni restablecer.
   newHtml = newHtml.replace('const IS_LOCKED_COPY = false;', 'const IS_LOCKED_COPY = true;');
@@ -2383,7 +2620,7 @@ async function cargarMesHistorico(periodo){
   const d = data.data;
   state = Object.assign(state, {
     mes: periodo, dias: d.dias||[], totales: d.totales||{}, stock: d.stock||{},
-    stockProcedencia: d.stockProcedencia||[], ensayePendiente: !!d.ensayePendiente,
+    stockProcedencia: d.stockProcedencia||[], fletes: d.fletes||[], ensayePendiente: !!d.ensayePendiente,
   });
   state.selectedDay = Math.max(1, lastDiaConDato());
   history.replaceState(null, '', location.pathname + '?ver=' + encodeURIComponent(periodo));
