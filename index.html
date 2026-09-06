@@ -318,6 +318,17 @@ body[data-theme="dark"] .mp-cab h4{ color:#e2e2e2; }
 .mp-tot b{ color:var(--navy); font-size:15px; }
 body[data-theme="dark"] .mp-tot b{ color:#e2e2e2; }
 .mp-lienzo{ position:relative; margin-top:8px; min-width:0; }
+@media (max-width:760px){
+  /* En el telefono el bloque va a todo lo ancho y con menos aire alrededor, para que el
+     espacio se lo lleven las barras y no los margenes. */
+  .chart-box .mp-paso{ padding-top:9px; margin-top:10px; }
+  .mp-vista{ gap:5px; margin:-2px 0 8px; }
+  .mp-pill{ padding:3px 9px; font-size:10.5px; white-space:nowrap; }
+  .mp-cab h4{ font-size:12.5px; }
+  .mp-num{ width:17px; height:17px; font-size:9.5px; }
+  .mp-tot{ font-size:10.5px; }
+  .mp-tot b{ font-size:13.5px; }
+}
 .mp-vacio{ font-size:12px; color:#a09a8a; font-style:italic; text-align:center; padding:14px 0 8px; }
 .small-note{font-size:11px;color:#888;margin-top:8px;}
 
@@ -1118,7 +1129,9 @@ function renderCharts(){
        {label:'Sol Rica Ag Promedio', value: fmt(promSimple(dias,'sol_rica_ag'),1), color:SILVER},
      ]},
     {id:'mineralProc', title:'Mineral por Procedencia',
-     full:true, widthPct:80, custom:true,
+     // Al 80% en escritorio se lee bien centrado, pero en un telefono ese 80% de una
+     // pantalla ya angosta deja las barras minusculas. Ahi va a todo lo ancho.
+     full:true, widthPct: pantallaAngosta() ? 100 : 80, custom:true,
      customHtml: mineralProcedenciaHtml, customInit: mineralProcedenciaInit, note:'Tonelaje Húmedo'},
     {id:'chMezcla', title:'Mezcla Alimentada por Procedencia (Diario)', type:'bar', full:true, alwaysLabels:true, note:'Tonelaje Húmedo',
      mk:()=>{
@@ -1494,10 +1507,14 @@ function mineralSeries(){
               .filter(p=> p.valor >= 1).sort((a,b)=> b.valor - a.valor);
   return {fl, al, st};
 }
+// En un telefono el bloque cambia de proporciones: filas mas altas (barras mas gruesas),
+// tipografia mas chica y menos margen para la etiqueta del valor.
+function pantallaAngosta(){ return window.innerWidth < 760; }
 function mineralProcedenciaHtml(){
   const s = mineralSeries();
   const suma = arr => arr.reduce((a,p)=> a + p.valor, 0);
-  const alto = n => Math.max(84, n*26 + 40);
+  const paso1 = pantallaAngosta() ? 34 : 26;
+  const alto = n => Math.max(84, n*paso1 + 40);
   const dia = (mineralVista === 'dia') ? state.selectedDay : null;
   const last = lastDiaConDato();
   const stockLabel = last ? diaLabel(state.dias[last-1]) : '';
@@ -1544,6 +1561,15 @@ function mineralProcedenciaInit(){
   mineralPinta('mpAlim',   s.al, maxFlujo);
   mineralPinta('mpStock',  s.st, null);
 }
+// Mide con canvas el nombre mas largo de la serie, para reservarle ancho al eje.
+function anchoNombres(serie, tam){
+  const cv = document.createElement('canvas');
+  const cx = cv.getContext('2d');
+  cx.font = tam + "px 'Segoe UI', Arial, sans-serif";
+  let w = 0;
+  serie.forEach(p=>{ w = Math.max(w, cx.measureText(p.nombre).width); });
+  return Math.ceil(w) + 12;
+}
 function mineralPinta(id, serie, maxComun){
   if(!serie.length) return;
   const cv = document.getElementById(id);
@@ -1551,13 +1577,43 @@ function mineralPinta(id, serie, maxComun){
   const total = serie.reduce((a,p)=> a + p.valor, 0);
   const base = serie.map(p=> colorForProcedencia(p.nombre));
   const crudo = maxComun || Math.max(...serie.map(p=>p.valor));
-  const paso = crudo>20000 ? 5000 : crudo>8000 ? 2000 : crudo>2000 ? 500 : crudo>800 ? 200 : 50;
-  const max = Math.ceil(crudo*1.03/paso)*paso;
+  // Marcas del eje en numeros redondos. La escalerilla es fina (1, 1.5, 2, 2.5, 3, 4, 5, 6, 8)
+  // a proposito: con solo 1-2-5 el paso saltaba demasiado y, al redondear el maximo hacia
+  // arriba, el eje del panel de stock se iba a 15k con una barra de 11k — las barras perdian
+  // un tercio del ancho para nada.
+  const pasoLindo = (rango, divisiones, fino)=>{
+    const bruto = rango / divisiones;
+    const dec = Math.pow(10, Math.floor(Math.log10(bruto)));
+    const n = bruto / dec;
+    // La escalerilla fina (con 6 y 8) da pasos raros como 800 o 1,600, asi que solo se usa
+    // como rescate cuando la normal deja el eje demasiado vacio.
+    const esc = fino ? [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10] : [1, 1.5, 2, 2.5, 3, 4, 5, 10];
+    return (esc.find(e => n <= e) || 10) * dec;
+  };
   const conAlfa = (hex,a)=>{
     const n = parseInt(String(hex).slice(1),16);
     return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
   };
   const gris = isDarkTheme() ? '#5a646d' : '#c3c8cc';
+  const chico = pantallaAngosta();
+  // El maximo tiene que ser multiplo exacto del paso: si no, Chart.js ignora el stepSize y
+  // reparte las marcas por su cuenta (salian "5.6k" y "11.3k" en el telefono). Pero redondear
+  // hacia arriba desperdicia ancho, asi que se prueban varias densidades de marcas y se toma
+  // la primera que deje menos de ~12% de eje vacio.
+  const objetivo = crudo * 1.03;
+  const baseDiv = chico ? 3 : 6;          // marcas de arranque
+  const topeMarcas = chico ? 5 : 9;       // en un telefono el area de la grafica es angosta
+  let paso = pasoLindo(objetivo, baseDiv), max = Math.ceil(objetivo/paso)*paso;
+  for(const fino of [false, true]){
+    for(let d = baseDiv; d <= baseDiv+5 && max > objetivo*1.12; d++){
+      const p = pasoLindo(objetivo, d, fino), m = Math.ceil(objetivo/p)*p;
+      if(m < max && (m/p)+1 <= topeMarcas){ paso = p; max = m; }
+    }
+    if(max <= objetivo*1.12) break;
+  }
+  // La abreviatura en "k" solo si TODAS las marcas caen en miles exactos; si no, decimales
+  // como "0.8k" o "1.6k" que se leen peor que el numero completo.
+  const enMiles = max >= 2000 && paso % 500 === 0;
   // Al pasar el mouse, la fila señalada se queda a todo color y las demás se atenúan: con
   // muchas barras del mismo tamaño es fácil perder el renglón a media gráfica.
   let sel = -1;
@@ -1571,9 +1627,9 @@ function mineralPinta(id, serie, maxComun){
       borderWidth: c=> c.dataIndex===sel ? 1.5 : 0,
       borderRadius:3, barPercentage:.78,
       datalabels:{
-        display:true, anchor:'end', align:'right', offset:5, clip:false,
+        display:true, anchor:'end', align:'right', offset: chico ? 4 : 5, clip:false,
         color: c=> activa(c.dataIndex) ? dlTextColor() : gris,
-        font: c=> ({size: c.dataIndex===sel ? 12 : 10.5, weight:'bold'}),
+        font: c=> ({size: chico ? 9.5 : (c.dataIndex===sel ? 12 : 10.5), weight:'bold'}),
         formatter: v => fmt(v,0)+' t  ·  '+(total ? Math.round(v/total*100) : 0)+'%'
       }
     }]},
@@ -1583,7 +1639,9 @@ function mineralPinta(id, serie, maxComun){
       // Sin animación: el bloque se redibuja completo al cambiar de vista o de día, y
       // animar barras recién creadas dejaba la gráfica congelada a medio crecer.
       animation:false,
-      layout:{ padding:{ right:112 } },
+      // Espacio a la derecha para la etiqueta "1,234 t · 71%", que se dibuja fuera de la
+      // barra. En movil la etiqueta va mas chica, asi que necesita menos.
+      layout:{ padding:{ right: chico ? 86 : 112 } },
       // 'index' sobre el eje Y y sin exigir intersección: basta con estar a la altura de
       // la fila, no hace falta atinarle a la barra — con barras cortas eso era una lata.
       interaction:{ mode:'index', axis:'y', intersect:false },
@@ -1597,12 +1655,18 @@ function mineralPinta(id, serie, maxComun){
           callbacks:{ label: c => fmt(c.parsed.x,2)+' t' } }
       },
       scales:{
-        x:{ min:0, max:max, ticks:{ font:{size:9}, stepSize:paso,
-              callback: v => v ? (Math.round(v/100)/10)+'k' : 0 },
+        x:{ min:0, max:max,
+            ticks:{ font:{size: chico ? 8.5 : 9}, stepSize: paso, maxRotation:0, autoSkip:false,
+              callback: v => v ? (enMiles ? (Math.round(v/100)/10)+'k' : fmt(v,0)) : 0 },
             grid:{ color: isDarkTheme() ? 'rgba(255,255,255,.07)' : '#f2f2f2' } },
-        y:{ grid:{display:false}, ticks:{
+        // Chart.js le da al eje de nombres como maximo un tercio del ancho y recorta lo que
+        // no cabe: en el telefono "RC Metal Molino" salia como "Metal Molino". Con
+        // afterFit se le reserva el ancho que de verdad ocupa el nombre mas largo.
+        y:{ grid:{display:false},
+            afterFit: (sc)=>{ sc.width = Math.max(sc.width, anchoNombres(serie, chico ? 10 : 11)); },
+            ticks:{ padding:4,
               color: c=> c.index===sel ? (isDarkTheme()?'#e2e2e2':'#1a2733') : (sel<0 ? (isDarkTheme()?'#b9b9b9':'#555') : gris),
-              font: c=> ({size:11, weight: c.index===sel ? 'bold' : 'normal'}) } }
+              font: c=> ({size: chico ? 10 : 11, weight: c.index===sel ? 'bold' : 'normal'}) } }
       }
     }
   });
