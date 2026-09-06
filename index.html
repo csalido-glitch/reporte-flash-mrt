@@ -1043,6 +1043,9 @@ function renderCharts(){
   if(typeof Chart !== 'undefined'){
     Chart.defaults.color = isDarkTheme() ? '#c7ccd1' : '#666';
     Chart.defaults.borderColor = isDarkTheme() ? 'rgba(255,255,255,.12)' : 'rgba(0,0,0,.1)';
+    // Se pone aqui, en los valores por omision, para que aplique tambien a las graficas
+    // que arman su propia configuracion (las dos mini de Eficiencia, por ejemplo).
+    Chart.defaults.plugins.tooltip.enabled = !sinRaton();
   }
   const grid = document.getElementById('chartsGrid');
   const last = lastDiaConDato();
@@ -1464,6 +1467,10 @@ const SILVER_DARK = '#454545';
 // recalculan cada vez que se renderizan las gráficas, así que solo hace falta
 // re-llamar renderCharts() al cambiar de tema para que se actualicen.
 function isDarkTheme(){ return document.body.getAttribute('data-theme') === 'dark'; }
+// ¿El equipo tiene raton? En una pantalla tactil no existe "sacar el mouse": el globo de
+// datos de Chart.js se abre al tocar y se queda ahi hasta que toques otra cosa, tapando la
+// grafica. En esos equipos se apaga: las etiquetas de las barras ya traen el valor.
+function sinRaton(){ return !!(window.matchMedia && window.matchMedia('(hover: none)').matches); }
 function dlTextColor(){ return isDarkTheme() ? '#e2e2e2' : '#444'; }
 function dlBgColor(){ return isDarkTheme() ? 'rgba(32,38,44,.85)' : 'rgba(255,255,255,.85)'; }
 function applyTheme(dark){
@@ -1642,7 +1649,7 @@ function mineralPinta(id, serie, maxComun){
   // el resalte se quedaba pegado y el resto de la gráfica gris para siempre. En esos equipos
   // se apagan el atenuado y el globo de datos — la etiqueta al final de la barra ya trae el
   // tonelaje y el porcentaje, que era todo lo que el globo agregaba.
-  const sinMouse = !!(window.matchMedia && window.matchMedia('(hover: none)').matches);
+  const sinMouse = sinRaton();
   let sel = -1;
   const activa = i => sel < 0 || i === sel;
   charts[id] = new Chart(cv, {
