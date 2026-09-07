@@ -2117,13 +2117,16 @@ function parseFletes(aoa, nDias){
 
 function parseDailyWorkbookDynamic(wb, XLSXref){
   const XLSX_ = XLSXref;
-  const need = ['RESUMEN','DINÁMICA','MERRILL-CROWE','PROYECCIONES','HUM Y CAB CALC','HISTORICO'];
+  // "HUM Y CAB CALC" (consumos) es opcional: los balances de enero/febrero 2026 son de
+  // antes de que se agregara esa hoja. Si no viene, el mes se carga igual y la parte de
+  // consumos (NaCN diario y la tabla de reactivos) simplemente sale vacía.
+  const need = ['RESUMEN','DINÁMICA','MERRILL-CROWE','PROYECCIONES','HISTORICO'];
   for(const s of need){ if(!wb.Sheets[s]) return {error:`Falta la hoja ${s}`}; }
   const aoaR = XLSX_.utils.sheet_to_json(wb.Sheets['RESUMEN'], {header:1, raw:true, defval:null});
   const aoaD = XLSX_.utils.sheet_to_json(wb.Sheets['DINÁMICA'], {header:1, raw:true, defval:null});
   const aoaMC = XLSX_.utils.sheet_to_json(wb.Sheets['MERRILL-CROWE'], {header:1, raw:true, defval:null});
   const aoaP = XLSX_.utils.sheet_to_json(wb.Sheets['PROYECCIONES'], {header:1, raw:true, defval:null});
-  const aoaH = XLSX_.utils.sheet_to_json(wb.Sheets['HUM Y CAB CALC'], {header:1, raw:true, defval:null});
+  const aoaH = wb.Sheets['HUM Y CAB CALC'] ? XLSX_.utils.sheet_to_json(wb.Sheets['HUM Y CAB CALC'], {header:1, raw:true, defval:null}) : [];
   const aoaHist = XLSX_.utils.sheet_to_json(wb.Sheets['HISTORICO'], {header:1, raw:true, defval:null});
   const aoaT = wb.Sheets['TABLA'] ? XLSX_.utils.sheet_to_json(wb.Sheets['TABLA'], {header:1, raw:true, defval:null}) : [];
   const comentariosPorFecha = parseComentariosTabla(aoaT);
@@ -2157,8 +2160,8 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
   const d1D = findDayOneCell(aoaD);
   const d1MC = findDayOneCell(aoaMC);
   const d1P = findDayOneCell(aoaP);
-  const d1H = findDayOneCell(aoaH);
-  if(!d1R || !d1D || !d1MC || !d1P || !d1H){
+  const d1H = aoaH.length ? findDayOneCell(aoaH) : null;
+  if(!d1R || !d1D || !d1MC){
     return {error:'No se pudo ubicar la fila del día 1 (fecha) en alguna de las hojas diarias. Verifica que el archivo tenga el formato vigente (2026+).'};
   }
 
@@ -2200,35 +2203,64 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
     return {error:'No se encontraron todas las columnas dinámicas de DINÁMICA/MERRILL-CROWE. El archivo puede no tener el formato vigente.'};
   }
 
-  // HUM Y CAB CALC: NaCN (columna única, sin split Au/Ag)
-  const rHdrH = d1H.row - 2;
-  const colNacn = findRowOccurrence(aoaH, rHdrH, 'NACN KG/TON', 1);
-  if(colNacn==null) return {error:'No se encontró la columna de NaCN en HUM Y CAB CALC.'};
-  const colProyNacn = colNacn+1; // columna a la derecha (Proyección), robusto a corrimiento
+  // HUM Y CAB CALC: NaCN (columna única, sin split Au/Ag). Todo esto es opcional: si la
+  // hoja no vino (enero/febrero 2026, de antes de que existiera) o no trae la columna de
+  // NaCN (marzo-julio 2026, de antes de que se agregara esa columna), estos datos
+  // simplemente quedan en 0 para todo el mes en vez de bloquear la carga.
+  let colNacn = null, colProyNacn = null;
+  if(d1H){
+    const rHdrH = d1H.row - 2;
+    colNacn = findRowOccurrence(aoaH, rHdrH, 'NACN KG/TON', 1);
+    if(colNacn!=null) colProyNacn = colNacn+1; // columna a la derecha (Proyección), robusto a corrimiento
+  }
 
   // PROYECCIONES: encabezados muy fusionados/ambiguos -> se usa offset relativo a la
-  // columna de fecha (robusto si TODO el bloque se recorre junto, igual que Fletes)
-  const baseP = d1P.col; // columna de fecha
-  const colProyMolienda = baseP+1;   // C
-  const colProyTonAcum = baseP+3;    // E
-  const colRealTonAcum = baseP+4;    // F
-  const colProyOzDia = baseP+5;      // G
-  const colProyOzAcum = baseP+6;     // H
-  const colRealOzAcum = baseP+7;     // I
-  const colProyP80 = baseP+8;        // J
-  const colProyLeyAuBanda = baseP+9; // K
-  const colProyLeyAgBanda = baseP+10; // L
-  const colProyRecupAu = baseP+11;   // M
-  const colProyRecupAg = baseP+12;   // N
+  // columna de fecha (robusto si TODO el bloque se recorre junto, igual que Fletes).
+  // Hoja opcional en el sentido de este bloque diario: los balances de enero/febrero
+  // 2026 traen esta hoja pero con un formato viejo (tabla por número de día, no por
+  // fecha), donde no se puede ubicar el día 1 de forma confiable. En ese caso, todas
+  // las columnas de Proyección del día quedan en 0 en vez de bloquear la carga del mes.
+  const baseP = d1P ? d1P.col : null; // columna de fecha
+  const colProyMolienda = d1P ? baseP+1 : null;   // C
+  const colProyTonAcum = d1P ? baseP+3 : null;    // E
+  const colRealTonAcum = d1P ? baseP+4 : null;    // F
+  const colProyOzDia = d1P ? baseP+5 : null;      // G
+  const colProyOzAcum = d1P ? baseP+6 : null;     // H
+  const colRealOzAcum = d1P ? baseP+7 : null;     // I
+  const colProyP80 = d1P ? baseP+8 : null;        // J
+  const colProyLeyAuBanda = d1P ? baseP+9 : null; // K
+  const colProyLeyAgBanda = d1P ? baseP+10 : null; // L
+  const colProyRecupAu = d1P ? baseP+11 : null;   // M
+  const colProyRecupAg = d1P ? baseP+12 : null;   // N
 
   // 3) Construir los 31 días a partir de la fila del día 1 detectada dinámicamente
   const dias = [];
   let mesDetectado = null;
   for(let i=0;i<31;i++){
-    const rR = d1R.row+i, rD = d1D.row+i, rMC = d1MC.row+i, rP = d1P.row+i, rH = d1H.row+i;
+    const rR = d1R.row+i, rD = d1D.row+i, rMC = d1MC.row+i, rP = d1P ? d1P.row+i : -1, rH = d1H ? d1H.row+i : -1;
     const fechaRaw = (aoaR[rR]||[])[d1R.col];
     let fechaStr = null;
-    if(typeof fechaRaw==='number'){ fechaStr = excelSerialToDateStr(fechaRaw); if(!mesDetectado) mesDetectado = fechaStr.slice(0,7); }
+    if(typeof fechaRaw==='number'){
+      const fs = excelSerialToDateStr(fechaRaw);
+      if(!mesDetectado) mesDetectado = fs.slice(0,7);
+      if(fs.slice(0,7) === mesDetectado) fechaStr = fs;
+      else {
+        // Algunos balances viejos (2026) no dejan filas en blanco entre meses: la fila
+        // "día 31" de un mes corto ya trae el día 1 del mes siguiente. Se descarta ese
+        // renglón para que no se cuele como si fuera parte de este mes.
+        dias.push({dia:i+1, fecha:null, comentario:'', mezcla:{}, mezcla_total:0,
+          ton_humedas_trituracion:0, horas_trituracion:0, molido_humedo:0, molido_seco:0,
+          horas_molienda:0, ley_au:0, ley_ag:0, recuperacion_au:0, recuperacion_ag:0,
+          m3_bombeados:0, sol_rica_au:0, sol_rica_ag:0, sol_esteril_au:0, sol_esteril_ag:0,
+          oz_precipitadas_au:0, oz_precipitadas_ag:0, precio_au_usd:0, ratio_au_ag:0,
+          oz_eq_au:0, p80_real:0, ton_trituracion_seco:0, ton_molienda_seco:0,
+          eficiencia_au:0, eficiencia_ag:0, proy_ton_acum:0, real_ton_acum:0,
+          proy_oz_dia:0, proy_oz_acum:0, real_oz_acum:0, proy_p80:0,
+          proy_ley_au_banda:0, proy_ley_ag_banda:0, proy_recup_au:0, proy_recup_ag:0,
+          proy_molienda_dia:0, nacn_real:0, proy_nacn:0});
+        continue;
+      }
+    }
     const comentario = fechaStr!=null && comentariosPorFecha[fechaStr]!=null ? comentariosPorFecha[fechaStr] : '';
     const gr = (c)=> (aoaR[rR]||[])[c];
     const gd = (c)=> (aoaD[rD]||[])[c];
@@ -2280,15 +2312,28 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
     });
   }
 
-  // Totales PROYECCIONES: fila fija +33 respecto al día 1 (31 días + 2 filas en blanco),
-  // robusto a corrimiento de FILA porque es relativo a d1P.row, no absoluto.
-  const rTot = d1P.row+33;
-  const totales = {
+  // Totales PROYECCIONES: la fila de "Totales" viene después del último día, pero el
+  // número de filas en blanco de por medio cambia según la época del balance (0 en
+  // marzo-abril 2026; 2 renglones en blanco de ahí en adelante). En vez de asumir un
+  // offset fijo (+33), se busca: la primera fila, después del último día real del mes,
+  // donde ya no hay fecha pero sí un número en la columna de tonelaje acumulado.
+  const ndReal = dias.filter(d=>d.fecha!=null).length || 31;
+  let rTot = null;
+  if(d1P){
+    for(let k=ndReal; k<=ndReal+4; k++){
+      const rr = d1P.row+k;
+      const fila = aoaP[rr]||[];
+      const fechaAqui = fila[baseP];
+      const valAqui = fila[colProyTonAcum];
+      if((typeof fechaAqui!=='number') && typeof valAqui==='number'){ rTot = rr; break; }
+    }
+  }
+  const totales = rTot!=null ? {
     proy_ton_total: numv((aoaP[rTot]||[])[colProyTonAcum]),
     real_ton_total: numv((aoaP[rTot]||[])[colRealTonAcum]),
     proy_oz_total: numv((aoaP[rTot]||[])[colProyOzAcum]),
     real_oz_total: numv((aoaP[rTot]||[])[colRealOzAcum]),
-  };
+  } : { proy_ton_total:0, real_ton_total:0, proy_oz_total:0, real_oz_total:0 };
 
   // HISTORICO: caja de "Stock Estimado" ubicada por texto (no por celda fija),
   // usando "Toneladas Recibidas" como ancla y offsets relativos +1,+2,+3.
@@ -2299,7 +2344,9 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
       if(row[c]!=null && normTxt(row[c]).includes('TONELADAS RECIBIDAS')){ stockAnchor = {row:r,col:c}; break; }
     }
   }
-  let stock;
+  // Opcional: en balances viejos (enero-julio 2026) puede no venir esta caja con ese
+  // formato. Si no se encuentra, el mes se carga igual y el Stock Estimado sale vacío.
+  let stock = null;
   if(stockAnchor){
     const vr = stockAnchor.row+1, vc = stockAnchor.col;
     stock = {
@@ -2308,8 +2355,6 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
       mineral_triturado: numv((aoaHist[vr]||[])[vc+2]),
       stock_estimado: numv((aoaHist[vr]||[])[vc+3]),
     };
-  } else {
-    return {error:'No se encontró la caja "Stock Estimado" en HISTORICO.'};
   }
 
   // Fletes recibidos por procedencia. Se lee aquí abajo, y no junto a las otras hojas
