@@ -29,14 +29,17 @@
 <body>
 <div class="caja">
 <h1>Presupuesto Anual → Ppto del Panel Ejecutivo</h1>
-<p>Lee la hoja <b>"Plan Producción Q4"</b> del archivo <b>Presupuesto de Producción Planta 2026</b> (Toneladas,
-Leyes, Recuperaciones, Producción por mes) y actualiza el <b>Presupuesto (Ppto)</b> de cada mes en el Panel
-Ejecutivo, sin tocar nunca lo <b>Real</b> ni ningún otro dato de esos meses.</p>
+<p>Lee la hoja del Plan de Producción anual (Toneladas, Leyes, Recuperaciones, Producción por mes) de un
+archivo tipo <b>Presupuesto de Producción Planta</b> y actualiza el <b>Presupuesto (Ppto)</b> de cada mes en el
+Panel Ejecutivo, sin tocar nunca lo <b>Real</b> ni ningún otro dato de esos meses. No importa cómo se llame la
+hoja ni el archivo — el mes y el año de cada columna salen de las fechas que trae el propio archivo, así que
+sirve igual este año, el próximo o cualquier otro.</p>
 <p><b>Se puede volver a correr las veces que haga falta:</b> si el presupuesto cambia (por ejemplo, para los
 meses que todavía no operamos), solo vuelve a abrir esta página y sube la versión nueva del archivo — cada
 mes se actualiza con lo último que traiga, sin duplicar ni dañar nada. Los meses que aún no tengan su balance
 diario cargado (aún no operados) se marcan como pendientes: en cuanto subas el primer balance de ese mes, corre
-esta página otra vez para dejarle su Ppto.</p>
+esta página otra vez para dejarle su Ppto. Y cuando arranque un año nuevo, es el mismo procedimiento: subes el
+Plan de Producción de ese año y esta misma página lo reconoce solo.</p>
 
 <div>
   <input id="pin" type="password" placeholder="Contraseña" autocomplete="off">
@@ -79,6 +82,24 @@ function serialToYYYYMM(s){
 function diasEnMes(periodo){
   const [y,m] = periodo.split('-').map(Number);
   return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+// No dependemos del nombre de la hoja (puede cambiar de un año a otro, o dejar de
+// llamarse "Q4" cuando cubra el año completo): primero probamos el nombre de hoy por
+// rapidez, y si no está, revisamos todas las hojas del archivo buscando la que tenga
+// las filas ancla ("TONELADAS MOLIDAS/TRITURADAS" + un encabezado "TOTAL") sin importar
+// cómo se llame.
+function encuentraHojaPresupuesto(wb){
+  const candidatos = ['Plan Producción Q4', ...wb.SheetNames];
+  const vistos = new Set();
+  for(const nombre of candidatos){
+    if(!wb.SheetNames.includes(nombre) || vistos.has(nombre)) continue;
+    vistos.add(nombre);
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[nombre], {header:1, raw:true, defval:null});
+    const tieneTon = aoa.some(fila => normTxt((fila||[])[0])==='TONELADAS MOLIDAS/TRITURADAS');
+    const tieneTotal = aoa.some(fila => (fila||[]).some(v=>normTxt(v)==='TOTAL'));
+    if(tieneTon && tieneTotal) return {nombreHoja: nombre, aoa};
+  }
+  return {error:'No encontré, en ninguna hoja de este archivo, la fila "TONELADAS MOLIDAS/TRITURADAS" junto con un encabezado "TOTAL" — revisa que sea el archivo correcto. Hojas encontradas: '+wb.SheetNames.join(', ')};
 }
 function leeMetaProyeccionesAnual(aoa){
   let filaHead = -1, colTotal = -1;
@@ -183,13 +204,11 @@ async function procesarArchivo(file){
   try{
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(new Uint8Array(buf), {type:'array', cellDates:false, cellStyles:true});
-    if(!wb.SheetNames.includes('Plan Producción Q4')){
-      linea('Este archivo no tiene una hoja llamada "Plan Producción Q4". Hojas encontradas: '+wb.SheetNames.join(', '), 'err');
-      return;
-    }
-    const aoa = XLSX.utils.sheet_to_json(wb.Sheets['Plan Producción Q4'], {header:1, raw:true, defval:null});
+    const { nombreHoja, aoa, error: errHoja } = encuentraHojaPresupuesto(wb);
+    if(errHoja){ linea(errHoja, 'err'); return; }
+    linea('Hoja encontrada: "'+nombreHoja+'".', 'info');
     const res = leeMetaProyeccionesAnual(aoa);
-    if(res.error){ linea('No pude leer la hoja: '+res.error, 'err'); return; }
+    if(res.error){ linea('No pude leer la hoja "'+nombreHoja+'": '+res.error, 'err'); return; }
 
     linea('Encontré '+res.meses.length+' meses. Revisando qué hay guardado en la base de datos...', 'info');
     mesesListos = [];
