@@ -433,6 +433,17 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
   .pn-nav{ margin:-10px -11px 10px; padding:9px 11px 7px; }
   .pn-titulo{ font-size:12px; }
 }
+/* Flechas de Día/Semana/Mes: viven en la barra pegada (.pn-nav), no en el encabezado de la
+   tabla — así se quedan a la vista aunque la tabla se deslice de lado o quede lejos al
+   bajar por la página. */
+.pn-nb-fila{ display:flex; margin-top:6px; padding-top:5px; border-top:1px solid #eceff1; }
+.pn-nb{ flex:1; min-width:0; text-align:center; padding:0 4px; }
+.pn-nb:not(:last-child){ border-right:1px solid #eceff1; }
+.pn-nb .tb-cab{ display:flex; align-items:center; justify-content:center; gap:6px; }
+.pn-nb .tb-per{ font-size:10.5px; font-weight:800; letter-spacing:.5px; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pn-nb .tb-sub{ display:block; font-size:9px; color:#8a8578; margin-top:1px; white-space:nowrap; }
+.pn-nb .tb-fl{ border:1px solid #d8dde1; background:#fff; color:var(--navy); }
+.pn-nb .tb-fl:hover:not([disabled]){ border-color:var(--gold); background:#fffdf6; }
 .pn-vista{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:11px; color:#8a8578; margin:-2px 0 7px; }
 .pn-pill{ border:1px solid #d8dde1; background:#fff; color:#5a656d; border-radius:20px; padding:4px 12px; font-size:11.5px; cursor:pointer; font-family:inherit; white-space:nowrap; }
 .pn-pill:hover{ border-color:var(--gold); }
@@ -532,6 +543,12 @@ body[data-theme="dark"] .pn-titulo{ color:#9aa4ad; }
 body[data-theme="dark"] .pn-titulo b{ color:#E8B93D; }
 body[data-theme="dark"] .pn-flecha{ background:#20262c; border-color:#3a444c; color:#e2e2e2; }
 body[data-theme="dark"] .pn-flecha:hover:not([disabled]){ border-color:#E8B93D; background:#2a2717; }
+body[data-theme="dark"] .pn-nb-fila{ border-top-color:#333c44; }
+body[data-theme="dark"] .pn-nb:not(:last-child){ border-right-color:#333c44; }
+body[data-theme="dark"] .pn-nb .tb-per{ color:#E8B93D; }
+body[data-theme="dark"] .pn-nb .tb-sub{ color:#8a8f94; }
+body[data-theme="dark"] .pn-nb .tb-fl{ border-color:#3a444c; background:#20262c; color:#e2e2e2; }
+body[data-theme="dark"] .pn-nb .tb-fl:hover:not([disabled]){ border-color:#E8B93D; background:#2a2717; }
 body[data-theme="dark"] .pe-chip.on{ border-color:#E8B93D; background:#E8B93D; color:#15191d; }
 body[data-theme="dark"] .pe-chip.on b{ color:#15191d; }
 body[data-theme="dark"] .pe-sello{ color:#8a8f94; }
@@ -3450,7 +3467,38 @@ function consumosTresPanel(){
             ${bloques.map(k=>`<th colspan="3" class="tb-bloque"><span class="tb-per">${({dia:'DÍA',sem:'SEMANA',mes:nomMes.toUpperCase()})[k]}</span></th>`).join('')}</tr>
         <tr class="tb-sub-tr">${bloques.map(()=>'<th>Real</th><th>Proy</th><th>Dev %</th>').join('')}</tr>
       </thead>
-      <tbody>${filas}</tbody></table></div></div>`;
+      <tbody>${filas}</tbody></table></div></div>
+    ${desgloseConsumosPanel(nombres, M, nf, busca)}</div>`;
+}
+
+/* Desglose día por día del mes en curso (1, 2, 3 ... 30/31): solo Real (arriba, coloreado
+   según el desvío contra Proyección) y Proy (abajo, en gris) — sin columna de Dev % aparte,
+   igual que pidió César. Arranca abierto porque es lo que se quiere ver primero. */
+let consumosDiaAbiertoPanel = true;
+function toggleConsumosDiaPanel(){ consumosDiaAbiertoPanel = !consumosDiaAbiertoPanel; pintaPanel(); }
+function desgloseConsumosPanel(nombres, M, nf, busca){
+  const dias = M.dias.filter(d => d.tms > 0); // solo los días que ya trajeron dato
+  const n = dias.length;
+  if(n < 2) return '';
+  const abierto = consumosDiaAbiertoPanel;
+  const flecha = abierto ? '▾' : '▸';
+  const cab = `<div class="pn-desg-fila"><span class="pn-desg-cab" onclick="toggleConsumosDiaPanel()">${flecha} ${abierto?'Ocultar':'Ver'} los ${n} días de ${M.nombre}, uno por uno</span></div>`;
+  if(!abierto) return cab;
+  const th = dias.map(d => `<th>${d.dia}</th>`).join('');
+  const filas = nombres.map(nom=>{
+    const c = busca(M, nom);
+    const celdas = dias.map(d=>{
+      const r = c && c.real[d.dia-1], p = c && c.proy[d.dia-1];
+      const dev = (typeof r==='number' && typeof p==='number' && p!==0) ? r/p : null;
+      const col = dev==null ? '#9aa2a9' : (dev<=1 ? 'var(--pn-verde)' : dev<=1.05 ? 'var(--pn-ambar)' : 'var(--pn-rojo)');
+      return `<td><span style="color:${col};font-weight:700">${typeof r==='number'?nf(r):'—'}</span>
+        <span class="pn-desg-p">${typeof p==='number'?nf(p):'—'}</span></td>`;
+    }).join('');
+    return `<tr><td><span class="pn-nom">${escapeYSaltosPanel(nom)}</span></td>${celdas}</tr>`;
+  }).join('');
+  return cab + `<div class="pn-desg"><table>
+      <thead><tr><th>Consumo</th>${th}</tr></thead><tbody>${filas}</tbody></table></div>
+    <div class="pn-desg-pie">Arriba el real, abajo la proyección de ese día.${n>10?' La tabla se desliza de lado.':''}</div>`;
 }
 
 /* ---- navegación con flechas (día / semana / mes, cruzando de mes) ---- */
@@ -3550,9 +3598,6 @@ function panelHtmlEjecutivo(){
     const N = panelState.meses[c];
     return `<option value="${c}"${c===panelState.mesSel?' selected':''}>${N.nombre}</option>`;
   }).join('');
-  const nav = `<div class="pn-nav"><div class="tb-vers">
-      <select id="panelMesSelect" style="font-size:11.5px;padding:3px 6px;border-radius:14px;border:1px solid #d8dde1;margin-right:auto" onchange="cambiaMesPanel(this.value)">${selMeses}</select>
-      ${verPills}</div></div>`;
 
   const s = T.sem && T.sem.sem;
   const et = dt => { const [y,m,d] = aFechaPanel(dt).split('-').map(Number);
@@ -3568,10 +3613,20 @@ function panelHtmlEjecutivo(){
   ].filter(([k])=>verBloquePanel(k));
   const fl = (k,dir,simbolo)=>`<button type="button" class="tb-fl" ${puedeBloquePanel(k,dir)?'':'disabled'}
       onclick="mueveBloquePanel('${k}',${dir})" title="${dir<0?'Anterior':'Siguiente'}">${simbolo}</button>`;
-  const thBloques = cabs.map(([k,t,sub])=>
-    `<th colspan="3" class="tb-bloque">
+  // Las flechas de Día/Semana/Mes viven en esta barra (pegada arriba, fuera de la tabla)
+  // en vez del encabezado de la tabla: la tabla se desliza de lado para ver los meses sin
+  // Ppto o pantallas angostas, y esa franja horizontal se lleva su "sticky" vertical con
+  // ella — las flechas nunca se quedaban pegadas al bajar. Aquí sí funciona.
+  const navBloques = cabs.map(([k,t,sub])=>
+    `<div class="pn-nb">
        <div class="tb-cab">${fl(k,-1,'&#9664;')}<span class="tb-per">${t}</span>${fl(k,1,'&#9654;')}</div>
-       <span class="tb-sub">${sub}</span></th>`).join('');
+       <span class="tb-sub">${sub}</span></div>`).join('');
+  const nav = `<div class="pn-nav"><div class="tb-vers">
+      <select id="panelMesSelect" style="font-size:11.5px;padding:3px 6px;border-radius:14px;border:1px solid #d8dde1;margin-right:auto" onchange="cambiaMesPanel(this.value)">${selMeses}</select>
+      ${verPills}</div>
+      <div class="pn-nb-fila">${navBloques}</div></div>`;
+
+  const thBloques = cabs.map(([k,t])=>`<th colspan="3" class="tb-bloque"><span class="tb-per">${t}</span></th>`).join('');
   const thSub = cabs.map(()=>`<th>Real</th><th>Ppto</th><th>Dev %</th>`).join('');
 
   const filas = PANEL_FILAS.map(f=>{
