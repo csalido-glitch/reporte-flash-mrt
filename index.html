@@ -559,7 +559,7 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
   </div>
 
   <div class="locked-banner" id="panelBanner" style="display:none">
-    📊 <b>Panel Ejecutivo</b> (solo lectura) — Real vs Presupuesto, con todos los meses ya capturados
+    📊 <b>Panel Ejecutivo</b>
   </div>
 
   <div class="sticky-head" id="stickyHead">
@@ -2308,6 +2308,29 @@ function letraCol(idx){
   while(n > 0){ const r = (n-1) % 26; s = String.fromCharCode(65+r) + s; n = Math.floor((n-1)/26); }
   return s;
 }
+/* Consumos por reactivo, del mismo bloque REAL/Proyección de HUM Y CAB CALC que ya se
+   usa para el NaCN diario: el encabezado va 2 filas arriba del día 1 ("NaCN Kg/Ton",
+   etc.) y la fila de abajo trae "REAL"/"PROYECCIÓN" — se toma cada columna marcada
+   REAL junto con la de su derecha (Proyección), igual que hace panel_tabla.html. */
+function leeConsumosDesdeH(aoaH, d1H){
+  if(!aoaH || !aoaH.length || !d1H) return [];
+  const filaDia1 = d1H.row;
+  const fh = aoaH[filaDia1-2]||[], fs = aoaH[filaDia1-1]||[];
+  const out = [];
+  for(let c=0;c<fh.length;c++){
+    const n = fh[c];
+    if(n==null || String(n).trim()==='') continue;
+    if(!(fs[c]!=null && normTxt(fs[c])==='REAL')) continue;
+    const real = [], proy = [];
+    for(let i=0;i<31;i++){
+      const fila = aoaH[filaDia1+i] || [];
+      real.push(typeof fila[c]==='number' ? fila[c] : null);
+      proy.push(typeof fila[c+1]==='number' ? fila[c+1] : null);
+    }
+    out.push({nombre:String(n).trim(), real, proy});
+  }
+  return out;
+}
 const COL_RESUMEN = {3:'K', 4:'M', 5:'N', 8:'S', 9:'T', 19:'AC', 20:'AD', 23:'AH'};
 function letraDeIdx(hoja, idx){
   if(hoja === 'RESUMEN') return COL_RESUMEN[idx] || letraCol(idx);
@@ -2599,8 +2622,15 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
         metaInfo = {hoja:'PROYECCIONES', meta:true, filaValores: metaPanel.filaValores+1};
       }
     }catch(e2){ console.error('No se pudo calcular el Ppto del Panel Ejecutivo', e2); }
+    // Consumos por reactivo (NaCN, Cal, etc.): salen del mismo bloque REAL/Proyección
+    // de HUM Y CAB CALC que ya se usa arriba para el NaCN del día — aquí se leen TODAS
+    // las columnas del bloque, no solo NaCN, para el desglose del Panel Ejecutivo.
+    // Opcional: si la hoja no vino (enero/febrero) o no trae el bloque, queda vacío.
+    let consumosPanel = [];
+    try{ consumosPanel = leeConsumosDesdeH(aoaH, d1H); }
+    catch(e3){ console.error('No se pudieron leer los consumos del Panel Ejecutivo', e3); }
     panel = {
-      ndias: ndPanel, real: mReal, ppto: mPpto,
+      ndias: ndPanel, real: mReal, ppto: mPpto, consumos: consumosPanel,
       origen: {real:{hoja:'RESUMEN', fila0:d1R.row}, ppto: metaInfo}
     };
   }catch(e){ console.error('No se pudo calcular el Panel Ejecutivo', e); }
@@ -3261,6 +3291,94 @@ function datosTresPanel(){
   return out;
 }
 
+/* Los días que entran en el periodo elegido, ya con su mes (la semana puede cruzar de
+   un mes a otro). Lo usa el bloque de consumos para promediar ponderado por tonelaje. */
+function diasDelPeriodoPanel(){
+  const M = panelState.meses[panelState.mesSel];
+  if(!M) return [];
+  const nd = M.dias.length;
+  const dFin = Math.min(panelState.selectedDay || nd, nd);
+  if(panelPeriodoSel === 'dia') return [{M, clave:panelState.mesSel, dia:dFin}];
+  if(panelPeriodoSel === 'sem'){
+    const out = [];
+    tramosSemanaPanel(M, dFin).tramos.forEach(x=>{
+      for(let d=x.ini; d<=x.fin; d++) out.push({M:x.M, clave:x.clave, dia:d});
+    });
+    return out;
+  }
+  const fin = (panelPeriodoSel === 'mesc') ? nd : dFin;
+  const out = [];
+  for(let d=1; d<=fin; d++) out.push({M, clave:panelState.mesSel, dia:d});
+  return out;
+}
+function escapeYSaltosPanel(txt){
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  return String(txt).split(/\r\n\s*\r\n|\n\s*\n/)
+    .map(b => esc(b).replace(/\r\n|\r|\n/g,'<br>'))
+    .join('<div class="flash-note-sep"></div>');
+}
+/* Consumos por reactivo con los mismos tres cortes de arriba (Día/Semana/Mes). Se
+   pondera por el tonelaje molido de cada día — un consumo es Kg por tonelada, no una
+   cantidad, así que promediar los ratios de golpe le daría el mismo peso a un día de
+   200 t que a uno de 1,200 t. */
+const CONSUMOS_OCULTOS_PANEL = ['BOLA 1.5'];
+function consumoOcultoPanel(nombre){
+  const n = normTxt(nombre);
+  return CONSUMOS_OCULTOS_PANEL.some(x => n.indexOf(x) === 0);
+}
+function consumosTresPanel(){
+  const M = panelState.meses[panelState.mesSel];
+  if(!M) return '';
+  const guardaPer = panelPeriodoSel, guardaDia = panelState.selectedDay;
+  const listas = {};
+  for(const per of ['dia','sem']){ panelPeriodoSel = per; listas[per] = diasDelPeriodoPanel(); }
+  panelState.selectedDay = M.dias.length; panelPeriodoSel = 'mes';
+  listas.mes = diasDelPeriodoPanel();
+  panelState.selectedDay = guardaDia; panelPeriodoSel = guardaPer;
+  const nombres = [];
+  listas.mes.forEach(x => (x.M.consumos||[]).forEach(c => {
+    if(!nombres.includes(c.nombre) && !consumoOcultoPanel(c.nombre)) nombres.push(c.nombre); }));
+  if(!nombres.length) return `<div class="pn-consumos"><div class="pn-sub">Consumos</div>
+    <div class="pn-vacio">Este mes no trae el bloque de consumos.</div></div>`;
+  const nf = v => v==null ? '—' : v.toLocaleString('es-MX',{minimumFractionDigits:2, maximumFractionDigits:3});
+  const busca = (M,n) => (M.consumos||[]).find(c => c.nombre === n);
+  const tms = x => { const v = (x.M.bd.dias[x.dia]||{})[3]; return (typeof v==='number' && v>0) ? v : null; };
+  const dato = (per, nom, lado) => {
+    const lista = listas[per];
+    if(!lista.length) return null;
+    if(lista.length===1){ const x=lista[0], c=busca(x.M,nom);
+      const v = c && c[lado][x.dia-1]; return typeof v==='number' ? v : null; }
+    let num=0, den=0;
+    lista.forEach(x=>{ const c=busca(x.M,nom); if(!c) return;
+      const v=c[lado][x.dia-1], t=tms(x);
+      if(typeof v==='number' && t!=null){ num+=v*t; den+=t; } });
+    return den ? num/den : null;
+  };
+  const bloques = ['dia','sem','mes'].filter(verBloquePanel);
+  const filas = nombres.map(nom=>{
+    const celdas = bloques.map(per=>{
+      const r = dato(per,nom,'real'), p = dato(per,nom,'proy');
+      const d = (r==null||p==null||p===0) ? null : r/p;
+      // Aquí menos es mejor: gastar por debajo de lo proyectado es lo bueno.
+      const c = d==null ? null : (d<=1 ? 'var(--pn-verde)' : d<=1.05 ? 'var(--pn-ambar)' : 'var(--pn-rojo)');
+      return `<td class="pn-real">${nf(r)}</td>
+        <td class="pn-pres">${nf(p)}</td>
+        <td class="pn-dev" style="color:${c||'#9aa2a9'}">${d==null?'—':(c?'<span class="pn-punto" style="background:'+c+'"></span>':'')+Math.round(d*100)+'%'}</td>`;
+    }).join('');
+    return `<tr><td class="tb-met"><span class="pn-nom">${escapeYSaltosPanel(nom)}</span></td>${celdas}</tr>`;
+  }).join('');
+  const nomMes = (panelState.meses[panelState.mesSel]||{}).nombre || '';
+  return `<div class="pn-consumos">
+    <div class="pn-sub">Consumos — Real vs Proyección <span class="pn-uni">(por tonelada molida)</span></div>
+    <div class="pn-tabla tb-tres"><table>
+      <thead>
+        <tr><th rowspan="2" class="tb-met-h">Consumo</th>
+            ${bloques.map(k=>`<th colspan="3" class="tb-bloque"><span class="tb-per">${({dia:'DÍA',sem:'SEMANA',mes:nomMes.toUpperCase()})[k]}</span></th>`).join('')}</tr>
+        <tr class="tb-sub-tr">${bloques.map(()=>'<th>Real</th><th>Proy</th><th>Dev %</th>').join('')}</tr>
+      </thead>
+      <tbody>${filas}</tbody></table></div></div>`;
+}
+
 /* ---- navegación con flechas (día / semana / mes, cruzando de mes) ---- */
 function verBloquePanel(k){ return !panelState.ver || panelState.ver[k] !== false; }
 function alternaPanel(k){
@@ -3404,7 +3522,8 @@ function panelHtmlEjecutivo(){
         <tr><th rowspan="2" class="tb-met-h">Métrica</th>${thBloques}</tr>
         <tr class="tb-sub-tr">${thSub}</tr>
       </thead>
-      <tbody>${filas}</tbody></table></div>`;
+      <tbody>${filas}</tbody></table></div>`
+    + consumosTresPanel();
 }
 function pintaPanel(){
   const el = document.getElementById('panelEjecutivoArea');
@@ -3440,7 +3559,8 @@ async function cargaTodoElPanel(){
     }
     panelState.meses[row.periodo] = {
       clave: row.periodo, nombre: (MESES_ES_FULL[m0]||row.periodo)+' '+y0,
-      ndias: nd, bd: d.panel.real, pr: d.panel.ppto || null, dias: fechas
+      ndias: nd, bd: d.panel.real, pr: d.panel.ppto || null, dias: fechas,
+      consumos: d.panel.consumos || []
     };
   });
   const claves = clavesOrdenadasPanel();
@@ -3465,6 +3585,8 @@ function applyPanelModeUI(){
   if(btnVerCmtPanel) btnVerCmtPanel.style.display = 'none';
   document.getElementById('panelBanner').style.display = 'block';
   document.getElementById('panelEjecutivoArea').style.display = 'block';
+  const discreetPanel = document.querySelector('.discreet-actions');
+  if(discreetPanel) discreetPanel.style.marginTop = '28px';
   document.title = 'Panel Ejecutivo — Reporte Flash MRT Cieneguita';
 }
 document.getElementById('btnVerPanel').onclick = ()=>{
