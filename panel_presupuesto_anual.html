@@ -1,0 +1,284 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<title>Presupuesto Anual — Panel Ejecutivo</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif; background:#f7f7f5; margin:0; padding:30px; color:#1a2733;}
+  .caja{max-width:900px;margin:0 auto;background:#fff;border:1px solid #e3e6e9;border-radius:10px;padding:24px 28px;}
+  h1{font-size:18px;margin:0 0 6px;color:#1a2733;}
+  h2{font-size:14px;margin:22px 0 8px;color:#1a2733;}
+  p{font-size:13px;color:#5a656d;line-height:1.6;}
+  input[type=password]{font-size:14px;padding:8px 10px;border:1px solid #d8dde1;border-radius:6px;width:220px;}
+  .drop{margin-top:14px;border:2px dashed #c7ced3;border-radius:10px;padding:26px;text-align:center;font-size:13px;color:#5a656d;cursor:pointer;transition:.15s;}
+  .drop.hover{border-color:#1a2733;background:#f3f6f7;}
+  .drop.ok{border-color:#0a6b3c;background:#f0f8f3;color:#0a6b3c;}
+  input[type=file]{display:none;}
+  button{font-size:13px;font-weight:700;background:#1a2733;color:#fff;border:0;border-radius:6px;padding:10px 18px;cursor:pointer;margin:14px 8px 0 0;}
+  button:disabled{opacity:.4;cursor:default;}
+  button.sec{background:#fff;color:#1a2733;border:1px solid #d8dde1;}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:8px;}
+  th,td{border:1px solid #e3e6e9;padding:6px 8px;text-align:right;}
+  th{background:#f3f6f7;text-align:center;}
+  td:first-child, th:first-child{text-align:left;}
+  .estado{font-weight:700;}
+  .e-nueva{color:#a15a0a;}
+  .e-actualiza{color:#0a6b3c;}
+  .e-falta{color:#9aa4ad;}
+  #log{margin-top:18px;font-size:12.5px;font-family:ui-monospace,Consolas,monospace;white-space:pre-wrap;background:#f3f6f7;border-radius:8px;padding:12px 14px;min-height:20px;}
+  .ok{color:#0a6b3c;} .err{color:#a13a1a;} .info{color:#5a656d;}
+</style></head>
+<body>
+<div class="caja">
+<h1>Presupuesto Anual → Ppto del Panel Ejecutivo</h1>
+<p>Lee la hoja <b>"Plan Producción Q4"</b> del archivo <b>Presupuesto de Producción Planta 2026</b> (Toneladas,
+Leyes, Recuperaciones, Producción por mes) y actualiza el <b>Presupuesto (Ppto)</b> de cada mes en el Panel
+Ejecutivo, sin tocar nunca lo <b>Real</b> ni ningún otro dato de esos meses.</p>
+<p><b>Se puede volver a correr las veces que haga falta:</b> si el presupuesto cambia (por ejemplo, para los
+meses que todavía no operamos), solo vuelve a abrir esta página y sube la versión nueva del archivo — cada
+mes se actualiza con lo último que traiga, sin duplicar ni dañar nada. Los meses que aún no tengan su balance
+diario cargado (aún no operados) se marcan como pendientes: en cuanto subas el primer balance de ese mes, corre
+esta página otra vez para dejarle su Ppto.</p>
+
+<div>
+  <input id="pin" type="password" placeholder="Contraseña" autocomplete="off">
+</div>
+<div class="drop" id="drop">Arrastra aquí el archivo <b>Plan Operación CIE 2026 Oficial Q4.xlsx</b> (o cualquier
+versión actualizada del Presupuesto de Producción Planta 2026), o haz clic para elegirlo.
+<input type="file" id="fileInput" accept=".xlsx,.xlsm"></div>
+
+<div id="previewWrap" style="display:none">
+  <h2>Vista previa — lo que se va a guardar</h2>
+  <div id="preview"></div>
+  <button id="btnGo" disabled>Aplicar a la base de datos</button>
+  <button id="btnCancel" class="sec">Elegir otro archivo</button>
+</div>
+
+<div id="log"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = 'https://vknnwhivhqzbyeqnnegy.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrbm53aGl2aHF6YnllcW5uZWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyMjA3ODAsImV4cCI6MjEwMTc5Njc4MH0._1bIE726QDVcWnN9LaC8CKoM2IVoCNA4ncouyx2Zl5Y';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const log = document.getElementById('log');
+function linea(txt, cls){ const d=document.createElement('div'); if(cls) d.className=cls; d.textContent=txt; log.appendChild(d); }
+
+// ---- mismas funciones que usa el Flash para calcular el Ppto diario a partir de una
+// meta mensual (8 números fijos): se copian tal cual para que el resultado sea idéntico. ----
+function normTxt(s){
+  return String(s).trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+}
+function isDateSerial(v){
+  return typeof v==='number' && v>42000 && v<49700;
+}
+function serialToYYYYMM(s){
+  const d = new Date(Date.UTC(1899,11,30) + s*86400000);
+  return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0');
+}
+function diasEnMes(periodo){
+  const [y,m] = periodo.split('-').map(Number);
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+function leeMetaProyeccionesAnual(aoa){
+  let filaHead = -1, colTotal = -1;
+  for(let r=0; r<aoa.length; r++){
+    const fila = aoa[r]||[];
+    const c = fila.findIndex(v => normTxt(v)==='TOTAL');
+    if(c>=0){ filaHead = r; colTotal = c; break; }
+  }
+  if(filaHead<0) return {error:'No encontré la fila de encabezado con "TOTAL" (meses + total anual).'};
+  const filaH = aoa[filaHead]||[];
+  const meses = [];
+  for(let c=0;c<colTotal;c++){
+    if(isDateSerial(filaH[c])) meses.push({col:c, periodo: serialToYYYYMM(filaH[c])});
+  }
+  if(meses.length<1) return {error:'No encontré columnas de mes (fechas) junto al encabezado "TOTAL".'};
+
+  let filaDiasOp = -1;
+  for(let r=0; r<filaHead; r++){
+    const fila = aoa[r]||[];
+    const etiqueta = fila[0];
+    if(etiqueta!=null && String(etiqueta).trim()!=='') continue;
+    const vals = meses.map(m=>fila[m.col]);
+    const ok = vals.every(v => typeof v==='number' && Number.isInteger(v) && v>=1 && v<=31);
+    if(ok){ filaDiasOp = r; break; }
+  }
+  if(filaDiasOp<0) return {error:'No encontré la fila de "días operados" (arriba del encabezado, valores 1-31).'};
+
+  const buscaFila = (...etiquetas) => {
+    const objetivo = etiquetas.map(normTxt);
+    for(let r=0;r<aoa.length;r++){
+      const v = normTxt((aoa[r]||[])[0]);
+      if(objetivo.includes(v)) return r;
+    }
+    return -1;
+  };
+  const filaTon   = buscaFila('TONELADAS MOLIDAS/TRITURADAS');
+  const filaOz    = buscaFila('PRODUCCION AU OZ EQ');
+  const filaLeyAu = buscaFila('AU GR/TON');
+  const filaLeyAg = buscaFila('AG GR/TON');
+  const filaRecAu = buscaFila('ORO (%)');
+  const filaRecAg = buscaFila('PLATA (%)');
+  const faltantes = [];
+  if(filaTon<0) faltantes.push('TONELADAS MOLIDAS/TRITURADAS');
+  if(filaOz<0) faltantes.push('Producción Au Oz Eq');
+  if(filaLeyAu<0) faltantes.push('Au gr/ton');
+  if(filaLeyAg<0) faltantes.push('Ag gr/ton');
+  if(filaRecAu<0) faltantes.push('Oro (%)');
+  if(filaRecAg<0) faltantes.push('Plata (%)');
+  if(faltantes.length) return {error:'No encontré estas filas en la hoja: '+faltantes.join(', ')};
+
+  const num = (fila,col) => { const v = (aoa[fila]||[])[col]; return (typeof v==='number' && !isNaN(v)) ? v : null; };
+  return {
+    meses: meses.map(m => ({
+      periodo: m.periodo,
+      meta: {
+        diasOp: num(filaDiasOp, m.col), tonMeta: num(filaTon, m.col), ozMeta: num(filaOz, m.col),
+        leyAu: num(filaLeyAu, m.col), leyAg: num(filaLeyAg, m.col),
+        recAu: num(filaRecAu, m.col), recAg: num(filaRecAg, m.col),
+      }
+    }))
+  };
+}
+function construyeMatrizProyeccion(meta, nd){
+  const OZ_G = 31.1034768;
+  const diasOp = (meta.diasOp!=null && meta.diasOp>0) ? meta.diasOp : nd;
+  const tmsDia  = (meta.tonMeta!=null) ? meta.tonMeta/diasOp : null;
+  const ozEqDia = (meta.ozMeta!=null)  ? meta.ozMeta/diasOp  : null;
+  const {leyAu, leyAg, recAu, recAg} = meta;
+  const ozAuDia = (tmsDia!=null && leyAu!=null && recAu!=null) ? (tmsDia*leyAu*recAu)/OZ_G : null;
+  const ozAgDia = (tmsDia!=null && leyAg!=null && recAg!=null) ? (tmsDia*leyAg*recAg)/OZ_G : null;
+  const dias = [], acum = [];
+  let tmsAc = 0, ozAuAc = 0, ozAgAc = 0;
+  for(let i=0; i<=31; i++){
+    const dd = {}, aa = {};
+    if(i>=1 && i<=nd){
+      dd[3]=tmsDia; dd[4]=leyAu; dd[5]=leyAg; dd[8]=recAu; dd[9]=recAg;
+      dd[19]=ozAuDia; dd[20]=ozAgDia; dd[23]=ozEqDia;
+      tmsAc += (tmsDia||0); ozAuAc += (ozAuDia||0); ozAgAc += (ozAgDia||0);
+      aa[30]=tmsAc; aa[31]=leyAu; aa[33]=leyAg; aa[39]=recAu; aa[40]=recAg;
+      aa[50]=ozAuAc; aa[51]=ozAgAc;
+      aa[32] = (leyAu!=null) ? tmsAc*leyAu/1000 : null;
+      aa[34] = (leyAg!=null) ? tmsAc*leyAg/1000 : null;
+      aa[37] = (leyAu!=null && recAu!=null) ? tmsAc*leyAu*recAu/1000 : null;
+      aa[38] = (leyAg!=null && recAg!=null) ? tmsAc*leyAg*recAg/1000 : null;
+    }
+    dias.push(dd); acum.push(aa);
+  }
+  return {dias, acum};
+}
+const nf0 = n => n==null ? '—' : Math.round(n).toLocaleString('es-MX');
+const nf2 = n => n==null ? '—' : n.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+const nfPct = n => n==null ? '—' : (n*100).toLocaleString('es-MX',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+const MESES_ES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function nombreMes(periodo){ const [y,m]=periodo.split('-'); return MESES_ES[Number(m)]+' '+y; }
+
+let mesesListos = null; // [{periodo, meta, ppto, existe, teniaPpto}]
+
+async function procesarArchivo(file){
+  document.getElementById('drop').className = 'drop';
+  log.innerHTML = '';
+  linea('Leyendo '+file.name+'...', 'info');
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(new Uint8Array(buf), {type:'array', cellDates:false, cellStyles:true});
+    if(!wb.SheetNames.includes('Plan Producción Q4')){
+      linea('Este archivo no tiene una hoja llamada "Plan Producción Q4". Hojas encontradas: '+wb.SheetNames.join(', '), 'err');
+      return;
+    }
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets['Plan Producción Q4'], {header:1, raw:true, defval:null});
+    const res = leeMetaProyeccionesAnual(aoa);
+    if(res.error){ linea('No pude leer la hoja: '+res.error, 'err'); return; }
+
+    linea('Encontré '+res.meses.length+' meses. Revisando qué hay guardado en la base de datos...', 'info');
+    mesesListos = [];
+    for(const m of res.meses){
+      const nd = diasEnMes(m.periodo);
+      const ppto = construyeMatrizProyeccion(m.meta, nd);
+      const { data, error } = await sb.from('flash_reportes').select('data').eq('periodo', m.periodo).maybeSingle();
+      const existe = !error && data && data.data;
+      const teniaPpto = !!(existe && data.data.panel && data.data.panel.ppto);
+      mesesListos.push({periodo:m.periodo, meta:m.meta, ppto, existe, teniaPpto, filaExistente: existe?data.data:null});
+    }
+    pintaPreview();
+    document.getElementById('drop').className = 'drop ok';
+    document.getElementById('drop').textContent = 'Archivo leído: '+file.name+' — revisa la vista previa abajo.';
+    log.innerHTML = '';
+  }catch(e){
+    console.error(e);
+    linea('Error leyendo el archivo: '+e.message, 'err');
+  }
+}
+
+function pintaPreview(){
+  const wrap = document.getElementById('previewWrap');
+  wrap.style.display = '';
+  const filas = mesesListos.map(m=>{
+    const estado = !m.existe ? '<span class="estado e-falta">aún no operado — se aplicará cuando subas su primer balance</span>'
+                 : m.teniaPpto ? '<span class="estado e-actualiza">ya tenía Ppto — se reemplaza con este</span>'
+                 : '<span class="estado e-nueva">no tenía Ppto — se agrega</span>';
+    return `<tr>
+      <td>${nombreMes(m.periodo)}</td>
+      <td>${m.meta.diasOp!=null?m.meta.diasOp:'—'}</td>
+      <td>${nf0(m.meta.tonMeta)}</td>
+      <td>${nf0(m.meta.ozMeta)}</td>
+      <td>${nf2(m.meta.leyAu)}</td>
+      <td>${nf2(m.meta.leyAg)}</td>
+      <td>${nfPct(m.meta.recAu)}</td>
+      <td>${nfPct(m.meta.recAg)}</td>
+      <td>${estado}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('preview').innerHTML = `<table>
+    <thead><tr><th>Mes</th><th>Días Op</th><th>Ton Meta</th><th>Oz Meta</th><th>Au gr/t</th><th>Ag gr/t</th>
+    <th>Rec Au</th><th>Rec Ag</th><th>¿Qué va a pasar?</th></tr></thead>
+    <tbody>${filas}</tbody></table>`;
+  const hayAlgoQueHacer = mesesListos.some(m=>m.existe);
+  document.getElementById('btnGo').disabled = !hayAlgoQueHacer;
+}
+
+document.getElementById('btnGo').onclick = async ()=>{
+  const pin = document.getElementById('pin').value;
+  if(pin !== 'cesarG83'){ linea('Contraseña incorrecta.', 'err'); return; }
+  document.getElementById('btnGo').disabled = true;
+  log.innerHTML = '';
+  for(const m of mesesListos){
+    if(!m.existe){ linea('— '+nombreMes(m.periodo)+': todavía no tiene balance cargado, se salta por ahora.', 'info'); continue; }
+    linea('— '+nombreMes(m.periodo)+': guardando Ppto...', 'info');
+    const panelPrevio = m.filaExistente.panel || {};
+    const panelNuevo = Object.assign({}, panelPrevio, {
+      ndias: panelPrevio.ndias || diasEnMes(m.periodo),
+      ppto: m.ppto,
+      origen: Object.assign({}, panelPrevio.origen, {
+        ppto: {hoja:'Plan Producción Q4', archivo:'Presupuesto de Producción Planta 2026', meta:true}
+      })
+    });
+    const merged = Object.assign({}, m.filaExistente, { panel: panelNuevo });
+    const { error: errUp } = await sb.from('flash_reportes').upsert({ periodo: m.periodo, data: merged });
+    if(errUp){ linea('  '+nombreMes(m.periodo)+': ERROR al guardar — '+errUp.message, 'err'); }
+    else{ linea('  '+nombreMes(m.periodo)+': listo.', 'ok'); }
+  }
+  linea('Terminado. Puedes cerrar esta página. Vuelve a correrla cuando cambie el presupuesto o cuando arranque un mes nuevo.', 'info');
+};
+
+document.getElementById('btnCancel').onclick = ()=>{
+  mesesListos = null;
+  document.getElementById('previewWrap').style.display = 'none';
+  document.getElementById('drop').className = 'drop';
+  document.getElementById('drop').innerHTML = 'Arrastra aquí el archivo <b>Plan Operación CIE 2026 Oficial Q4.xlsx</b> (o cualquier versión actualizada del Presupuesto de Producción Planta 2026), o haz clic para elegirlo.<input type="file" id="fileInput" accept=".xlsx,.xlsm">';
+  document.getElementById('fileInput').addEventListener('change', e=>{ if(e.target.files[0]) procesarArchivo(e.target.files[0]); });
+  log.innerHTML = '';
+};
+
+const drop = document.getElementById('drop');
+drop.addEventListener('click', ()=> document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', e=>{ if(e.target.files[0]) procesarArchivo(e.target.files[0]); });
+drop.addEventListener('dragover', e=>{ e.preventDefault(); drop.classList.add('hover'); });
+drop.addEventListener('dragleave', ()=> drop.classList.remove('hover'));
+drop.addEventListener('drop', e=>{
+  e.preventDefault(); drop.classList.remove('hover');
+  if(e.dataTransfer.files[0]) procesarArchivo(e.dataTransfer.files[0]);
+});
+</script>
+</body></html>

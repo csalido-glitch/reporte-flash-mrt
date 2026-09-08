@@ -2839,6 +2839,20 @@ function handleFile(file){
       if(parsed.mes !== state.mes){
         if(!confirm('Este archivo parece ser de '+mesCorto(parsed.mes)+' y tu vista actual es de '+mesCorto(state.mes)+'. ¿Reemplazar la vista con este nuevo mes? (se recomienda primero "Guardar copia" del mes actual)')) return;
       }
+      // Si este balance no trae su propio Ppto (PROYECCIONES sin meta, como pasaba antes
+      // en enero/febrero), no lo borramos: puede que ese mes ya tenga un Ppto guardado
+      // (cargado a mano o desde el Presupuesto Anual) — se conserva en vez de dejarlo en
+      // null, así una carga diaria nunca "pisa" un Ppto que ya estaba bien.
+      if(parsed.panel && parsed.panel.ppto == null && sb){
+        try{
+          const { data: filaPrevia } = await sb.from('flash_reportes').select('data').eq('periodo', parsed.mes).maybeSingle();
+          const panelPrevio = filaPrevia && filaPrevia.data && filaPrevia.data.panel;
+          if(panelPrevio && panelPrevio.ppto){
+            parsed.panel.ppto = panelPrevio.ppto;
+            parsed.panel.origen = Object.assign({}, parsed.panel.origen, { ppto: panelPrevio.origen ? panelPrevio.origen.ppto : null });
+          }
+        }catch(e){ console.error('No se pudo revisar si ya había un Ppto guardado para conservarlo', e); }
+      }
       state.mes = parsed.mes; state.dias = parsed.dias; state.totales = parsed.totales; state.stock = parsed.stock; state.stockProcedencia = parsed.stockProcedencia; state.fletes = parsed.fletes || []; state.panel = parsed.panel || null; state.ensayePendiente = parsed.ensayePendiente;
       const last = lastDiaConDato();
       state.selectedDay = Math.max(1,last);
