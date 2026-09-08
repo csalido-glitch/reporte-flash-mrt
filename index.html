@@ -444,6 +444,14 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
 .pn-nb .tb-sub{ display:block; font-size:9px; color:#8a8578; margin-top:1px; white-space:nowrap; }
 .pn-nb .tb-fl{ border:1px solid #d8dde1; background:#fff; color:var(--navy); }
 .pn-nb .tb-fl:hover:not([disabled]){ border-color:var(--gold); background:#fffdf6; }
+@media (max-width:760px){
+  /* Con 4 bloques (Día/Semana/Mes/Año) repartidos a partes iguales, en un teléfono el
+     nombre se recortaba tanto que "SEMANA" y "SEPTIEMBRE" se veían igual ("SE..."). Mejor
+     que esta franja se deslice de lado, como ya hace la tabla de abajo. */
+  .pn-nb-fila{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .pn-nb{ flex:0 0 auto; min-width:92px; }
+  .pn-nb .tb-per{ overflow:visible; text-overflow:clip; }
+}
 .pn-vista{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:11px; color:#8a8578; margin:-2px 0 7px; }
 .pn-pill{ border:1px solid #d8dde1; background:#fff; color:#5a656d; border-radius:20px; padding:4px 12px; font-size:11.5px; cursor:pointer; font-family:inherit; white-space:nowrap; }
 .pn-pill:hover{ border-color:var(--gold); }
@@ -3227,7 +3235,7 @@ document.getElementById('historyBackLink').onclick = ()=>{
 
    Nombres con sufijo "Panel" para no chocar con el `state`/`panelPeriodo` que
    ya usa el resto del Flash (el mes en vivo, un solo periodo). */
-let panelState = { meses:{}, mesSel:null, selectedDay:1, ver:{dia:true, sem:true, mes:true} };
+let panelState = { meses:{}, mesSel:null, selectedDay:1, ver:{dia:true, sem:true, mes:true, ano:true} };
 let panelPeriodoSel = 'mes';
 
 const PANEL_FILAS = [
@@ -3312,6 +3320,13 @@ function sumaMeses(cortes){
   return r;
 }
 function clavesOrdenadasPanel(){ return Object.keys(panelState.meses).sort(); }
+// Meses ya cargados de enero al mes seleccionado, del mismo año: "Año" siempre es "lo que
+// llevamos", porque el Ppto de un mes solo se conoce hasta que se sube su Excel (trae la
+// hoja PROYECCIONES) — no hay forma de saber la meta de meses que todavía no llegan.
+function clavesDelAnoPanel(claveSel){
+  const anio = claveSel.slice(0,4);
+  return clavesOrdenadasPanel().filter(c => c.slice(0,4)===anio && c<=claveSel);
+}
 function ultimoConDatoPanel(M){
   let last = 0;
   (M.dias||[]).forEach(d=>{ if(d.tms>0) last = d.dia; });
@@ -3367,6 +3382,27 @@ function panelDatos(){
     dFin, ultimo
   };
 }
+// Año a la fecha: suma cada mes ya cargado (de enero al mes seleccionado) con su propio
+// corte de mes completo — igual criterio que usa el bloque "Mes" para cada mes por
+// separado. El Ppto del año solo sale si TODOS esos meses ya traen Presupuesto.
+function anoDatosPanel(claveSel){
+  const claves = clavesDelAnoPanel(claveSel);
+  if(!claves.length) return {real:{}, pres:{}, claves:[]};
+  const cortesReal = claves.map(c=>{
+    const N = panelState.meses[c];
+    return panelCorte(N.bd, 'mes', N.dias.length, ultimoConDatoPanel(N) || N.dias.length);
+  });
+  const conPpto = claves.filter(c => panelState.meses[c].pr);
+  const cortesPres = conPpto.map(c=>{
+    const N = panelState.meses[c];
+    return panelCorte(N.pr, 'mescPpto', N.dias.length, N.dias.length);
+  });
+  return {
+    real: sumaMeses(cortesReal),
+    pres: (conPpto.length === claves.length) ? sumaMeses(cortesPres) : {},
+    claves
+  };
+}
 function datosTresPanel(){
   const M = panelState.meses[panelState.mesSel];
   if(!M) return null;
@@ -3377,6 +3413,7 @@ function datosTresPanel(){
   panelState.selectedDay = nd; panelPeriodoSel = 'mesc';
   out.mes = panelDatos();
   panelState.selectedDay = guardaDia; panelPeriodoSel = guardaPer;
+  out.ano = anoDatosPanel(panelState.mesSel);
   out.dFin = Math.min(guardaDia || nd, nd);
   out.M = M;
   return out;
@@ -3394,6 +3431,14 @@ function diasDelPeriodoPanel(){
     const out = [];
     tramosSemanaPanel(M, dFin).tramos.forEach(x=>{
       for(let d=x.ini; d<=x.fin; d++) out.push({M:x.M, clave:x.clave, dia:d});
+    });
+    return out;
+  }
+  if(panelPeriodoSel === 'ano'){
+    const out = [];
+    clavesDelAnoPanel(panelState.mesSel).forEach(c=>{
+      const N = panelState.meses[c];
+      for(let d=1; d<=N.dias.length; d++) out.push({M:N, clave:c, dia:d});
     });
     return out;
   }
@@ -3425,6 +3470,8 @@ function consumosTresPanel(){
   for(const per of ['dia','sem']){ panelPeriodoSel = per; listas[per] = diasDelPeriodoPanel(); }
   panelState.selectedDay = M.dias.length; panelPeriodoSel = 'mes';
   listas.mes = diasDelPeriodoPanel();
+  panelPeriodoSel = 'ano';
+  listas.ano = diasDelPeriodoPanel();
   panelState.selectedDay = guardaDia; panelPeriodoSel = guardaPer;
   const nombres = [];
   listas.mes.forEach(x => (x.M.consumos||[]).forEach(c => {
@@ -3445,7 +3492,7 @@ function consumosTresPanel(){
       if(typeof v==='number' && t!=null){ num+=v*t; den+=t; } });
     return den ? num/den : null;
   };
-  const bloques = ['dia','sem','mes'].filter(verBloquePanel);
+  const bloques = ['dia','sem','mes','ano'].filter(verBloquePanel);
   const filas = nombres.map(nom=>{
     const celdas = bloques.map(per=>{
       const r = dato(per,nom,'real'), p = dato(per,nom,'proy');
@@ -3464,7 +3511,7 @@ function consumosTresPanel(){
     <div class="pn-tabla tb-tres"><table>
       <thead>
         <tr><th rowspan="2" class="tb-met-h">Consumo</th>
-            ${bloques.map(k=>`<th colspan="3" class="tb-bloque"><span class="tb-per">${({dia:'DÍA',sem:'SEMANA',mes:nomMes.toUpperCase()})[k]}</span></th>`).join('')}</tr>
+            ${bloques.map(k=>`<th colspan="3" class="tb-bloque"><span class="tb-per">${({dia:'DÍA',sem:'SEMANA',mes:nomMes.toUpperCase(),ano:'AÑO '+panelState.mesSel.slice(0,4)})[k]}</span></th>`).join('')}</tr>
         <tr class="tb-sub-tr">${bloques.map(()=>'<th>Real</th><th>Proy</th><th>Dev %</th>').join('')}</tr>
       </thead>
       <tbody>${filas}</tbody></table></div></div>
@@ -3504,8 +3551,8 @@ function desgloseConsumosPanel(nombres, M, nf, busca){
 /* ---- navegación con flechas (día / semana / mes, cruzando de mes) ---- */
 function verBloquePanel(k){ return !panelState.ver || panelState.ver[k] !== false; }
 function alternaPanel(k){
-  if(!panelState.ver) panelState.ver = {dia:true, sem:true, mes:true};
-  const prendidos = ['dia','sem','mes'].filter(verBloquePanel);
+  if(!panelState.ver) panelState.ver = {dia:true, sem:true, mes:true, ano:true};
+  const prendidos = ['dia','sem','mes','ano'].filter(verBloquePanel);
   if(prendidos.length === 1 && prendidos[0] === k) return;
   panelState.ver[k] = !verBloquePanel(k);
   pintaPanel();
@@ -3545,6 +3592,16 @@ function destinoBloquePanel(k, dir){
     if(j < 0 || j >= claves.length) return null;
     const N = panelState.meses[claves[j]];
     return {mes:claves[j], dia: primerDiaConSemanaPropiaPanel(N, claves[j])};
+  }
+  if(k === 'ano'){
+    // Salta al año anterior/siguiente que ya tenga algún mes cargado, aterrizando en el
+    // último mes de ese año (lo más parecido a "dónde íbamos" en ese año).
+    const anioDestino = Number(panelState.mesSel.slice(0,4)) + dir;
+    const candidatos = claves.filter(c => Number(c.slice(0,4)) === anioDestino);
+    if(!candidatos.length) return null;
+    const destino = candidatos[candidatos.length-1];
+    const N = panelState.meses[destino];
+    return {mes:destino, dia: ultimoConDatoPanel(N) || N.dias.length};
   }
   if(k === 'sem'){
     const hoy = M.dias[panelState.selectedDay-1];
@@ -3591,7 +3648,7 @@ function panelHtmlEjecutivo(){
   const dev = (r,p)=> (r==null||p==null||p===0) ? null : r/p;
   const color = (d,f)=> (d==null || !f.vol) ? null : (d>=1 ? 'var(--pn-verde)' : d>=0.95 ? 'var(--pn-ambar)' : 'var(--pn-rojo)');
 
-  const verPills = [['dia','Día'],['sem','Semana'],['mes','Mes']]
+  const verPills = [['dia','Día'],['sem','Semana'],['mes','Mes'],['ano','Año']]
     .map(([k,t])=>`<button type="button" class="tb-ver${verBloquePanel(k)?' on':''}" onclick="alternaPanel('${k}')"
        title="${verBloquePanel(k)?'Ocultar '+t:'Mostrar '+t}">${t}</button>`).join('');
   const selMeses = clavesOrdenadasPanel().map(c=>{
@@ -3602,6 +3659,12 @@ function panelHtmlEjecutivo(){
   const s = T.sem && T.sem.sem;
   const et = dt => { const [y,m,d] = aFechaPanel(dt).split('-').map(Number);
                      return d+'-'+MESES_ES[m]+'-'+String(y).slice(2); };
+  const anoSub = (function(){
+    const cs = T.ano.claves || [];
+    if(!cs.length) return '';
+    const p = c => { const [y,m] = c.split('-').map(Number); return MESES_ES[m]+'-'+String(y).slice(2); };
+    return cs.length===1 ? p(cs[0]) : (p(cs[0])+' al '+p(cs[cs.length-1]));
+  })();
   const cabs = [
     ['dia','DÍA', fecha(dFin)],
     ['sem','SEMANA'+(s && s.ini ? ' '+semanaISOPanel(s.ini) : ''),
@@ -3609,7 +3672,8 @@ function panelHtmlEjecutivo(){
     ['mes', M.nombre.toUpperCase(), (function(){
        const u = ultimoConDatoPanel(M);
        return (u && u < M.dias.length) ? 'al '+fecha(u) : '';
-     })()]
+     })()],
+    ['ano', 'AÑO '+panelState.mesSel.slice(0,4), anoSub]
   ].filter(([k])=>verBloquePanel(k));
   const fl = (k,dir,simbolo)=>`<button type="button" class="tb-fl" ${puedeBloquePanel(k,dir)?'':'disabled'}
       onclick="mueveBloquePanel('${k}',${dir})" title="${dir<0?'Anterior':'Siguiente'}">${simbolo}</button>`;
@@ -3643,9 +3707,16 @@ function panelHtmlEjecutivo(){
 
   const sinDatos = T.mes.real.tms == null || T.mes.real.tms === 0;
   const sinPpto = !M.pr;
+  // El año solo suma Ppto si TODOS sus meses ya lo traen (si no, el acumulado no sería
+  // comparable). Con más de un mes en el año, se avisa cuáles faltan; con uno solo, ya lo
+  // cubre el aviso de "Este mes no trae Presupuesto" de arriba.
+  const mesesSinPptoAno = verBloquePanel('ano') && T.ano.claves.length > 1
+    ? T.ano.claves.filter(c => !panelState.meses[c].pr).map(c => MESES_ES_FULL[Number(c.slice(5,7))])
+    : [];
   return nav
     + (sinDatos ? '<div class="pe-aviso" style="margin:10px 0 12px">En este periodo no hay tonelaje capturado.</div>' : '')
     + (sinPpto ? '<div class="pe-aviso" style="margin:10px 0 12px">Este mes no trae Presupuesto (PROYECCIONES en formato viejo, sin meta) — se muestra solo lo Real.</div>' : '')
+    + (mesesSinPptoAno.length ? `<div class="pe-aviso" style="margin:10px 0 12px">${mesesSinPptoAno.join(', ')} no trae${mesesSinPptoAno.length>1?'n':''} Presupuesto — el acumulado del año se muestra solo con lo Real.</div>` : '')
     + `<div class="pn-tabla tb-tres"><table>
       <thead>
         <tr><th rowspan="2" class="tb-met-h">Métrica</th>${thBloques}</tr>
