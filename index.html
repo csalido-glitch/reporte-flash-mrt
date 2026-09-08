@@ -522,6 +522,62 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
 .pn-nav{ position:sticky; }
 .pn-vacio{ font-size:12.5px; color:#8a8578; font-style:italic; padding:14px 0; text-align:center; }
 
+/* --- Panel Ejecutivo: modo oscuro (los estilos de arriba se portaron de panel_tabla.html,
+   pensados para fondo blanco; aquí se ajustan los mismos elementos para que se lean bien
+   sobre el fondo oscuro del Flash) --- */
+body[data-theme="dark"] .pe-aviso{ background:#3a2f10; border-color:#5a4a1a; color:#E8B93D; }
+body[data-theme="dark"] .pn-nav{ background:#20262c; border-bottom-color:#333c44; }
+body[data-theme="dark"] #panelMesSelect{ background:#20262c; color:#e2e2e2; border-color:#3a444c !important; }
+body[data-theme="dark"] .pn-titulo{ color:#9aa4ad; }
+body[data-theme="dark"] .pn-titulo b{ color:#E8B93D; }
+body[data-theme="dark"] .pn-flecha{ background:#20262c; border-color:#3a444c; color:#e2e2e2; }
+body[data-theme="dark"] .pn-flecha:hover:not([disabled]){ border-color:#E8B93D; background:#2a2717; }
+body[data-theme="dark"] .pe-chip.on{ border-color:#E8B93D; background:#E8B93D; color:#15191d; }
+body[data-theme="dark"] .pe-chip.on b{ color:#15191d; }
+body[data-theme="dark"] .pe-sello{ color:#8a8f94; }
+body[data-theme="dark"] .pn-vista{ color:#8a8f94; }
+body[data-theme="dark"] .pn-pill{ border-color:#3a444c; background:#20262c; color:#c7ccd1; }
+body[data-theme="dark"] .pn-pill:hover{ border-color:#E8B93D; }
+body[data-theme="dark"] .pn-pill.on{ background:#E8B93D; border-color:#E8B93D; color:#15191d; }
+body[data-theme="dark"] .pn-pill[disabled]:hover{ border-color:#3a444c; }
+body[data-theme="dark"] .pn-rango{ color:#8a8f94; }
+body[data-theme="dark"] .pn-rango b{ color:#e2e2e2; }
+body[data-theme="dark"] .pn-kpi{ background:#20262c; border-color:#333c44; }
+body[data-theme="dark"] .pn-t{ color:#8a8f94; }
+body[data-theme="dark"] .pn-v{ color:#e2e2e2; }
+body[data-theme="dark"] .pn-p{ color:#8a8f94; }
+body[data-theme="dark"] .pn-tabla{ border-color:#333c44; }
+body[data-theme="dark"] .pn-tabla tbody td{ border-top-color:#2a3138; }
+body[data-theme="dark"] .pn-nom{ color:#e2e2e2; }
+body[data-theme="dark"] .pn-uni{ color:#8a8f94; }
+body[data-theme="dark"] .pn-real{ color:#e2e2e2; }
+body[data-theme="dark"] .pn-pres{ color:#9aa4ad; }
+body[data-theme="dark"] .pn-sub{ color:#e2e2e2; }
+body[data-theme="dark"] .pn-desg-cab{ color:#c7ccd1; }
+body[data-theme="dark"] .pn-desg-cab:hover{ color:#E8B93D; }
+body[data-theme="dark"] .pn-desg-vista a{ color:#8a8f94; }
+body[data-theme="dark"] .pn-desg-vista a:hover{ color:#E8B93D; }
+body[data-theme="dark"] .pn-desg-vista a.activo{ color:#e2e2e2; }
+body[data-theme="dark"] .pn-desg-vista .sep{ color:#444c53; }
+body[data-theme="dark"] .pn-desg{ border-color:#333c44; }
+body[data-theme="dark"] .pn-desg thead tr:first-child th[colspan]{ background:#262e35; color:#e2e2e2; border-left-color:#15191d; }
+body[data-theme="dark"] .pn-desg thead th{ background:#20262c; color:#c7ccd1; border-bottom-color:#333c44; }
+body[data-theme="dark"] .pn-desg thead th:first-child{ background:#20262c; }
+body[data-theme="dark"] .pn-desg tbody td{ border-top-color:#2a3138; }
+body[data-theme="dark"] .pn-desg tbody td:first-child{ background:#15191d; }
+body[data-theme="dark"] .pn-desg-p{ color:#8a8f94; }
+body[data-theme="dark"] .pn-desg-pie{ color:#8a8f94; }
+body[data-theme="dark"] .pn-corta{ color:#E8B93D; }
+body[data-theme="dark"] .tb-tres td.tb-met{ background:#15191d; box-shadow:1px 0 0 #333c44; }
+body[data-theme="dark"] .tb-tres tbody td:nth-child(2),
+body[data-theme="dark"] .tb-tres tbody td:nth-child(5),
+body[data-theme="dark"] .tb-tres tbody td:nth-child(8){ border-left-color:#333c44; }
+body[data-theme="dark"] .tb-mes{ color:#8a8f94; }
+body[data-theme="dark"] .tb-ver{ color:#4a5157; }
+body[data-theme="dark"] .tb-ver.on{ color:#c7ccd1; }
+body[data-theme="dark"] .tb-ver:hover{ color:#E8B93D; }
+body[data-theme="dark"] .pn-vacio{ color:#8a8f94; }
+
 </style>
 </head>
 <body>
@@ -1832,7 +1888,14 @@ function mineralPinta(id, serie, maxComun){
         display:true, anchor:'end', align:'right', offset: chico ? 4 : 5, clip:false,
         color: c=> activa(c.dataIndex) ? dlTextColor() : gris,
         font: c=> ({size: chico ? 9.5 : (c.dataIndex===sel ? 12 : 10.5), weight:'bold'}),
-        formatter: v => fmt(v,0)+' t  ·  '+(total ? Math.round(v/total*100) : 0)+'%'
+        formatter: v => {
+          const pct = total ? (v/total*100) : 0;
+          const pctR = Math.round(pct);
+          // Con montos chicos el porcentaje redondeaba a 0% aunque sí pesara algo (27 t de
+          // 7,320 t): si redondea a 0 pero no es cero, se muestran 2 decimales en vez de "0%".
+          const pctTxt = (pctR === 0 && pct > 0) ? pct.toFixed(2)+'%' : pctR+'%';
+          return fmt(v,0)+' t  ·  '+pctTxt;
+        }
       }
     }]},
     options:{
@@ -1873,8 +1936,19 @@ function mineralPinta(id, serie, maxComun){
       }
     }
   });
-  // Red de seguridad: cualquier forma de "ya solté" devuelve la gráfica a color pleno.
-  const soltar = ()=>{ if(sel !== -1){ sel = -1; charts[id] && charts[id].update('none'); } };
+  // Red de seguridad: cualquier forma de "ya solté" devuelve la gráfica a color pleno Y
+  // apaga el globo de datos. Sin esto, cuando el mouse sale del canvas rápido (en vez de
+  // deslizarse hasta el borde), Chart.js a veces no recibe el evento que necesita para
+  // esconder el tooltip solo, y se queda pegado en pantalla con el último dato mostrado.
+  const soltar = ()=>{
+    const ch = charts[id];
+    if(sel !== -1){ sel = -1; }
+    if(ch){
+      ch.setActiveElements([]);
+      if(ch.tooltip) ch.tooltip.setActiveElements([], {x:0, y:0});
+      ch.update('none');
+    }
+  };
   ['mouseleave','pointerleave','pointercancel','pointerup','touchend','touchcancel']
     .forEach(ev => cv.addEventListener(ev, soltar));
 }
