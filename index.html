@@ -403,6 +403,125 @@ body[data-theme="dark"] .small-note{color:#888;}
 body[data-theme="dark"] .theme-toggle{color:#E8B93D;border-color:#8a6a17;}
 body[data-theme="dark"] .chart-toggle{color:#c7ccd1;}
 body[data-theme="dark"] #visitasCounter{color:#666;}
+
+/* ===== Panel Ejecutivo: estilos portados de panel_tabla.html ===== */
+:root{ --line:#e3e6e9; --pn-verde:#2e7d32; --pn-ambar:#c9911a; --pn-rojo:#b03a2e; --pn-naranja:#C55A11; }
+.pe-aviso{background:#fff8e6;border:1px solid #e0c477;color:#7a5d10;border-radius:8px;padding:10px 13px;font-size:12px;margin-bottom:12px;line-height:1.6;}
+.flash-note-sep{height:5px;}
+
+/* --- Panel: el mismo estilo que llevaría dentro del Flash --- */
+
+/* Barra de navegación del panel: se queda pegada arriba al rodar la página. */
+.pn-nav{ position:sticky; top:0; z-index:20; background:#fff;
+  margin:-14px -15px 12px; padding:11px 15px 10px; border-bottom:1px solid var(--line); }
+.pn-mover{ display:flex; align-items:baseline; gap:10px; margin-bottom:0; }
+.pn-titulo{ flex:none; text-align:left; }
+.pn-nav{ padding:7px 15px 6px; }
+.pn-titulo{ flex:1; text-align:center; font-size:13.5px; color:#5a656d; line-height:1.35; }
+.pn-titulo b{ color:var(--navy); font-weight:700; }
+.pn-flecha{ flex:none; width:34px; height:30px; border:1px solid #d8dde1; background:#fff;
+  color:var(--navy); border-radius:7px; cursor:pointer; font-size:12px; line-height:1;
+  font-family:inherit; display:flex; align-items:center; justify-content:center; }
+.pn-flecha:hover:not([disabled]){ border-color:var(--gold); background:#fffdf6; }
+.pn-flecha[disabled]{ opacity:.28; cursor:default; }
+.pe-chip{ cursor:pointer; }
+.pe-chip.on{ border-color:var(--navy); background:var(--navy); color:#fff; }
+.pe-chip.on b{ color:#fff; }
+.pe-sello{ font-size:10px; color:#8a8578; font-style:italic; margin-left:4px; }
+.pe-chip.falta{ cursor:default; }
+@media (max-width:760px){
+  .pn-nav{ margin:-10px -11px 10px; padding:9px 11px 7px; }
+  .pn-titulo{ font-size:12px; }
+}
+.pn-vista{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:11px; color:#8a8578; margin:-2px 0 7px; }
+.pn-pill{ border:1px solid #d8dde1; background:#fff; color:#5a656d; border-radius:20px; padding:4px 12px; font-size:11.5px; cursor:pointer; font-family:inherit; white-space:nowrap; }
+.pn-pill:hover{ border-color:var(--gold); }
+.pn-pill.on{ background:var(--navy); border-color:var(--navy); color:#fff; font-weight:600; }
+.pn-pill[disabled]{ opacity:.4; cursor:not-allowed; }
+.pn-pill[disabled]:hover{ border-color:#d8dde1; }
+.pn-rango{ font-size:11.5px; color:#8a8578; margin:0 0 11px; }
+.pn-rango b{ color:var(--navy); }
+.pn-kpis{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
+.pn-kpi{ background:#f7f9fa; border:1px solid var(--line); border-radius:8px; padding:9px 11px; }
+.pn-t{ font-size:10px; color:#8a8578; text-transform:uppercase; letter-spacing:.4px; }
+.pn-v{ font-size:21px; font-weight:800; color:var(--navy); line-height:1.15; margin:2px 0 1px; }
+.pn-p{ font-size:10.5px; color:#8a8578; }
+.pn-d{ font-size:12px; font-weight:800; margin-top:4px; }
+.pn-tabla{ border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+.pn-tabla table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+.pn-tabla thead th{ background:var(--pn-naranja); color:#fff; font-size:10.5px; font-weight:700; padding:6px 8px; text-align:right; white-space:nowrap; }
+.pn-tabla thead th:first-child{ text-align:left; }
+.pn-tabla tbody td{ padding:5px 8px; border-top:1px solid #f0f2f4; text-align:right; white-space:nowrap; }
+.pn-tabla tbody td:first-child{ text-align:left; }
+.pn-tabla tr.pn-g td{ background:var(--pn-naranja); color:#fff; font-weight:700; font-style:italic; font-size:11px; padding:3px 8px; border-top:0; }
+.pn-nom{ color:var(--navy); font-weight:600; }
+.pn-uni{ color:#8a8578; font-size:10.5px; font-weight:400; }
+.pn-real{ font-weight:700; color:var(--navy); }
+.pn-pres{ color:#5a656d; }
+.pn-dev{ font-weight:800; }
+.pn-punto{ display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:4px; vertical-align:1px; }
+.pn-consumos{ margin-top:14px; }
+.pn-sub{ font-size:12px; font-weight:700; color:var(--navy); margin:0 0 7px; }
+.pn-desg-cab{ font-size:11px; color:#5a656d; cursor:pointer; margin-top:8px; user-select:none; }
+.pn-desg-cab:hover{ color:var(--gold-dark,#8a6a17); }
+.pn-desg-fila{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.pn-desg-fila .pn-desg-cab{ margin-top:0; }
+.pn-desg-vista{ font-size:10.5px; user-select:none; }
+.pn-desg-vista a{ color:#9aa2a9; cursor:pointer; text-decoration:none; }
+.pn-desg-vista a:hover{ color:var(--gold-dark,#8a6a17); }
+.pn-desg-vista a.activo{ color:var(--navy); font-weight:700; }
+.pn-desg-vista .sep{ color:#d4d8db; margin:0 3px; }
+.pn-desg thead tr:first-child th[colspan]{ text-align:center; background:#eef1f3; color:var(--navy);
+  font-size:10px; border-left:2px solid #fff; }
+.pn-desg thead tr.pn-desg-dias th{ position:static; text-align:right; }
+.pn-desg thead tr.pn-desg-dias th:nth-child(3n+1){ border-left:2px solid #fff; }
+.pn-desg tbody td.pn-real:nth-of-type(3n+2){ border-left:2px solid #fff; }
+.pn-desg{ margin-top:6px; border:1px solid var(--line); border-radius:8px; overflow-x:auto; }
+.pn-desg table{ border-collapse:collapse; font-size:11px; min-width:100%; }
+.pn-desg thead th{ background:#f7f9fa; color:#5a656d; font-size:9.5px; font-weight:700; padding:5px 7px;
+  text-align:right; white-space:nowrap; border-bottom:1px solid var(--line); }
+.pn-desg thead th:first-child{ text-align:left; position:sticky; left:0; background:#f7f9fa; }
+.pn-desg tbody td{ padding:4px 7px; border-top:1px solid #f4f6f7; text-align:right; white-space:nowrap; }
+.pn-desg tbody td:first-child{ text-align:left; position:sticky; left:0; background:#fff; }
+.pn-desg-p{ display:block; color:#9aa2a9; font-size:9.5px; }
+.pn-desg-pie{ font-size:10px; color:#8a8578; margin-top:4px; }
+.pn-corta{ color:#b07a1f; font-weight:600; font-size:11.5px; }
+.pn-tabla.tb-tres{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.tb-tres table{ font-size:12px; min-width:100%; }
+/* la columna del nombre se queda fija al deslizar de lado */
+.tb-tres th.tb-met-h, .tb-tres td.tb-met{ position:sticky; left:0; z-index:2; }
+.tb-tres th.tb-met-h{ background:var(--pn-naranja); }
+.tb-tres td.tb-met{ background:#fff; box-shadow:1px 0 0 #e6eaed; }
+/* el título del grupo se queda a la vista aunque se deslice de lado */
+.tb-tres tr.pn-g td{ padding-left:0; }
+.tb-tres tr.pn-g span{ position:sticky; left:8px; display:inline-block; }
+.tb-tres thead th{ background:var(--pn-naranja); color:#fff; text-align:center; }
+.tb-bloque{ border-left:2px solid #fff; padding:6px 8px 5px; }
+.tb-cab{ display:flex; align-items:center; justify-content:center; gap:8px; }
+.tb-per{ font-size:10.5px; font-weight:800; letter-spacing:.6px; white-space:nowrap; }
+.tb-fl{ border:1px solid rgba(255,255,255,.45); background:rgba(255,255,255,.12); color:#fff;
+  width:19px; height:17px; border-radius:4px; cursor:pointer; font-size:8px; line-height:1;
+  font-family:inherit; display:flex; align-items:center; justify-content:center; padding:0; flex:none; }
+.tb-fl:hover:not([disabled]){ background:rgba(255,255,255,.3); }
+.tb-fl[disabled]{ opacity:.25; cursor:default; }
+.tb-sub{ display:block; font-size:9px; font-weight:400; opacity:.85; margin-top:1px; white-space:nowrap; }
+.tb-sub-tr th{ font-size:9.5px; padding:3px 8px; font-weight:600; background:#a1490f; }
+.tb-met-h{ text-align:left !important; vertical-align:bottom; }
+.tb-met{ white-space:nowrap; }
+.tb-tres tbody td{ padding:5px 8px; }
+.tb-tres tbody td:nth-child(2),.tb-tres tbody td:nth-child(5),.tb-tres tbody td:nth-child(8){ border-left:1px solid #e6eaed; }
+.tb-tres tr.pn-g td{ text-align:left; }
+.tb-mes{ font-size:11.5px; color:#8a8578; font-weight:400; margin-left:7px; }
+.pn-flecha.doble{ width:40px; font-size:10px; }
+/* el conmutador de columnas: discreto, en la esquina */
+.tb-vers{ display:flex; gap:10px; align-items:baseline; margin-left:auto; }
+.tb-ver{ border:0; background:none; padding:0; cursor:pointer; font-family:inherit;
+  font-size:10.5px; color:#c3c9ce; text-decoration:line-through; letter-spacing:.2px; }
+.tb-ver.on{ color:#5a656d; text-decoration:none; }
+.tb-ver:hover{ color:var(--gold-dark,#8a6a17); }
+.pn-nav{ position:sticky; }
+.pn-vacio{ font-size:12.5px; color:#8a8578; font-style:italic; padding:14px 0; text-align:center; }
+
 </style>
 </head>
 <body>
@@ -439,6 +558,10 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
     &nbsp;·&nbsp;<a href="javascript:void(0)" id="historyBackLink" style="color:#8a6a17;">volver al mes en vivo</a>
   </div>
 
+  <div class="locked-banner" id="panelBanner" style="display:none">
+    📊 <b>Panel Ejecutivo</b> (solo lectura) — Real vs Presupuesto, con todos los meses ya capturados
+  </div>
+
   <div class="sticky-head" id="stickyHead">
     <p class="last-updated" id="lastUpdated"></p>
     <div class="toolbar">
@@ -449,11 +572,13 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
       <div class="btns">
         <label class="chart-toggle"><input type="checkbox" id="chkTrend"> Tendencia</label>
         <button class="action" id="btnVerHistorial">📅 Histórico</button>
+        <button class="action" id="btnVerPanel">📊 Panel Ejecutivo</button>
       </div>
     </div>
   </div>
 
   <div id="flashArea"></div>
+  <div id="panelEjecutivoArea" style="display:none"></div>
 
   <div class="charts-grid" id="chartsGrid"></div>
 
@@ -611,6 +736,11 @@ const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_UR
 const _historyParams = new URLSearchParams(location.search);
 const IS_HISTORY_TAB = _historyParams.has('historial') || _historyParams.has('ver');
 const HISTORY_INITIAL_PERIODO = _historyParams.get('ver') || null;
+// Pestaña del Panel Ejecutivo: se abre con ?panel=1. También de solo lectura, pero a
+// diferencia de Histórico (que trae UN mes a la vez) esta trae TODOS los meses ya
+// capturados, para poder navegar día/semana/mes cruzando de un mes a otro sin perder
+// el hilo — por eso es una pestaña aparte y no un simple recuadro dentro del mes en vivo.
+const IS_PANEL_TAB = _historyParams.has('panel');
 const BASE_DATA = {"mes": "2026-08", "dias": [{"dia": 1, "fecha": "2026-08-01", "ton_humedas_trituracion": 1230, "horas_trituracion": 12.66, "molido_humedo": 1086.2999999999884, "molido_seco": 1008.4159599999891, "horas_molienda": 19.6, "ley_au": 1.4177857133954919, "ley_ag": 73.59864586038431, "recuperacion_au": 0.9336000488703918, "recuperacion_ag": 0.706347071760919, "m3_bombeados": 2842.1, "sol_rica_au": 0.5216232081911263, "sol_rica_ag": 21.04729419795222, "sol_esteril_au": 0.008507849829351537, "sol_esteril_ag": 0.18452832764505123, "oz_precipitadas_au": 46.88624472121968, "oz_precipitadas_ag": 1906.3486021540264, "precio_au_usd": 4054.64, "oz_eq_au": 74.14639406934688, "p80_real": 49.8147994167011, "ton_trituracion_seco": 1141.8374507918024, "ton_molienda_seco": 1008.4159599999891, "eficiencia_au": 98.36896639264675, "eficiencia_ag": 99.1232681697251, "proy_ton_acum": 1096.774193548387, "real_ton_acum": 1008.4159599999891, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 67.25806451612904, "real_oz_acum": 74.14639406934688, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 2.141973238900367, "comentario": "*Relación alimentación Realito", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 69.93170058640911}, {"dia": 2, "fecha": "2026-08-02", "ton_humedas_trituracion": 1595, "horas_trituracion": 17.83, "molido_humedo": 1267.0999999999767, "molido_seco": 1179.7100299999786, "horas_molienda": 23.3, "ley_au": 1.526855764953952, "ley_ag": 75.40459528007919, "recuperacion_au": 0.9570429389020111, "recuperacion_ag": 0.7383980056550622, "m3_bombeados": 2834.16, "sol_rica_au": 0.5595594744121716, "sol_rica_ag": 21.007031120331952, "sol_esteril_au": 0.010444674965421856, "sol_esteril_ag": 0.3731473029045643, "oz_precipitadas_au": 50.0355403768416, "oz_precipitadas_ag": 1880.1670031806639, "precio_au_usd": 4054.72, "oz_eq_au": 77.01814778625157, "p80_real": 62.503351678717166, "ton_trituracion_seco": 1484.1294781690592, "ton_molienda_seco": 1179.7100299999786, "eficiencia_au": 98.1334111130199, "eficiencia_ag": 98.22370281280058, "proy_ton_acum": 2193.548387096774, "real_ton_acum": 2188.1259899999677, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 134.51612903225808, "real_oz_acum": 151.16454185559846, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 1.8309584093305022, "comentario": "*Relación alimentación Realito", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 69.68070115140058}, {"dia": 3, "fecha": "2026-08-03", "ton_humedas_trituracion": 1330, "horas_trituracion": 16.990000000000002, "molido_humedo": 1202, "molido_seco": 1108.9051000000004, "horas_molienda": 23.8, "ley_au": 1.9259949936202674, "ley_ag": 84.35938335931453, "recuperacion_au": 0.9463965552094978, "recuperacion_ag": 0.7768202775920946, "m3_bombeados": 2722.56, "sol_rica_au": 0.6814851904090269, "sol_rica_ag": 25.30263328631876, "sol_esteril_au": 0.011051480959097321, "sol_esteril_ag": 0.3732277856135402, "oz_precipitadas_au": 58.684631721408, "oz_precipitadas_ag": 2182.129210124076, "precio_au_usd": 4048.58, "oz_eq_au": 90.33929792797598, "p80_real": 62.69452324098787, "ton_trituracion_seco": 1223.7409939475451, "ton_molienda_seco": 1108.9051000000004, "eficiencia_au": 98.37832411993219, "eficiencia_ag": 98.52494488858066, "proy_ton_acum": 3290.322580645161, "real_ton_acum": 3297.031089999968, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 201.77419354838713, "real_oz_acum": 241.50383978357445, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 1.9478673152463621, "comentario": "*Relación alimentación Realito", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 68.93546739315512}, {"dia": 4, "fecha": "2026-08-04", "ton_humedas_trituracion": 1694, "horas_trituracion": 19, "molido_humedo": 1079, "molido_seco": 991.4310200000002, "horas_molienda": 21.6, "ley_au": 1.3731356707398568, "ley_ag": 61.46823279747701, "recuperacion_au": 0.9630912722674175, "recuperacion_ag": 0.7081906916747469, "m3_bombeados": 2873.2799999999997, "sol_rica_au": 0.6699953224189776, "sol_rica_ag": 24.404455061810896, "sol_esteril_au": 0.010499164717674574, "sol_esteril_ag": 0.2344861343133979, "oz_precipitadas_au": 60.92300280600576, "oz_precipitadas_ag": 2232.7758359100635, "precio_au_usd": 4154.86, "oz_eq_au": 93.90256241807467, "p80_real": 61.81270688100919, "ton_trituracion_seco": 1556.3543906498176, "ton_molienda_seco": 991.4310200000002, "eficiencia_au": 98.43294954959269, "eficiencia_ag": 99.03916668608458, "proy_ton_acum": 4387.096774193548, "real_ton_acum": 4288.462109999969, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 2.178668970837729, "comentario": "*Relación alimentación Realito", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 67.70180870131986}, {"dia": 5, "fecha": "2026-08-05", "ton_humedas_trituracion": 800, "horas_trituracion": 12.33, "molido_humedo": 1016.0000000000291, "molido_seco": 927.3775600000268, "horas_molienda": 23.5, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 2880.3, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 4271.09, "oz_eq_au": 0, "p80_real": 66.76173270356028, "ton_trituracion_seco": 730.2398533261116, "ton_molienda_seco": 927.3775600000268, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 2.424039675922216, "comentario": "*Relación alimentación Realito", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 69.11148867313916}, {"dia": 6, "fecha": "2026-08-06", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 7, "fecha": "2026-08-07", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 8, "fecha": "2026-08-08", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 9, "fecha": "2026-08-09", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 10, "fecha": "2026-08-10", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 11, "fecha": "2026-08-11", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 12, "fecha": "2026-08-12", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 13, "fecha": "2026-08-13", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 14, "fecha": "2026-08-14", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 15, "fecha": "2026-08-15", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 16, "fecha": "2026-08-16", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 17, "fecha": "2026-08-17", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 18, "fecha": "2026-08-18", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 19, "fecha": "2026-08-19", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 20, "fecha": "2026-08-20", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 21, "fecha": "2026-08-21", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 22, "fecha": "2026-08-22", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 23, "fecha": "2026-08-23", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 24, "fecha": "2026-08-24", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 25, "fecha": "2026-08-25", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 26, "fecha": "2026-08-26", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 27, "fecha": "2026-08-27", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 28, "fecha": "2026-08-28", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 29, "fecha": "2026-08-29", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 30, "fecha": "2026-08-30", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}, {"dia": 31, "fecha": "2026-08-31", "ton_humedas_trituracion": 0, "horas_trituracion": 0, "molido_humedo": 0, "molido_seco": 0, "horas_molienda": 0, "ley_au": 0, "ley_ag": 0, "recuperacion_au": 0, "recuperacion_ag": 0, "m3_bombeados": 0, "sol_rica_au": 0, "sol_rica_ag": 0, "sol_esteril_au": 0, "sol_esteril_ag": 0, "oz_precipitadas_au": 0, "oz_precipitadas_ag": 0, "precio_au_usd": 0, "oz_eq_au": 0, "p80_real": 0, "ton_trituracion_seco": 0, "ton_molienda_seco": 0, "eficiencia_au": 0, "eficiencia_ag": 0, "proy_ton_acum": 5483.870967741936, "real_ton_acum": 5215.839669999996, "proy_oz_dia": 67.25806451612904, "proy_oz_acum": 269.03225806451616, "real_oz_acum": 335.40640220164914, "proy_p80": 65, "proy_ley_au_banda": 1.34, "proy_recup_au": 0.937, "proy_recup_ag": 0.75, "proy_molienda_dia": 1096.774193548387, "nacn_real": 0, "comentario": "", "proy_ley_ag_banda": 57.86, "proy_nacn": 2.25, "ratio_au_ag": 0}], "totales": {"proy_ton_total": 5483.870967741936, "real_ton_total": 5215.839669999996, "proy_oz_total": 269.03225806451616, "real_oz_total": 335.40640220164914}, "stock": {"toneladas_recibidas": 347400.9, "diferencia": 19884.28999999992, "mineral_triturado": 7342, "stock_estimado": 27226.28999999992}};
 const COLORS = ['#5B9BD5','#ED7D31','#9a9a9a','#4EA72E','#B8912A','#A02B93','#156082','#E8A33D','#70AD47','#264478'];
 const MESES_ES = {1:'ene',2:'feb',3:'mar',4:'abr',5:'may',6:'jun',7:'jul',8:'ago',9:'sep',10:'oct',11:'nov',12:'dic'};
@@ -639,7 +769,7 @@ function linearTrend(values){
   return values.map((v,i)=> (v===null || v===undefined || isNaN(v)) ? null : slope*i + intercept);
 }
 
-let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, stockProcedencia: BASE_DATA.stockProcedencia || [], fletes: BASE_DATA.fletes || [], selectedDay: 1, paused: false, ensayePendiente: BASE_DATA.ensayePendiente || false, visitas: BASE_DATA.visitas || {total:0, porDia:{}}, datosSubidosEn: BASE_DATA.datosSubidosEn || null };
+let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, stockProcedencia: BASE_DATA.stockProcedencia || [], fletes: BASE_DATA.fletes || [], panel: BASE_DATA.panel || null, selectedDay: 1, paused: false, ensayePendiente: BASE_DATA.ensayePendiente || false, visitas: BASE_DATA.visitas || {total:0, porDia:{}}, datosSubidosEn: BASE_DATA.datosSubidosEn || null };
 let isMaintAdmin = false; // solo dura mientras la pestaña esté abierta; no se guarda en la BD
 
 async function loadState(){
@@ -655,7 +785,7 @@ async function loadState(){
       } else {
         // la tabla está vacía todavía: sembramos con los datos que ya traía el archivo,
         // para que el piloto no arranque en ceros
-        await sb.from('flash_reportes').upsert({periodo: state.mes, data:{mes:state.mes,dias:state.dias,totales:state.totales,stock:state.stock,stockProcedencia:state.stockProcedencia,fletes:state.fletes,paused:state.paused,ensayePendiente:state.ensayePendiente,visitas:state.visitas,datosSubidosEn:state.datosSubidosEn}});
+        await sb.from('flash_reportes').upsert({periodo: state.mes, data:{mes:state.mes,dias:state.dias,totales:state.totales,stock:state.stock,stockProcedencia:state.stockProcedencia,fletes:state.fletes,panel:state.panel,paused:state.paused,ensayePendiente:state.ensayePendiente,visitas:state.visitas,datosSubidosEn:state.datosSubidosEn}});
       }
     }catch(e){
       console.error('No se pudo conectar a la base de datos, se muestran los datos de respaldo incluidos en el archivo.', e);
@@ -669,7 +799,7 @@ async function saveState(){
   try{
     const { error } = await sb.from('flash_reportes').upsert({
       periodo: state.mes,
-      data: {mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, fletes:state.fletes, paused:state.paused, ensayePendiente:state.ensayePendiente, visitas:state.visitas, datosSubidosEn:state.datosSubidosEn},
+      data: {mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, fletes:state.fletes, panel:state.panel, paused:state.paused, ensayePendiente:state.ensayePendiente, visitas:state.visitas, datosSubidosEn:state.datosSubidosEn},
       updated_at: new Date().toISOString()
     });
     if(error) throw error;
@@ -2115,6 +2245,122 @@ function parseFletes(aoa, nDias){
     .sort((a,b)=> b.ton - a.ton);
 }
 
+/* ======================  Panel Ejecutivo: Real vs Presupuesto  ======================
+   Portado de panel_tabla.html (ya auditado: 24,887 comparaciones, 0 diferencias al
+   cerrar — ver AUDITORIA_6-sep-26.md). El presupuesto sale de la meta fija de
+   PROYECCIONES (Días Op/Ton Meta/Oz Meta/Ley/Rec — 8 números que no cambian día a día,
+   NO del renglón día-por-día de esa misma hoja, que tiene un bug conocido). El real sale
+   de RESUMEN, ponderando la ley por tonelaje y la recuperación por METAL ALIMENTADO
+   (tonelaje×ley), que es el criterio que da idéntico al balance de metal directo y al
+   acumulado propio de DINÁMICA (columnas EJ/EL, "Mes") — no el de RESUMEN!S40/T40, que
+   pondera por tonelaje solo. */
+function leeMetaProyecciones(aoa){
+  for(let r=0; r<Math.min(aoa.length,25); r++){
+    const fila = aoa[r]||[];
+    const c = fila.findIndex(v => normTxt(v)==='DIAS OP');
+    if(c<0) continue;
+    const valores = aoa[r+1]||[];
+    const colDe = etq => fila.findIndex(v => normTxt(v)===etq);
+    const num = i => { const v = valores[i]; return (typeof v==='number' && !isNaN(v)) ? v : null; };
+    return {
+      diasOp: num(c), tonMeta: num(colDe('TON META')), ozMeta: num(colDe('OZ META')),
+      leyAu: num(colDe('LEY AU')), leyAg: num(colDe('LEY AG')),
+      recAu: num(colDe('REC AU')), recAg: num(colDe('REC AG')),
+      filaValores: r+1
+    };
+  }
+  return null;
+}
+function construyeMatrizProyeccion(meta, nd){
+  const OZ_G = 31.1034768;
+  const diasOp = (meta.diasOp!=null && meta.diasOp>0) ? meta.diasOp : nd;
+  const tmsDia  = (meta.tonMeta!=null) ? meta.tonMeta/diasOp : null;
+  const ozEqDia = (meta.ozMeta!=null)  ? meta.ozMeta/diasOp  : null;
+  const {leyAu, leyAg, recAu, recAg} = meta;
+  const ozAuDia = (tmsDia!=null && leyAu!=null && recAu!=null) ? (tmsDia*leyAu*recAu)/OZ_G : null;
+  const ozAgDia = (tmsDia!=null && leyAg!=null && recAg!=null) ? (tmsDia*leyAg*recAg)/OZ_G : null;
+  const dias = [], acum = [];
+  let tmsAc = 0, ozAuAc = 0, ozAgAc = 0;
+  for(let i=0; i<=31; i++){
+    const dd = {}, aa = {};
+    if(i>=1 && i<=nd){
+      dd[3]=tmsDia; dd[4]=leyAu; dd[5]=leyAg; dd[8]=recAu; dd[9]=recAg;
+      dd[19]=ozAuDia; dd[20]=ozAgDia; dd[23]=ozEqDia;
+      tmsAc += (tmsDia||0); ozAuAc += (ozAuDia||0); ozAgAc += (ozAgDia||0);
+      aa[30]=tmsAc; aa[31]=leyAu; aa[33]=leyAg; aa[39]=recAu; aa[40]=recAg;
+      aa[50]=ozAuAc; aa[51]=ozAgAc;
+      aa[32] = (leyAu!=null) ? tmsAc*leyAu/1000 : null;
+      aa[34] = (leyAg!=null) ? tmsAc*leyAg/1000 : null;
+      aa[37] = (leyAu!=null && recAu!=null) ? tmsAc*leyAu*recAu/1000 : null;
+      aa[38] = (leyAg!=null && recAg!=null) ? tmsAc*leyAg*recAg/1000 : null;
+    }
+    dias.push(dd); acum.push(aa);
+  }
+  return {dias, acum};
+}
+function colNum(letra){
+  let n = 0;
+  for(const ch of letra.toUpperCase()) n = n*26 + (ch.charCodeAt(0) - 64);
+  return n - 1;
+}
+function letraCol(idx){
+  let n = idx + 1, s = '';
+  while(n > 0){ const r = (n-1) % 26; s = String.fromCharCode(65+r) + s; n = Math.floor((n-1)/26); }
+  return s;
+}
+const COL_RESUMEN = {3:'K', 4:'M', 5:'N', 8:'S', 9:'T', 19:'AC', 20:'AD', 23:'AH'};
+function letraDeIdx(hoja, idx){
+  if(hoja === 'RESUMEN') return COL_RESUMEN[idx] || letraCol(idx);
+  return letraCol(idx);
+}
+function construyeMatrizReal(rs, filaDia1, nd, cols){
+  // Las columnas ya se ubicaron por texto de encabezado más arriba (resumenCols), igual
+  // que para el resto del Flash — no por letra fija de Excel: RESUMEN corre distinto en
+  // enero-abril (la fecha vive en columna B) que en mayo en adelante (columna C), y una
+  // letra fija daba números sin sentido en esos meses viejos.
+  const K=cols.colMolidoSeco, M=cols.colLeyAu, N=cols.colLeyAu+1,
+        S=cols.colRecupAu, T=cols.colRecupAu+1,
+        AC=cols.colOzPrecipAu, AD=cols.colOzPrecipAu+1, AH=cols.colOzEqAu;
+  const num = (r,i) => { const f = rs.aoa[r]; const v = (f && i!=null) ? f[i] : undefined;
+    return (typeof v==='number' && !isNaN(v) && isFinite(v)) ? v : null; };
+  const sig = v => (v===0) ? null : v;
+  const dias = [], acum = [];
+  let tmsAc=0, tmsAuAc=0, tmsAgAc=0, auContAc=0, agContAc=0, auRecAc=0, agRecAc=0,
+      ozAuAc=0, ozAgAc=0;
+  for(let i=0; i<=31; i++){
+    const dd = {}, aa = {};
+    if(i>=1 && i<=nd){
+      const r = filaDia1 + (i-1);
+      const tms=num(r,K), leyAu=sig(num(r,M)), leyAg=sig(num(r,N)),
+            recAu=sig(num(r,S)), recAg=sig(num(r,T)),
+            ozAu=num(r,AC), ozAg=num(r,AD), ozEq=num(r,AH);
+      dd[3]=tms; dd[4]=leyAu; dd[5]=leyAg; dd[8]=recAu; dd[9]=recAg;
+      dd[19]=ozAu; dd[20]=ozAg; dd[23]=ozEq;
+      if(tms!=null){
+        tmsAc += tms;
+        if(leyAu!=null){ tmsAuAc += tms; auContAc += tms*leyAu;
+          if(recAu!=null) auRecAc += tms*leyAu*recAu; }
+        if(leyAg!=null){ tmsAgAc += tms; agContAc += tms*leyAg;
+          if(recAg!=null) agRecAc += tms*leyAg*recAg; }
+      }
+      if(ozAu!=null) ozAuAc += ozAu;
+      if(ozAg!=null) ozAgAc += ozAg;
+      aa[30]=tmsAc;
+      aa[31]= tmsAuAc ? auContAc/tmsAuAc : null;
+      aa[33]= tmsAgAc ? agContAc/tmsAgAc : null;
+      aa[32]= auContAc/1000;
+      aa[34]= agContAc/1000;
+      aa[37]= auRecAc/1000;
+      aa[38]= agRecAc/1000;
+      aa[39]= auContAc ? auRecAc/auContAc : null;
+      aa[40]= agContAc ? agRecAc/agContAc : null;
+      aa[50]= ozAuAc; aa[51]=ozAgAc;
+    }
+    dias.push(dd); acum.push(aa);
+  }
+  return {dias, acum};
+}
+
 function parseDailyWorkbookDynamic(wb, XLSXref){
   const XLSX_ = XLSXref;
   // "HUM Y CAB CALC" (consumos) es opcional: los balances de enero/febrero 2026 son de
@@ -2335,6 +2581,30 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
     real_oz_total: numv((aoaP[rTot]||[])[colRealOzAcum]),
   } : { proy_ton_total:0, real_ton_total:0, proy_oz_total:0, real_oz_total:0 };
 
+  // Panel Ejecutivo (Real vs Presupuesto): opcional, si algo falla el resto del Flash
+  // sigue igual. El lado REAL solo necesita el día 1 de RESUMEN (d1R, ya obligatorio
+  // arriba) y no depende de PROYECCIONES, así que meses como Enero/Febrero (cuya
+  // PROYECCIONES trae el formato viejo, sin meta) igual deben quedar navegables en el
+  // panel — nomás sin Ppto. El lado PPTO sí necesita la meta de PROYECCIONES
+  // (independiente de d1P: son 8 números fijos, no la tabla día a día).
+  let panel = null;
+  try{
+    const ndPanel = dias.filter(d=>d.fecha!=null).length || 31;
+    const mReal = construyeMatrizReal({aoa:aoaR}, d1R.row, ndPanel, resumenCols);
+    let mPpto = null, metaInfo = null;
+    try{
+      const metaPanel = leeMetaProyecciones(aoaP);
+      if(metaPanel){
+        mPpto = construyeMatrizProyeccion(metaPanel, ndPanel);
+        metaInfo = {hoja:'PROYECCIONES', meta:true, filaValores: metaPanel.filaValores+1};
+      }
+    }catch(e2){ console.error('No se pudo calcular el Ppto del Panel Ejecutivo', e2); }
+    panel = {
+      ndias: ndPanel, real: mReal, ppto: mPpto,
+      origen: {real:{hoja:'RESUMEN', fila0:d1R.row}, ppto: metaInfo}
+    };
+  }catch(e){ console.error('No se pudo calcular el Panel Ejecutivo', e); }
+
   // HISTORICO: caja de "Stock Estimado" ubicada por texto (no por celda fija),
   // usando "Toneladas Recibidas" como ancla y offsets relativos +1,+2,+3.
   let stockAnchor = null;
@@ -2369,7 +2639,7 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
     }catch(e){ console.error('No se pudo leer la hoja FLETES', e); }
   }
 
-  return { mes: mesDetectado, dias, totales, stock, stockProcedencia, fletes, ensayePendiente };
+  return { mes: mesDetectado, dias, totales, stock, stockProcedencia, fletes, ensayePendiente, panel };
 }
 
 
@@ -2440,7 +2710,7 @@ function handleFile(file){
       if(parsed.mes !== state.mes){
         if(!confirm('Este archivo parece ser de '+mesCorto(parsed.mes)+' y tu vista actual es de '+mesCorto(state.mes)+'. ¿Reemplazar la vista con este nuevo mes? (se recomienda primero "Guardar copia" del mes actual)')) return;
       }
-      state.mes = parsed.mes; state.dias = parsed.dias; state.totales = parsed.totales; state.stock = parsed.stock; state.stockProcedencia = parsed.stockProcedencia; state.fletes = parsed.fletes || []; state.ensayePendiente = parsed.ensayePendiente;
+      state.mes = parsed.mes; state.dias = parsed.dias; state.totales = parsed.totales; state.stock = parsed.stock; state.stockProcedencia = parsed.stockProcedencia; state.fletes = parsed.fletes || []; state.panel = parsed.panel || null; state.ensayePendiente = parsed.ensayePendiente;
       const last = lastDiaConDato();
       state.selectedDay = Math.max(1,last);
       // Sello de cuándo se subió este archivo, para mostrarlo junto a la fecha del
@@ -2538,7 +2808,7 @@ document.getElementById('chkTrend').addEventListener('change', (e)=>{
 document.getElementById('btnExport').onclick = ()=>{
   let newHtml = document.documentElement.outerHTML.replace(
     /const BASE_DATA = \{.*?\};\s*\n/s,
-    'const BASE_DATA = '+JSON.stringify({mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, fletes:state.fletes, paused:false, ensayePendiente:state.ensayePendiente, visitas:state.visitas, datosSubidosEn:state.datosSubidosEn})+';\n'
+    'const BASE_DATA = '+JSON.stringify({mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, fletes:state.fletes, panel:state.panel, paused:false, ensayePendiente:state.ensayePendiente, visitas:state.visitas, datosSubidosEn:state.datosSubidosEn})+';\n'
   );
   // La copia guardada queda archivada: no admite arrastrar más archivos ni restablecer.
   newHtml = newHtml.replace('const IS_LOCKED_COPY = false;', 'const IS_LOCKED_COPY = true;');
@@ -2794,7 +3064,7 @@ async function cargarMesHistorico(periodo){
   const d = data.data;
   state = Object.assign(state, {
     mes: periodo, dias: d.dias||[], totales: d.totales||{}, stock: d.stock||{},
-    stockProcedencia: d.stockProcedencia||[], fletes: d.fletes||[], ensayePendiente: !!d.ensayePendiente,
+    stockProcedencia: d.stockProcedencia||[], fletes: d.fletes||[], panel: d.panel||null, ensayePendiente: !!d.ensayePendiente,
   });
   state.selectedDay = Math.max(1, lastDiaConDato());
   history.replaceState(null, '', location.pathname + '?ver=' + encodeURIComponent(periodo));
@@ -2825,6 +3095,382 @@ document.getElementById('historyBackLink').onclick = ()=>{
   setTimeout(()=>{ location.href = location.pathname; }, 150); // por si el navegador no deja cerrar la pestaña
 };
 
+/* ======================================================================
+   Panel Ejecutivo — vista dinámica multi-mes (pestaña ?panel=1)
+   ======================================================================
+   Reusa el mismo motor de cálculo que ya trae panel_tabla.html (panelCorte,
+   sumaMeses, tramosSemana, cortesAno-style navegación), pero en vez de leer
+   un Excel aparte, arma cada "mes" directo de lo que parseDailyWorkbookDynamic
+   ya calculó y guardó en Supabase como panel.real / panel.ppto. No se
+   recalcula nada aquí: solo se navega y se suma lo que ya está.
+
+   Nombres con sufijo "Panel" para no chocar con el `state`/`panelPeriodo` que
+   ya usa el resto del Flash (el mes en vivo, un solo periodo). */
+let panelState = { meses:{}, mesSel:null, selectedDay:1, ver:{dia:true, sem:true, mes:true} };
+let panelPeriodoSel = 'mes';
+
+const PANEL_FILAS = [
+  {g:'TMS Procesadas'},
+  {k:'tms',  n:'TMS Procesadas', u:'Tm',   dec:0, vol:true},
+  {g:'Leyes de Cabeza'},
+  {k:'leyAu',n:'Au', u:'g/Tm', dec:2}, {k:'leyAg',n:'Ag', u:'g/Tm', dec:2},
+  {g:'Recuperación'},
+  {k:'recAu',n:'Au', u:'%', pct:true}, {k:'recAg',n:'Ag', u:'%', pct:true},
+  {g:'Producción Metálica'},
+  {k:'ozAu', n:'Au', u:'Oz', dec:2, vol:true},
+  {k:'ozAg', n:'Ag', u:'Oz', dec:2, vol:true},
+  {k:'ozEq', n:'Oz Au Eq', u:'Oz', dec:2, vol:true},
+];
+
+function claveDePanel(dt){ return dt.getUTCFullYear()+'-'+String(dt.getUTCMonth()+1).padStart(2,'0'); }
+function fechaUTCPanel(f){ const [y,m,d]=f.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)); }
+function aFechaPanel(dt){ const p=n=>String(n).padStart(2,'0');
+  return dt.getUTCFullYear()+'-'+p(dt.getUTCMonth()+1)+'-'+p(dt.getUTCDate()); }
+function diaLabelPanel(d){
+  if(!d || !d.fecha) return '';
+  const [y,m,day] = d.fecha.split('-').map(Number);
+  return day+'-'+MESES_ES[m]+'-'+String(y).slice(2);
+}
+function semanaISOPanel(dt){
+  const j = new Date(dt); j.setUTCDate(j.getUTCDate() + 4);
+  const d = new Date(Date.UTC(j.getUTCFullYear(), j.getUTCMonth(), j.getUTCDate()));
+  const n = (d.getUTCDay()+6)%7;
+  d.setUTCDate(d.getUTCDate() - n + 3);
+  const primerJue = new Date(Date.UTC(d.getUTCFullYear(),0,4));
+  const pn = (primerJue.getUTCDay()+6)%7;
+  primerJue.setUTCDate(primerJue.getUTCDate() - pn + 3);
+  return 1 + Math.round((d - primerJue)/(7*86400000));
+}
+
+/* ---- cortes por periodo (idéntico al criterio de panel_tabla.html) ---- */
+function panelCorte(m, per, dFin, ultimoDia, dIni){
+  if(!m) return {};
+  const D = i => (m.dias[dFin]||{})[i];
+  const A = (d,i) => (m.acum[d]||{})[i];
+  const nn = v => (typeof v==='number' && !isNaN(v)) ? v : null;
+  const div = (a,b)=> (a==null||b==null||b===0) ? null : a/b;
+  const ozEqRango = (a,b)=>{
+    let t=null;
+    for(let d=a; d<=b; d++){ const v = nn((m.dias[d]||{})[23]); if(v!=null) t=(t||0)+v; }
+    return t;
+  };
+  if(per==='dia') return {tms:nn(D(3)),leyAu:nn(D(4)),leyAg:nn(D(5)),recAu:nn(D(8)),recAg:nn(D(9)),
+    ozAu:nn(D(19)),ozAg:nn(D(20)),ozEq:nn(D(23))};
+  if(per==='sem'){
+    const ini = Math.max(0, (dIni!=null ? dIni-1 : dFin-7));
+    const base = i => { const v = nn(A(ini,i)); return (v==null && ini===0) ? 0 : v; };
+    const dif = i => { const a=nn(A(dFin,i)), b=base(i); return (a==null||b==null)?null:a-b; };
+    const tms = dif(30);
+    const leyAu = (dif(32)==null||!tms) ? null : dif(32)*1000/tms;
+    const leyAg = (dif(34)==null||!tms) ? null : dif(34)*1000/tms;
+    const ozAu = dif(50), ozAg = dif(51);
+    return {tms, leyAu, leyAg,
+      recAu: div(dif(37), (tms!=null && leyAu) ? tms*leyAu/1000 : null),
+      recAg: div(dif(38), (tms!=null && leyAg) ? tms*leyAg/1000 : null),
+      ozAu, ozAg,
+      ozEq: ozEqRango(ini+1, dFin)};
+  }
+  const dRef = (per==='mescPpto') ? ultimoDia : dFin;
+  return {tms:nn(A(dRef,30)), leyAu:nn(A(dRef,31)), leyAg:nn(A(dRef,33)),
+    recAu:nn(A(dRef,39)), recAg:nn(A(dRef,40)),
+    ozAu:nn(A(dRef,50)), ozAg:nn(A(dRef,51)), ozEq:ozEqRango(1, dRef)};
+}
+function sumaMeses(cortes){
+  const huecos = new Set();
+  const s = k => { let t=0; for(const c of cortes){ if(c[k]==null){huecos.add(k); return null;} t+=c[k]; } return t; };
+  const pond = (k,pesoK) => { let num=0,den=0;
+    for(const c of cortes){ if(c[k]==null||c[pesoK]==null){huecos.add(k); return null;} num+=c[k]*c[pesoK]; den+=c[pesoK]; }
+    return den?num/den:null; };
+  const pondMetal = (k,leyK) => { let num=0,den=0;
+    for(const c of cortes){ if(c[k]==null||c[leyK]==null||c.tms==null){huecos.add(k); return null;}
+      const peso=c.tms*c[leyK]; num+=c[k]*peso; den+=peso; } return den?num/den:null; };
+  const r = { tms:s('tms'), ozAu:s('ozAu'), ozAg:s('ozAg'), ozEq:s('ozEq'),
+    leyAu:pond('leyAu','tms'), leyAg:pond('leyAg','tms'),
+    recAu:pondMetal('recAu','leyAu'), recAg:pondMetal('recAg','leyAg') };
+  r._huecos = huecos;
+  return r;
+}
+function clavesOrdenadasPanel(){ return Object.keys(panelState.meses).sort(); }
+function ultimoConDatoPanel(M){
+  let last = 0;
+  (M.dias||[]).forEach(d=>{ if(d.tms>0) last = d.dia; });
+  return last;
+}
+function rangoSemanaPanel(M, d){
+  const f = M.dias[d-1];
+  if(!f) return null;
+  const base = fechaUTCPanel(f.fecha);
+  const ini = new Date(base); ini.setUTCDate(ini.getUTCDate() - base.getUTCDay());
+  const fin = new Date(ini);  fin.setUTCDate(fin.getUTCDate() + 6);
+  return {ini, fin};
+}
+function tramosSemanaPanel(M, d){
+  const r = rangoSemanaPanel(M, d);
+  if(!r) return {tramos:[], faltan:[], ini:null, fin:null};
+  const tramos = [], faltan = [];
+  let cur = new Date(Date.UTC(r.ini.getUTCFullYear(), r.ini.getUTCMonth(), 1));
+  const tope = new Date(Date.UTC(r.fin.getUTCFullYear(), r.fin.getUTCMonth(), 1));
+  while(cur <= tope){
+    const clave = claveDePanel(cur);
+    const finMes = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth()+1, 0));
+    const desde = (r.ini > cur) ? r.ini : cur;
+    const hasta = (r.fin < finMes) ? r.fin : finMes;
+    const N = panelState.meses[clave];
+    if(N){
+      const dI = desde.getUTCDate(), dF = Math.min(hasta.getUTCDate(), N.dias.length);
+      if(dI <= dF) tramos.push({clave, M:N, ini:dI, fin:dF});
+    } else {
+      faltan.push(MESES_ES_FULL[cur.getUTCMonth()+1]);
+    }
+    cur.setUTCMonth(cur.getUTCMonth()+1);
+  }
+  return {tramos, faltan, ini:r.ini, fin:r.fin};
+}
+function panelDatos(){
+  const M = panelState.meses[panelState.mesSel];
+  if(!M) return null;
+  const ultimo = ultimoConDatoPanel(M) || 1;
+  const nd = M.dias.length || 31;
+  const dFin = Math.min(panelState.selectedDay || ultimo, nd);
+  const per = panelPeriodoSel;
+  if(per === 'sem'){
+    const t = tramosSemanaPanel(M, dFin);
+    if(!t.tramos.length) return {real:{}, pres:{}, dFin, ultimo, sem:t};
+    const real = sumaMeses(t.tramos.map(x => panelCorte(x.M.bd, 'sem', x.fin, null, x.ini)));
+    const pres = sumaMeses(t.tramos.map(x => panelCorte(x.M.pr, 'sem', x.fin, null, x.ini)));
+    return {real, pres, dFin, ultimo, sem:t};
+  }
+  return {
+    real: panelCorte(M.bd, per==='mesc' ? 'mes' : per, dFin, ultimo),
+    pres: M.pr ? panelCorte(M.pr, per==='mesc' ? 'mescPpto' : per, dFin, nd) : {},
+    dFin, ultimo
+  };
+}
+function datosTresPanel(){
+  const M = panelState.meses[panelState.mesSel];
+  if(!M) return null;
+  const nd = M.dias.length;
+  const guardaPer = panelPeriodoSel, guardaDia = panelState.selectedDay;
+  const out = {};
+  for(const per of ['dia','sem']){ panelPeriodoSel = per; out[per] = panelDatos(); }
+  panelState.selectedDay = nd; panelPeriodoSel = 'mesc';
+  out.mes = panelDatos();
+  panelState.selectedDay = guardaDia; panelPeriodoSel = guardaPer;
+  out.dFin = Math.min(guardaDia || nd, nd);
+  out.M = M;
+  return out;
+}
+
+/* ---- navegación con flechas (día / semana / mes, cruzando de mes) ---- */
+function verBloquePanel(k){ return !panelState.ver || panelState.ver[k] !== false; }
+function alternaPanel(k){
+  if(!panelState.ver) panelState.ver = {dia:true, sem:true, mes:true};
+  const prendidos = ['dia','sem','mes'].filter(verBloquePanel);
+  if(prendidos.length === 1 && prendidos[0] === k) return;
+  panelState.ver[k] = !verBloquePanel(k);
+  pintaPanel();
+}
+function topeCargadoPanel(){
+  const claves = clavesOrdenadasPanel();
+  if(!claves.length) return null;
+  const k = claves[claves.length-1], M = panelState.meses[k];
+  return {mes:k, dia: ultimoConDatoPanel(M) || M.dias.length};
+}
+function pasaElTopePanel(mes, dia){
+  const t = topeCargadoPanel();
+  if(!t) return false;
+  return (mes > t.mes) || (mes === t.mes && dia > t.dia);
+}
+function primerDiaConSemanaPropiaPanel(M, clave){
+  for(let d=1; d<=Math.min(7, M.dias.length); d++){
+    const f = fechaUTCPanel(M.dias[d-1].fecha);
+    const dom = new Date(f); dom.setUTCDate(dom.getUTCDate() - f.getUTCDay());
+    let dentro = 0;
+    for(let k=0; k<7; k++){
+      const x = new Date(dom); x.setUTCDate(x.getUTCDate()+k);
+      if(claveDePanel(x) === clave) dentro++;
+    }
+    if(dentro >= 4) return d;
+  }
+  return 1;
+}
+function destinoBloquePanel(k, dir){
+  const claves = clavesOrdenadasPanel();
+  const i = claves.indexOf(panelState.mesSel);
+  const M = panelState.meses[panelState.mesSel];
+  if(!M) return null;
+  const nd = M.dias.length;
+  if(k === 'mes'){
+    const j = i + dir;
+    if(j < 0 || j >= claves.length) return null;
+    const N = panelState.meses[claves[j]];
+    return {mes:claves[j], dia: primerDiaConSemanaPropiaPanel(N, claves[j])};
+  }
+  if(k === 'sem'){
+    const hoy = M.dias[panelState.selectedDay-1];
+    if(!hoy) return null;
+    const dom = fechaUTCPanel(hoy.fecha);
+    dom.setUTCDate(dom.getUTCDate() - dom.getUTCDay() + dir*7);
+    for(let x=0; x<7; x++){
+      const f = new Date(dom); f.setUTCDate(f.getUTCDate()+x);
+      const c = claveDePanel(f), N = panelState.meses[c];
+      if(N && f.getUTCDate() <= N.dias.length){
+        if(dir > 0 && pasaElTopePanel(c, f.getUTCDate())) return null;
+        return {mes:c, dia:f.getUTCDate()};
+      }
+    }
+    return null;
+  }
+  const d = panelState.selectedDay + dir;
+  if(d >= 1 && d <= nd) return pasaElTopePanel(panelState.mesSel, d) ? null : {mes:panelState.mesSel, dia:d};
+  if(d < 1){
+    if(i === 0) return null;
+    const N = panelState.meses[claves[i-1]];
+    return {mes:claves[i-1], dia:N.dias.length};
+  }
+  if(i === claves.length-1) return null;
+  return pasaElTopePanel(claves[i+1], 1) ? null : {mes:claves[i+1], dia:1};
+}
+function puedeBloquePanel(k, dir){ return destinoBloquePanel(k, dir) !== null; }
+function mueveBloquePanel(k, dir){
+  const t = destinoBloquePanel(k, dir);
+  if(!t) return;
+  panelState.mesSel = t.mes; panelState.selectedDay = t.dia;
+  pintaPanel();
+}
+
+/* ---- pintado: mismo formato visual de tres columnas (Día/Semana/Mes) que
+   ya usa panel_tabla.html, con Real, Ppto y Dev% por renglón ---- */
+function panelHtmlEjecutivo(){
+  const T = datosTresPanel();
+  if(!T) return `<div class="pn-vacio">No hay meses con Panel Ejecutivo calculado todavía.</div>`;
+  const M = T.M, dFin = T.dFin;
+  const fecha = d => (M.dias[d-1] ? diaLabelPanel(M.dias[d-1]) : '');
+  const nf = (v,d)=> v==null ? '—' : v.toLocaleString('es-MX',{minimumFractionDigits:d,maximumFractionDigits:d});
+  const valor = (v,f)=> v==null ? '—' : (f.pct ? nf(v*100,2)+'%' : nf(v, Math.abs(v)>=1000 ? 0 : (f.dec==null?2:f.dec)));
+  const dev = (r,p)=> (r==null||p==null||p===0) ? null : r/p;
+  const color = (d,f)=> (d==null || !f.vol) ? null : (d>=1 ? 'var(--pn-verde)' : d>=0.95 ? 'var(--pn-ambar)' : 'var(--pn-rojo)');
+
+  const verPills = [['dia','Día'],['sem','Semana'],['mes','Mes']]
+    .map(([k,t])=>`<button type="button" class="tb-ver${verBloquePanel(k)?' on':''}" onclick="alternaPanel('${k}')"
+       title="${verBloquePanel(k)?'Ocultar '+t:'Mostrar '+t}">${t}</button>`).join('');
+  const selMeses = clavesOrdenadasPanel().map(c=>{
+    const N = panelState.meses[c];
+    return `<option value="${c}"${c===panelState.mesSel?' selected':''}>${N.nombre}</option>`;
+  }).join('');
+  const nav = `<div class="pn-nav"><div class="tb-vers">
+      <select id="panelMesSelect" style="font-size:11.5px;padding:3px 6px;border-radius:14px;border:1px solid #d8dde1;margin-right:auto" onchange="cambiaMesPanel(this.value)">${selMeses}</select>
+      ${verPills}</div></div>`;
+
+  const s = T.sem && T.sem.sem;
+  const et = dt => { const [y,m,d] = aFechaPanel(dt).split('-').map(Number);
+                     return d+'-'+MESES_ES[m]+'-'+String(y).slice(2); };
+  const cabs = [
+    ['dia','DÍA', fecha(dFin)],
+    ['sem','SEMANA'+(s && s.ini ? ' '+semanaISOPanel(s.ini) : ''),
+       s && s.ini ? (et(s.ini)+' al '+et(s.fin)) : ''],
+    ['mes', M.nombre.toUpperCase(), (function(){
+       const u = ultimoConDatoPanel(M);
+       return (u && u < M.dias.length) ? 'al '+fecha(u) : '';
+     })()]
+  ].filter(([k])=>verBloquePanel(k));
+  const fl = (k,dir,simbolo)=>`<button type="button" class="tb-fl" ${puedeBloquePanel(k,dir)?'':'disabled'}
+      onclick="mueveBloquePanel('${k}',${dir})" title="${dir<0?'Anterior':'Siguiente'}">${simbolo}</button>`;
+  const thBloques = cabs.map(([k,t,sub])=>
+    `<th colspan="3" class="tb-bloque">
+       <div class="tb-cab">${fl(k,-1,'&#9664;')}<span class="tb-per">${t}</span>${fl(k,1,'&#9654;')}</div>
+       <span class="tb-sub">${sub}</span></th>`).join('');
+  const thSub = cabs.map(()=>`<th>Real</th><th>Ppto</th><th>Dev %</th>`).join('');
+
+  const filas = PANEL_FILAS.map(f=>{
+    if(f.g) return `<tr class="pn-g"><td colspan="${1+cabs.length*3}"><span>${f.g}</span></td></tr>`;
+    const celdas = cabs.map(([k])=>{
+      const D = T[k], r = D.real[f.k], p = D.pres[f.k];
+      const d = dev(r,p), c = color(d,f);
+      return `<td class="pn-real"><span>${valor(r,f)}</span></td>
+        <td class="pn-pres"><span>${valor(p,f)}</span></td>
+        <td class="pn-dev" style="color:${c||'#9aa2a9'}">${d==null?'—':(c?'<span class="pn-punto" style="background:'+c+'"></span>':'')+nf(d*100,0)+'%'}</td>`;
+    }).join('');
+    return `<tr><td class="tb-met"><span class="pn-nom">${f.n}</span> <span class="pn-uni">${f.u}</span></td>${celdas}</tr>`;
+  }).join('');
+
+  const sinDatos = T.mes.real.tms == null || T.mes.real.tms === 0;
+  const sinPpto = !M.pr;
+  return nav
+    + (sinDatos ? '<div class="pe-aviso" style="margin:10px 0 12px">En este periodo no hay tonelaje capturado.</div>' : '')
+    + (sinPpto ? '<div class="pe-aviso" style="margin:10px 0 12px">Este mes no trae Presupuesto (PROYECCIONES en formato viejo, sin meta) — se muestra solo lo Real.</div>' : '')
+    + `<div class="pn-tabla tb-tres"><table>
+      <thead>
+        <tr><th rowspan="2" class="tb-met-h">Métrica</th>${thBloques}</tr>
+        <tr class="tb-sub-tr">${thSub}</tr>
+      </thead>
+      <tbody>${filas}</tbody></table></div>`;
+}
+function pintaPanel(){
+  const el = document.getElementById('panelEjecutivoArea');
+  if(el) el.innerHTML = panelHtmlEjecutivo();
+}
+function cambiaMesPanel(clave){
+  const N = panelState.meses[clave];
+  if(!N) return;
+  panelState.mesSel = clave;
+  panelState.selectedDay = ultimoConDatoPanel(N) || 1;
+  pintaPanel();
+}
+
+/* ---- carga: trae TODOS los periodos de Supabase de un jalón (no uno a
+   la vez), arma panelState.meses y para en el mes/día más reciente con dato. ---- */
+async function cargaTodoElPanel(){
+  if(!sb) return false;
+  const { data: rows, error } = await sb.from('flash_reportes').select('periodo,data').order('periodo');
+  if(error || !rows || !rows.length) return false;
+  panelState.meses = {};
+  rows.forEach(row=>{
+    const d = row.data || {};
+    if(!d.panel || !d.panel.real) return;   // meses sin Panel Ejecutivo calculado: se saltan
+    const nd = d.panel.ndias;
+    const [y0,m0] = row.periodo.split('-').map(Number);
+    const fechas = [];
+    for(let i=1;i<=nd;i++){
+      const dt = new Date(Date.UTC(y0, m0-1, i));
+      const p = n=>String(n).padStart(2,'0');
+      const fecha = dt.getUTCFullYear()+'-'+p(dt.getUTCMonth()+1)+'-'+p(dt.getUTCDate());
+      const t = (d.panel.real.dias[i]||{})[3];
+      fechas.push({dia:i, fecha, tms:(typeof t==='number'&&!isNaN(t))?t:0});
+    }
+    panelState.meses[row.periodo] = {
+      clave: row.periodo, nombre: (MESES_ES_FULL[m0]||row.periodo)+' '+y0,
+      ndias: nd, bd: d.panel.real, pr: d.panel.ppto || null, dias: fechas
+    };
+  });
+  const claves = clavesOrdenadasPanel();
+  if(!claves.length) return false;
+  panelState.mesSel = claves[claves.length-1];
+  panelState.selectedDay = ultimoConDatoPanel(panelState.meses[panelState.mesSel]) || 1;
+  return true;
+}
+function applyPanelModeUI(){
+  document.getElementById('dropzone').style.display = 'none';
+  document.getElementById('btnVerHistorial').style.display = 'none';
+  document.getElementById('btnVerPanel').style.display = 'none';
+  document.getElementById('btnMaint').style.display = 'none';
+  document.getElementById('btnExportXlsx').style.display = 'none';
+  document.getElementById('btnExport').style.display = 'none';
+  document.getElementById('stickyHead').style.display = 'none';
+  document.getElementById('flashArea').style.display = 'none';
+  document.getElementById('chartsGrid').style.display = 'none';
+  const cmtWrapPanel = document.querySelector('.cmt-wrap');
+  if(cmtWrapPanel) cmtWrapPanel.style.display = 'none';
+  const btnVerCmtPanel = document.getElementById('btnVerComentarios');
+  if(btnVerCmtPanel) btnVerCmtPanel.style.display = 'none';
+  document.getElementById('panelBanner').style.display = 'block';
+  document.getElementById('panelEjecutivoArea').style.display = 'block';
+  document.title = 'Panel Ejecutivo — Reporte Flash MRT Cieneguita';
+}
+document.getElementById('btnVerPanel').onclick = ()=>{
+  window.open(location.pathname + '?panel=1', '_blank');
+};
+
 (async ()=>{
   if(IS_HISTORY_TAB){
     applyHistoryModeUI();
@@ -2835,6 +3481,16 @@ document.getElementById('historyBackLink').onclick = ()=>{
     if(periodoInicial){
       document.getElementById('historySelect').value = periodoInicial;
       await cargarMesHistorico(periodoInicial);
+    }
+    return;
+  }
+  if(IS_PANEL_TAB){
+    applyPanelModeUI();
+    const ok = await cargaTodoElPanel();
+    pintaPanel();
+    if(!ok){
+      document.getElementById('panelEjecutivoArea').innerHTML =
+        '<div class="pn-vacio">No se pudo cargar el Panel Ejecutivo (sin conexión a la base, o sin meses capturados todavía).</div>';
     }
     return;
   }
@@ -2854,7 +3510,7 @@ document.getElementById('historyBackLink').onclick = ()=>{
 // estaba fuera) y reanuda el temporizador. No corre en copias archivadas ni en la pestaña
 // de historial (solo lectura), y se salta el ciclo si hay una carga/parseo de Excel en
 // curso, para no pisar cambios sin guardar.
-if(!IS_LOCKED_COPY && !IS_HISTORY_TAB){
+if(!IS_LOCKED_COPY && !IS_HISTORY_TAB && !IS_PANEL_TAB){
   const AUTOREFRESH_MS = 5*60*1000;
   let autoRefreshTimer = null;
   async function autoRefreshTick(){
