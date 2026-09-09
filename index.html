@@ -2402,6 +2402,121 @@ function construyeMatrizProyeccion(meta, nd){
   }
   return {dias, acum};
 }
+// --- Presupuesto de Producción anual (Plan con los 12 meses del año en una sola hoja,
+// tipo "Presupuesto de Producción Planta 2026"): se sube por el mismo cuadro que el
+// balance diario y se distingue de él por su contenido, no por su nombre — trae una fila
+// "TONELADAS MOLIDAS/TRITURADAS" y un encabezado "TOTAL" junto a una fecha por columna
+// (cada una es el día 1 de un mes), pero no trae las hojas del balance (RESUMEN, etc.).
+// Solo actualiza panel.ppto y panel.pptoAnualCompleto de los meses que YA existen en la
+// base (nunca panel.real, nunca crea meses nuevos) — seguro de volver a subir cuantas
+// veces haga falta si el presupuesto cambia, por ejemplo para los meses que aún no operan.
+function encuentraHojaPresupuesto(wb){
+  for(const nombre of wb.SheetNames){
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[nombre], {header:1, raw:true, defval:null});
+    const tieneTon = aoa.some(fila => normTxt((fila||[])[0])==='TONELADAS MOLIDAS/TRITURADAS');
+    const tieneTotal = aoa.some(fila => (fila||[]).some(v=>normTxt(v)==='TOTAL'));
+    if(tieneTon && tieneTotal) return {nombreHoja: nombre, aoa};
+  }
+  return null;
+}
+function leeMetaProyeccionesAnual(aoa){
+  let filaHead = -1, colTotal = -1;
+  for(let r=0; r<aoa.length; r++){
+    const c = (aoa[r]||[]).findIndex(v => normTxt(v)==='TOTAL');
+    if(c>=0){ filaHead = r; colTotal = c; break; }
+  }
+  if(filaHead<0) return {error:'No encontré la fila de encabezado con "TOTAL".'};
+  const filaH = aoa[filaHead]||[];
+  const meses = [];
+  for(let c=0;c<colTotal;c++){
+    if(isDateSerial(filaH[c])){
+      const d = new Date(Date.UTC(1899,11,30) + filaH[c]*86400000);
+      meses.push({col:c, periodo: d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')});
+    }
+  }
+  if(meses.length<1) return {error:'No encontré columnas de mes junto al encabezado "TOTAL".'};
+
+  let filaDiasOp = -1;
+  for(let r=0; r<filaHead; r++){
+    const fila = aoa[r]||[];
+    if(fila[0]!=null && String(fila[0]).trim()!=='') continue;
+    const vals = meses.map(m=>fila[m.col]);
+    if(vals.every(v => typeof v==='number' && Number.isInteger(v) && v>=1 && v<=31)){ filaDiasOp = r; break; }
+  }
+  if(filaDiasOp<0) return {error:'No encontré la fila de "días operados".'};
+
+  const buscaFila = (...etiquetas) => {
+    const objetivo = etiquetas.map(normTxt);
+    for(let r=0;r<aoa.length;r++){ if(objetivo.includes(normTxt((aoa[r]||[])[0]))) return r; }
+    return -1;
+  };
+  const filaTon = buscaFila('TONELADAS MOLIDAS/TRITURADAS'), filaOz = buscaFila('PRODUCCION AU OZ EQ'),
+    filaLeyAu = buscaFila('AU GR/TON'), filaLeyAg = buscaFila('AG GR/TON'),
+    filaRecAu = buscaFila('ORO (%)'), filaRecAg = buscaFila('PLATA (%)');
+  const faltan = [['TONELADAS MOLIDAS/TRITURADAS',filaTon],['Producción Au Oz Eq',filaOz],
+    ['Au gr/ton',filaLeyAu],['Ag gr/ton',filaLeyAg],['Oro (%)',filaRecAu],['Plata (%)',filaRecAg]]
+    .filter(([,f])=>f<0).map(([n])=>n);
+  if(faltan.length) return {error:'No encontré estas filas: '+faltan.join(', ')};
+
+  const num = (fila,col) => { const v = (aoa[fila]||[])[col]; return (typeof v==='number' && !isNaN(v)) ? v : null; };
+  return { meses: meses.map(m => ({ periodo: m.periodo, meta: {
+    diasOp: num(filaDiasOp, m.col), tonMeta: num(filaTon, m.col), ozMeta: num(filaOz, m.col),
+    leyAu: num(filaLeyAu, m.col), leyAg: num(filaLeyAg, m.col),
+    recAu: num(filaRecAu, m.col), recAg: num(filaRecAg, m.col),
+  }})) };
+}
+function diasEnMesDePresupuesto(periodo){
+  const [y,m] = periodo.split('-').map(Number);
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+function corteDeMesDesdeMetaAnual(meta){
+  const OZ_G = 31.1034768, tms = meta.tonMeta;
+  const ozAu = (tms!=null && meta.leyAu!=null && meta.recAu!=null) ? (tms*meta.leyAu*meta.recAu)/OZ_G : null;
+  const ozAg = (tms!=null && meta.leyAg!=null && meta.recAg!=null) ? (tms*meta.leyAg*meta.recAg)/OZ_G : null;
+  return {tms, leyAu:meta.leyAu, leyAg:meta.leyAg, recAu:meta.recAu, recAg:meta.recAg, ozAu, ozAg, ozEq:meta.ozMeta};
+}
+async function aplicaPresupuestoAnualDesdeArchivo(deteccion){
+  const res = leeMetaProyeccionesAnual(deteccion.aoa);
+  if(res.error){ alert('Este archivo parece el Presupuesto de Producción anual, pero no pude leerlo: '+res.error); return; }
+  const porAnio = {};
+  res.meses.forEach(m=>{ const a=m.periodo.slice(0,4); (porAnio[a]=porAnio[a]||[]).push(m); });
+  const totalesPorAnio = {};
+  Object.keys(porAnio).forEach(anio=>{
+    const cortes = porAnio[anio].map(m=>corteDeMesDesdeMetaAnual(m.meta));
+    totalesPorAnio[anio] = Object.assign({}, sumaMeses(cortes), {
+      anio, meses: porAnio[anio].length,
+      archivo: 'Presupuesto de Producción Planta 2026', actualizado: new Date().toISOString()
+    });
+  });
+  if(!sb) return;
+  if(!confirm('Este archivo es el Presupuesto de Producción anual (hoja "'+deteccion.nombreHoja+'", '+res.meses.length+' meses). '
+    +'Se va a actualizar el Presupuesto de cada mes que ya esté en la base — nunca lo Real — y a guardar la meta del año completo. ¿Continuar?')) return;
+  const resultados = [];
+  for(const m of res.meses){
+    const nd = diasEnMesDePresupuesto(m.periodo);
+    const ppto = construyeMatrizProyeccion(m.meta, nd);
+    let filaExistente = null;
+    try{
+      const { data } = await sb.from('flash_reportes').select('data').eq('periodo', m.periodo).maybeSingle();
+      filaExistente = data && data.data;
+    }catch(e){ console.error(e); }
+    if(!filaExistente){ resultados.push(mesCorto(m.periodo)+': aún no operado, se salta.'); continue; }
+    const panelPrevio = filaExistente.panel || {};
+    const panelNuevo = Object.assign({}, panelPrevio, {
+      ndias: panelPrevio.ndias || nd, ppto, pptoAnualCompleto: totalesPorAnio[m.periodo.slice(0,4)],
+      origen: Object.assign({}, panelPrevio.origen, { ppto: {hoja:deteccion.nombreHoja, archivo:'Presupuesto de Producción Planta 2026', meta:true} })
+    });
+    const merged = Object.assign({}, filaExistente, { panel: panelNuevo });
+    let errUp = null;
+    try{ ({ error: errUp } = await sb.from('flash_reportes').upsert({ periodo: m.periodo, data: merged })); }
+    catch(e){ errUp = e; }
+    resultados.push(mesCorto(m.periodo)+(errUp ? ': ERROR — '+(errUp.message||errUp) : ': listo.'));
+    // Si es el mes que se está viendo justo ahora, se refleja sin recargar la página.
+    if(m.periodo === state.mes && !errUp) state.panel = panelNuevo;
+  }
+  alert('Presupuesto anual aplicado:\n\n'+resultados.join('\n'));
+  renderAll();
+}
 function colNum(letra){
   let n = 0;
   for(const ch of letra.toUpperCase()) n = n*26 + (ch.charCodeAt(0) - 64);
@@ -2840,7 +2955,15 @@ function handleFile(file){
       const dataBuf = new Uint8Array(e.target.result);
       const wb = XLSX.read(dataBuf, {type:'array', cellDates:false, cellStyles:true});
       const parsed = parseDailyWorkbookDynamic(wb, XLSX);
-      if(parsed.error){ alert('No reconozco este archivo: '+parsed.error); return; }
+      if(parsed.error){
+        // No es un balance diario — ¿será el Presupuesto de Producción anual (Plan con los
+        // 12 meses del año, tipo "Presupuesto de Producción Planta 2026")? Mismo cuadro de
+        // subida sirve para los dos tipos de archivo; se distinguen por su contenido, no
+        // hay que abrir una página aparte para el Presupuesto.
+        const deteccion = encuentraHojaPresupuesto(wb);
+        if(deteccion){ await aplicaPresupuestoAnualDesdeArchivo(deteccion); return; }
+        alert('No reconozco este archivo: '+parsed.error); return;
+      }
       if(parsed.mes !== state.mes){
         if(!confirm('Este archivo parece ser de '+mesCorto(parsed.mes)+' y tu vista actual es de '+mesCorto(state.mes)+'. ¿Reemplazar la vista con este nuevo mes? (se recomienda primero "Guardar copia" del mes actual)')) return;
       }
