@@ -164,14 +164,13 @@ function leeMetaProyeccionesAnual(aoa){
 }
 function construyeMatrizProyeccion(meta, nd){
   const OZ_G = 31.1034768;
-  const diasOp = (meta.diasOp!=null && meta.diasOp>0) ? meta.diasOp : nd;
-  // Días operados < días de calendario (se restan los de Mantenimiento de Planta). La
-  // meta del mes se reparte solo entre los días operados: el ritmo diario usa diasOp,
-  // pero solo se aplica y se acumula en los primeros diasOp días — el resto del mes
-  // queda en cero, así el acumulado cierra exacto en la meta (idéntico al Flash).
-  const diasActivos = Math.min(diasOp, nd);
-  const tmsDia  = (meta.tonMeta!=null) ? meta.tonMeta/diasOp : null;
-  const ozEqDia = (meta.ozMeta!=null)  ? meta.ozMeta/diasOp  : null;
+  // La meta del mes se reparte entre los días reales del mes (nd), parejo todos los
+  // días — igual que ya lo calcula la propia hoja PROYECCIONES de cada balance mensual
+  // (los paros por Mantenimiento son parciales, por áreas, no el mes completo un día
+  // entero, así que no hay "días en cero"; el Días Op del Plan anual es informativo,
+  // no se usa aquí como divisor).
+  const tmsDia  = (meta.tonMeta!=null) ? meta.tonMeta/nd : null;
+  const ozEqDia = (meta.ozMeta!=null)  ? meta.ozMeta/nd  : null;
   const {leyAu, leyAg, recAu, recAg} = meta;
   const ozAuDia = (tmsDia!=null && leyAu!=null && recAu!=null) ? (tmsDia*leyAu*recAu)/OZ_G : null;
   const ozAgDia = (tmsDia!=null && leyAg!=null && recAg!=null) ? (tmsDia*leyAg*recAg)/OZ_G : null;
@@ -180,10 +179,9 @@ function construyeMatrizProyeccion(meta, nd){
   for(let i=0; i<=31; i++){
     const dd = {}, aa = {};
     if(i>=1 && i<=nd){
-      const operaHoy = i<=diasActivos;
-      dd[3]=operaHoy?tmsDia:0; dd[4]=leyAu; dd[5]=leyAg; dd[8]=recAu; dd[9]=recAg;
-      dd[19]=operaHoy?ozAuDia:0; dd[20]=operaHoy?ozAgDia:0; dd[23]=operaHoy?ozEqDia:0;
-      tmsAc += operaHoy?(tmsDia||0):0; ozAuAc += operaHoy?(ozAuDia||0):0; ozAgAc += operaHoy?(ozAgDia||0):0;
+      dd[3]=tmsDia; dd[4]=leyAu; dd[5]=leyAg; dd[8]=recAu; dd[9]=recAg;
+      dd[19]=ozAuDia; dd[20]=ozAgDia; dd[23]=ozEqDia;
+      tmsAc += (tmsDia||0); ozAuAc += (ozAuDia||0); ozAgAc += (ozAgDia||0);
       aa[30]=tmsAc; aa[31]=leyAu; aa[33]=leyAg; aa[39]=recAu; aa[40]=recAg;
       aa[50]=ozAuAc; aa[51]=ozAgAc;
       aa[32] = (leyAu!=null) ? tmsAc*leyAu/1000 : null;
