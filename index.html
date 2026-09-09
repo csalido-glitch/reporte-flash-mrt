@@ -1746,7 +1746,7 @@ function mineralSeries(){
   const fl = (state.fletes || []).map(p=>({
     nombre: p.nombre,
     valor: dia ? Number((p.porDia||{})[dia] || 0) : Number(p.ton || 0),
-    camiones: dia ? null : Number(p.camiones || 0)
+    camiones: dia ? Number((p.porDiaCamiones||{})[dia] || 0) : Number(p.camiones || 0)
   })).filter(p=> p.valor > 0).sort((a,b)=> b.valor - a.valor);
 
   const ac = {};
@@ -2330,13 +2330,13 @@ function parseFletes(aoa, nDias){
     const nombre = hdr[c+2]!=null ? String(hdr[c+2]).trim() : '';
     if(!nombre) continue;
     let reg = acum.get(nombre);
-    if(!reg){ reg = {nombre:nombre, ton:0, camiones:0, porDia:{}}; acum.set(nombre, reg); }
+    if(!reg){ reg = {nombre:nombre, ton:0, camiones:0, porDia:{}, porDiaCamiones:{}}; acum.set(nombre, reg); }
     for(let i=0;i<nd;i++){
       const row = aoa[d1.row+i]||[];
       const t = numv(row[c+3]);
       const cam = numv(row[c+2]);
       if(t){ reg.ton += t; reg.porDia[i+1] = (reg.porDia[i+1]||0) + t; }
-      if(cam) reg.camiones += cam;
+      if(cam){ reg.camiones += cam; reg.porDiaCamiones[i+1] = (reg.porDiaCamiones[i+1]||0) + cam; }
     }
   }
   return Array.from(acum.values())
