@@ -665,7 +665,7 @@ body[data-theme="dark"] .pn-vacio{ color:#8a8f94; }
 
   <div class="dropzone-discreet" id="dropzone">
     Actualizar BD
-    <input type="file" id="fileInput" accept=".xlsx,.xlsm" style="display:none">
+    <input type="file" id="fileInput" accept=".xlsx,.xlsm" multiple style="display:none">
   </div>
 
   <div class="discreet-actions">
@@ -3000,11 +3000,17 @@ function checkExportPin(){
   return checkPin('cesarg83', 'Contraseña para exportar a Excel');
 }
 
+// Devuelve una promesa que se resuelve cuando YA se terminó de procesar y guardar este
+// archivo (éxito, error o cancelación) — no solo cuando arrancó la lectura. Sin esto,
+// como el trabajo real ocurre en el callback asíncrono de FileReader, un "await
+// handleFile(f)" en handleFiles() no esperaría nada de verdad y varios archivos se
+// procesarían encimados en vez de uno por uno.
 function handleFile(file){
-  if(IS_LOCKED_COPY) return; // copia archivada: no admite nuevos datos
+  if(IS_LOCKED_COPY) return Promise.resolve(); // copia archivada: no admite nuevos datos
   // La contraseña ya se pidió antes de llegar aquí (al hacer clic o al soltar el
   // archivo), para que el selector de archivos / el arrastre solo se habilite
   // después de una contraseña correcta, no al revés.
+  return new Promise((resolve)=>{
   const reader = new FileReader();
   reader.onload = async function(e){
     // Mientras se procesa/guarda este archivo, el auto-refresh se salta su ciclo
@@ -3023,7 +3029,7 @@ function handleFile(file){
         if(deteccion){ await aplicaPresupuestoAnualDesdeArchivo(deteccion); return; }
         alert('No reconozco este archivo: '+parsed.error); return;
       }
-      if(parsed.mes !== state.mes){
+      if(parsed.mes !== state.mes && !procesandoLote){
         if(!confirm('Este archivo parece ser de '+mesCorto(parsed.mes)+' y tu vista actual es de '+mesCorto(state.mes)+'. ¿Reemplazar la vista con este nuevo mes? (se recomienda primero "Guardar copia" del mes actual)')) return;
       }
       // Si este balance no trae su propio Ppto (PROYECCIONES sin meta, como pasaba antes
@@ -3056,11 +3062,32 @@ function handleFile(file){
       alert('Error leyendo el archivo: '+err.message);
     } finally {
       window.__flashBusy = false;
+      resolve();
     }
   };
   reader.readAsArrayBuffer(file);
+  });
 }
 
+// Subir varios balances de una sola vez (por ejemplo, para que meses ya cargados recojan
+// un arreglo nuevo del parser, como el desglose de camiones por día o el total Real): se
+// procesan uno por uno, en orden, con handleFile de siempre — nada más se salta la
+// confirmación de "¿reemplazar el mes que estás viendo?" entre archivo y archivo, porque al
+// elegir varios ya es evidente que la intención es recorrerlos todos. Cada archivo sigue
+// yendo a su propio periodo en la base; el orden no afecta el resultado.
+let procesandoLote = false;
+async function handleFiles(files){
+  if(!files || !files.length) return;
+  if(files.length === 1){ await handleFile(files[0]); return; }
+  procesandoLote = true;
+  const nombres = [];
+  for(const f of files){
+    try{ await handleFile(f); nombres.push('✔ '+f.name); }
+    catch(e){ console.error('Error procesando '+f.name, e); nombres.push('✘ '+f.name+': '+(e && e.message || e)); }
+  }
+  procesandoLote = false;
+  alert('Lote terminado, '+files.length+' archivo(s):\n\n'+nombres.join('\n'));
+}
 const dz = document.getElementById('dropzone');
 const fi = document.getElementById('fileInput');
 dz.addEventListener('click', async (e)=>{
@@ -3079,7 +3106,7 @@ dz.addEventListener('click', async (e)=>{
     setTimeout(()=> fi.click(), 30);
   }
 });
-fi.addEventListener('change', ()=>{ if(fi.files[0]) handleFile(fi.files[0]); fi.value=''; });
+fi.addEventListener('change', ()=>{ if(fi.files.length) handleFiles(Array.from(fi.files)); fi.value=''; });
 // Cuando el diálogo nativo del selector de archivos se cierra (elijas un archivo o
 // canceles), la ventana recupera el foco. En algunos equipos con Windows, justo en
 // ese momento el puntero del mouse se queda invisible hasta que lo mueves, aunque los
@@ -3103,10 +3130,10 @@ window.addEventListener('drop', async (e)=>{
   e.preventDefault();
   dz.classList.remove('drag');
   if(IS_LOCKED_COPY || IS_HISTORY_TAB) return;
-  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-  if(!file) return;
+  const files = e.dataTransfer && e.dataTransfer.files;
+  if(!files || !files.length) return;
   if(!(await checkUploadPin())) return;
-  handleFile(file);
+  handleFiles(Array.from(files));
 });
 
 function emptyDataset(){
