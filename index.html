@@ -3339,9 +3339,8 @@ function sumaMeses(cortes){
   return r;
 }
 function clavesOrdenadasPanel(){ return Object.keys(panelState.meses).sort(); }
-// Meses ya cargados de enero al mes seleccionado, del mismo año: "Año" siempre es "lo que
-// llevamos", porque el Ppto de un mes solo se conoce hasta que se sube su Excel (trae la
-// hoja PROYECCIONES) — no hay forma de saber la meta de meses que todavía no llegan.
+// Meses ya cargados de enero al mes seleccionado, del mismo año — para lo Real, que solo
+// se conoce mes por mes conforme se sube su balance.
 function clavesDelAnoPanel(claveSel){
   const anio = claveSel.slice(0,4);
   return clavesOrdenadasPanel().filter(c => c.slice(0,4)===anio && c<=claveSel);
@@ -3401,25 +3400,38 @@ function panelDatos(){
     dFin, ultimo
   };
 }
-// Año a la fecha: suma cada mes ya cargado (de enero al mes seleccionado) con su propio
-// corte de mes completo — igual criterio que usa el bloque "Mes" para cada mes por
-// separado. El Ppto del año solo sale si TODOS esos meses ya traen Presupuesto.
+// Año a la fecha: lo Real siempre es "lo que llevamos" — suma cada mes ya cargado (de
+// enero al mes seleccionado) con su propio corte de mes completo, igual criterio que usa
+// el bloque "Mes" para cada mes por separado.
+//
+// El Ppto, en cambio, sí puede conocerse completo desde antes de que operen los meses que
+// faltan: si el mes que se está viendo ya trae el Presupuesto Anual completo (cargado con
+// la herramienta del Plan de Producción anual, que ve los 12 meses de una vez), se usa
+// ese directo — así el Año muestra la meta del año completo, igual que el Mes muestra la
+// meta del mes completo aunque solo llevemos unos días. Si no está disponible, se cae al
+// criterio anterior: sumar el Ppto de los meses ya cargados, y solo si TODOS lo traen.
 function anoDatosPanel(claveSel){
   const claves = clavesDelAnoPanel(claveSel);
-  if(!claves.length) return {real:{}, pres:{}, claves:[]};
+  if(!claves.length) return {real:{}, pres:{}, claves:[], pptoEsAnioCompleto:false};
   const cortesReal = claves.map(c=>{
     const N = panelState.meses[c];
     return panelCorte(N.bd, 'mes', N.dias.length, ultimoConDatoPanel(N) || N.dias.length);
   });
+  const real = sumaMeses(cortesReal);
+
+  const anual = panelState.meses[claveSel] && panelState.meses[claveSel].pptoAnualCompleto;
+  if(anual && anual.anio === claveSel.slice(0,4)){
+    return { real, pres: anual, claves, pptoEsAnioCompleto:true };
+  }
   const conPpto = claves.filter(c => panelState.meses[c].pr);
   const cortesPres = conPpto.map(c=>{
     const N = panelState.meses[c];
     return panelCorte(N.pr, 'mescPpto', N.dias.length, N.dias.length);
   });
   return {
-    real: sumaMeses(cortesReal),
+    real,
     pres: (conPpto.length === claves.length) ? sumaMeses(cortesPres) : {},
-    claves
+    claves, pptoEsAnioCompleto:false
   };
 }
 function datosTresPanel(){
@@ -3682,7 +3694,11 @@ function panelHtmlEjecutivo(){
     const cs = T.ano.claves || [];
     if(!cs.length) return '';
     const p = c => { const [y,m] = c.split('-').map(Number); return MESES_ES[m]+'-'+String(y).slice(2); };
-    return cs.length===1 ? p(cs[0]) : (p(cs[0])+' al '+p(cs[cs.length-1]));
+    const rango = cs.length===1 ? p(cs[0]) : (p(cs[0])+' al '+p(cs[cs.length-1]));
+    // Cuando el Ppto ya es el del año completo (12 meses, vengan o no operados), se aclara
+    // que lo Real todavía es solo hasta el mes seleccionado, para no leerlo como si ya
+    // hubiera Real de todo el año.
+    return T.ano.pptoEsAnioCompleto ? ('Real: '+rango+' · Ppto: año completo') : rango;
   })();
   const cabs = [
     ['dia','DÍA', fecha(dFin)],
@@ -3726,10 +3742,12 @@ function panelHtmlEjecutivo(){
 
   const sinDatos = T.mes.real.tms == null || T.mes.real.tms === 0;
   const sinPpto = !M.pr;
-  // El año solo suma Ppto si TODOS sus meses ya lo traen (si no, el acumulado no sería
-  // comparable). Con más de un mes en el año, se avisa cuáles faltan; con uno solo, ya lo
-  // cubre el aviso de "Este mes no trae Presupuesto" de arriba.
-  const mesesSinPptoAno = verBloquePanel('ano') && T.ano.claves.length > 1
+  // Si ya se cargó el Presupuesto Anual completo (12 meses), el Ppto del Año no depende de
+  // que cada mes ya cargado lo traiga por su cuenta, así que este aviso ya no aplica. Si
+  // no, el año solo suma Ppto cuando TODOS sus meses ya lo traen (si no, el acumulado no
+  // sería comparable) — con más de un mes en el año se avisa cuáles faltan; con uno solo,
+  // ya lo cubre el aviso de "Este mes no trae Presupuesto" de arriba.
+  const mesesSinPptoAno = (verBloquePanel('ano') && !T.ano.pptoEsAnioCompleto && T.ano.claves.length > 1)
     ? T.ano.claves.filter(c => !panelState.meses[c].pr).map(c => MESES_ES_FULL[Number(c.slice(5,7))])
     : [];
   return nav
@@ -3779,7 +3797,7 @@ async function cargaTodoElPanel(){
     panelState.meses[row.periodo] = {
       clave: row.periodo, nombre: (MESES_ES_FULL[m0]||row.periodo)+' '+y0,
       ndias: nd, bd: d.panel.real, pr: d.panel.ppto || null, dias: fechas,
-      consumos: d.panel.consumos || []
+      consumos: d.panel.consumos || [], pptoAnualCompleto: d.panel.pptoAnualCompleto || null
     };
   });
   const claves = clavesOrdenadasPanel();

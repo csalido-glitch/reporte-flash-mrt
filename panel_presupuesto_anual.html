@@ -200,6 +200,45 @@ const MESES_ES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','A
 function nombreMes(periodo){ const [y,m]=periodo.split('-'); return MESES_ES[Number(m)]+' '+y; }
 
 let mesesListos = null; // [{periodo, meta, ppto, existe, teniaPpto}]
+let totalesPorAnio = null; // {anio: {tms, leyAu, leyAg, recAu, recAg, ozAu, ozAg, ozEq, meses}}
+
+// El total del año completo (los 12 meses del archivo, no solo los que ya están cargados
+// en la base) se calcula igual que el Flash suma varios meses (mismo peso por tonelaje
+// para las leyes, y por metal contenido para las recuperaciones), para que el Ppto del
+// bloque "Año" del Panel Ejecutivo muestre la meta del año completo — igual que "Mes"
+// muestra la meta del mes completo aunque solo lleve unos días.
+function corteDeMes(meta){
+  const tms = meta.tonMeta;
+  const ozAu = (tms!=null && meta.leyAu!=null && meta.recAu!=null) ? (tms*meta.leyAu*meta.recAu)/OZ_G : null;
+  const ozAg = (tms!=null && meta.leyAg!=null && meta.recAg!=null) ? (tms*meta.leyAg*meta.recAg)/OZ_G : null;
+  return {tms, leyAu:meta.leyAu, leyAg:meta.leyAg, recAu:meta.recAu, recAg:meta.recAg, ozAu, ozAg, ozEq:meta.ozMeta};
+}
+const OZ_G = 31.1034768;
+function sumaCortes(cortes){
+  const s = k => { let t=0; for(const c of cortes){ if(c[k]==null) return null; t+=c[k]; } return t; };
+  const pond = (k,pesoK) => { let num=0,den=0;
+    for(const c of cortes){ if(c[k]==null||c[pesoK]==null) return null; num+=c[k]*c[pesoK]; den+=c[pesoK]; }
+    return den?num/den:null; };
+  const pondMetal = (k,leyK) => { let num=0,den=0;
+    for(const c of cortes){ if(c[k]==null||c[leyK]==null||c.tms==null) return null;
+      const peso=c.tms*c[leyK]; num+=c[k]*peso; den+=peso; } return den?num/den:null; };
+  return { tms:s('tms'), ozAu:s('ozAu'), ozAg:s('ozAg'), ozEq:s('ozEq'),
+    leyAu:pond('leyAu','tms'), leyAg:pond('leyAg','tms'),
+    recAu:pondMetal('recAu','leyAu'), recAg:pondMetal('recAg','leyAg') };
+}
+function calculaTotalesPorAnio(meses){
+  const porAnio = {};
+  meses.forEach(m=>{ const anio = m.periodo.slice(0,4); (porAnio[anio] = porAnio[anio]||[]).push(m); });
+  const totales = {};
+  Object.keys(porAnio).forEach(anio=>{
+    const cortes = porAnio[anio].map(m=>corteDeMes(m.meta));
+    totales[anio] = Object.assign({}, sumaCortes(cortes), {
+      anio, meses: porAnio[anio].length,
+      archivo: 'Presupuesto de Producción Planta 2026', actualizado: new Date().toISOString()
+    });
+  });
+  return totales;
+}
 
 async function procesarArchivo(file){
   document.getElementById('drop').className = 'drop';
@@ -224,6 +263,7 @@ async function procesarArchivo(file){
       const teniaPpto = !!(existe && data.data.panel && data.data.panel.ppto);
       mesesListos.push({periodo:m.periodo, meta:m.meta, ppto, existe, teniaPpto, filaExistente: existe?data.data:null});
     }
+    totalesPorAnio = calculaTotalesPorAnio(mesesListos);
     pintaPreview();
     document.getElementById('drop').className = 'drop ok';
     document.getElementById('drop').textContent = 'Archivo leído: '+file.name+' — revisa la vista previa abajo.';
@@ -253,10 +293,19 @@ function pintaPreview(){
       <td>${estado}</td>
     </tr>`;
   }).join('');
+  const filasTotal = Object.keys(totalesPorAnio).sort().map(anio=>{
+    const t = totalesPorAnio[anio];
+    return `<tr style="font-weight:700;background:#f3f6f7">
+      <td>Año completo ${anio} (${t.meses} mes${t.meses>1?'es':''})</td>
+      <td>—</td><td>${nf0(t.tms)}</td><td>${nf0(t.ozEq)}</td><td>${nf2(t.leyAu)}</td><td>${nf2(t.leyAg)}</td>
+      <td>${nfPct(t.recAu)}</td><td>${nfPct(t.recAg)}</td>
+      <td>se guarda en cada mes, para que el bloque "Año" del Panel muestre esta meta completa</td>
+    </tr>`;
+  }).join('');
   document.getElementById('preview').innerHTML = `<table>
     <thead><tr><th>Mes</th><th>Días Op</th><th>Ton Meta</th><th>Oz Meta</th><th>Au gr/t</th><th>Ag gr/t</th>
     <th>Rec Au</th><th>Rec Ag</th><th>¿Qué va a pasar?</th></tr></thead>
-    <tbody>${filas}</tbody></table>`;
+    <tbody>${filas}${filasTotal}</tbody></table>`;
   const hayAlgoQueHacer = mesesListos.some(m=>m.existe);
   document.getElementById('btnGo').disabled = !hayAlgoQueHacer;
 }
@@ -273,6 +322,7 @@ document.getElementById('btnGo').onclick = async ()=>{
     const panelNuevo = Object.assign({}, panelPrevio, {
       ndias: panelPrevio.ndias || diasEnMes(m.periodo),
       ppto: m.ppto,
+      pptoAnualCompleto: totalesPorAnio[m.periodo.slice(0,4)],
       origen: Object.assign({}, panelPrevio.origen, {
         ppto: {hoja:'Plan Producción Q4', archivo:'Presupuesto de Producción Planta 2026', meta:true}
       })
