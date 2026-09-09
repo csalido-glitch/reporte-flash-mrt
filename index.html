@@ -2475,6 +2475,35 @@ function corteDeMesDesdeMetaAnual(meta){
   const ozAg = (tms!=null && meta.leyAg!=null && meta.recAg!=null) ? (tms*meta.leyAg*meta.recAg)/OZ_G : null;
   return {tms, leyAu:meta.leyAu, leyAg:meta.leyAg, recAu:meta.recAu, recAg:meta.recAg, ozAu, ozAg, ozEq:meta.ozMeta};
 }
+// Las gráficas "clásicas" (Molienda diaria, Oz Eq diarias, y sus acumulados del mes) no
+// leen panel.ppto: leen dias[].proy_* y totales.proy_*_total, que normalmente vienen del
+// propio día a día de la hoja PROYECCIONES de cada balance mensual. Meses con formato viejo
+// de PROYECCIONES (sin tabla por fecha, como enero/febrero 2026 — ver el comentario junto a
+// colProyMolienda más arriba) quedan con todas estas columnas en 0, aunque panel.ppto ya
+// tenga la meta. Para que "todo vaya de la mano", si un mes no trae su propia proyección
+// diaria (los proy_* de TODOS sus días en 0) se rellenan aquí también, parejo entre los
+// días reales del mes — igual que panel.ppto — a partir de la misma meta del Presupuesto
+// anual. Nunca se toca si el mes ya trae su propia proyección diaria real.
+function sinProyeccionDiariaPropia(dias){
+  return (dias||[]).every(d => !d.fecha || (Math.abs(d.proy_molienda_dia||0) < 1e-9 && Math.abs(d.proy_oz_dia||0) < 1e-9));
+}
+function aplicaMetaAnualADiasYTotales(filaExistente, meta, nd){
+  const tmsDia = (meta.tonMeta!=null) ? meta.tonMeta/nd : 0;
+  const ozEqDia = (meta.ozMeta!=null) ? meta.ozMeta/nd : 0;
+  const dias = (filaExistente.dias||[]).map(d=>{
+    if(!d.fecha || d.dia>nd) return d;
+    return Object.assign({}, d, {
+      proy_molienda_dia: tmsDia, proy_ton_acum: tmsDia*d.dia,
+      proy_oz_dia: ozEqDia, proy_oz_acum: ozEqDia*d.dia,
+      proy_ley_au_banda: meta.leyAu, proy_ley_ag_banda: meta.leyAg,
+      proy_recup_au: meta.recAu, proy_recup_ag: meta.recAg,
+    });
+  });
+  const totales = Object.assign({}, filaExistente.totales, {
+    proy_ton_total: meta.tonMeta, proy_oz_total: meta.ozMeta
+  });
+  return {dias, totales};
+}
 async function aplicaPresupuestoAnualDesdeArchivo(deteccion){
   const res = leeMetaProyeccionesAnual(deteccion.aoa);
   if(res.error){ alert('Este archivo parece el Presupuesto de Producción anual, pero no pude leerlo: '+res.error); return; }
@@ -2506,13 +2535,19 @@ async function aplicaPresupuestoAnualDesdeArchivo(deteccion){
       ndias: panelPrevio.ndias || nd, ppto, pptoAnualCompleto: totalesPorAnio[m.periodo.slice(0,4)],
       origen: Object.assign({}, panelPrevio.origen, { ppto: {hoja:deteccion.nombreHoja, archivo:'Presupuesto de Producción Planta 2026', meta:true} })
     });
-    const merged = Object.assign({}, filaExistente, { panel: panelNuevo });
+    let diasNuevos = filaExistente.dias, totalesNuevos = filaExistente.totales, nota = '';
+    if(sinProyeccionDiariaPropia(filaExistente.dias)){
+      const r = aplicaMetaAnualADiasYTotales(filaExistente, m.meta, nd);
+      diasNuevos = r.dias; totalesNuevos = r.totales;
+      nota = ' (+gráficas diarias e Histórico)';
+    }
+    const merged = Object.assign({}, filaExistente, { panel: panelNuevo, dias: diasNuevos, totales: totalesNuevos });
     let errUp = null;
     try{ ({ error: errUp } = await sb.from('flash_reportes').upsert({ periodo: m.periodo, data: merged })); }
     catch(e){ errUp = e; }
-    resultados.push(mesCorto(m.periodo)+(errUp ? ': ERROR — '+(errUp.message||errUp) : ': listo.'));
+    resultados.push(mesCorto(m.periodo)+(errUp ? ': ERROR — '+(errUp.message||errUp) : ': listo.'+nota));
     // Si es el mes que se está viendo justo ahora, se refleja sin recargar la página.
-    if(m.periodo === state.mes && !errUp) state.panel = panelNuevo;
+    if(m.periodo === state.mes && !errUp){ state.panel = panelNuevo; state.dias = diasNuevos; state.totales = totalesNuevos; }
   }
   alert('Presupuesto anual aplicado:\n\n'+resultados.join('\n'));
   renderAll();
