@@ -3043,6 +3043,25 @@ function handleFile(file){
           if(panelPrevio && panelPrevio.ppto){
             parsed.panel.ppto = panelPrevio.ppto;
             parsed.panel.origen = Object.assign({}, parsed.panel.origen, { ppto: panelPrevio.origen ? panelPrevio.origen.ppto : null });
+            // Ese Ppto conservado (matriz día a día) es lo mismo que alimenta las gráficas
+            // clásicas y el Histórico (dias[].proy_*, totales.proy_*_total) — sin este paso,
+            // una carga diaria de un mes sin meta propia (enero/febrero) las regresa a 0
+            // aunque panel.ppto ya haya quedado bien, y habría que volver a subir el
+            // Presupuesto anual nada más por eso. Se reconstruye aquí la meta uniforme del
+            // mes a partir del propio día 1 de la matriz ya guardada (todos los días traen
+            // el mismo valor por diseño, así que basta leer uno).
+            if(sinProyeccionDiariaPropia(parsed.dias)){
+              const nd = diasEnMesDePresupuesto(parsed.mes);
+              const d1ppto = panelPrevio.ppto.dias && panelPrevio.ppto.dias[1];
+              if(d1ppto && d1ppto[3]!=null){
+                const metaReconstruida = { tonMeta: d1ppto[3]*nd, ozMeta: d1ppto[23]*nd, leyAu: d1ppto[4], leyAg: d1ppto[5], recAu: d1ppto[8], recAg: d1ppto[9] };
+                const r = aplicaMetaAnualADiasYTotales({dias: parsed.dias, totales: parsed.totales}, metaReconstruida, nd);
+                parsed.dias = r.dias; parsed.totales = r.totales;
+              }
+            }
+          }
+          if(panelPrevio && panelPrevio.pptoAnualCompleto){
+            parsed.panel.pptoAnualCompleto = panelPrevio.pptoAnualCompleto;
           }
         }catch(e){ console.error('No se pudo revisar si ya había un Ppto guardado para conservarlo', e); }
       }
