@@ -2504,6 +2504,15 @@ function aplicaMetaAnualADiasYTotales(filaExistente, meta, nd){
   });
   return {dias, totales};
 }
+// Autocorrección aparte, del mismo problema de fondo: el total REAL (real_ton_total /
+// real_oz_total) de meses viejos se guardó en 0 porque no se pudo ubicar la fila de
+// "Totales" de PROYECCIONES (ver el fix en parseDailyWorkbookDynamic) — aunque los días sí
+// traigan su dato real (molido_seco/oz_eq_au, siempre de RESUMEN, nunca de PROYECCIONES).
+// Se repara sumando el día a día ya guardado, sin necesidad de volver a subir el balance.
+function realTotalesDesdeDias(dias){
+  const suma = (campo) => (dias||[]).reduce((acc,d)=> d.fecha!=null ? acc+(d[campo]||0) : acc, 0);
+  return { real_ton_total: suma('molido_seco'), real_oz_total: suma('oz_eq_au') };
+}
 async function aplicaPresupuestoAnualDesdeArchivo(deteccion){
   const res = leeMetaProyeccionesAnual(deteccion.aoa);
   if(res.error){ alert('Este archivo parece el Presupuesto de Producción anual, pero no pude leerlo: '+res.error); return; }
@@ -2535,12 +2544,21 @@ async function aplicaPresupuestoAnualDesdeArchivo(deteccion){
       ndias: panelPrevio.ndias || nd, ppto, pptoAnualCompleto: totalesPorAnio[m.periodo.slice(0,4)],
       origen: Object.assign({}, panelPrevio.origen, { ppto: {hoja:deteccion.nombreHoja, archivo:'Presupuesto de Producción Planta 2026', meta:true} })
     });
-    let diasNuevos = filaExistente.dias, totalesNuevos = filaExistente.totales, nota = '';
+    let diasNuevos = filaExistente.dias, totalesNuevos = filaExistente.totales;
+    const notas = [];
     if(sinProyeccionDiariaPropia(filaExistente.dias)){
       const r = aplicaMetaAnualADiasYTotales(filaExistente, m.meta, nd);
       diasNuevos = r.dias; totalesNuevos = r.totales;
-      nota = ' (+gráficas diarias e Histórico)';
+      notas.push('gráficas diarias e Histórico');
     }
+    // Si el total Real quedó en 0 (mismo problema de formato viejo) pero los días sí
+    // traen su dato real, se recalcula sumando — sin tocar nada de lo que ya esté bien.
+    const hayRealEnDias = (diasNuevos||[]).some(d=> d.fecha!=null && (d.molido_seco||0)>0);
+    if(hayRealEnDias && !(totalesNuevos.real_ton_total>0)){
+      totalesNuevos = Object.assign({}, totalesNuevos, realTotalesDesdeDias(diasNuevos));
+      notas.push('Real acumulado corregido');
+    }
+    const nota = notas.length ? ' (+'+notas.join(', ')+')' : '';
     const merged = Object.assign({}, filaExistente, { panel: panelNuevo, dias: diasNuevos, totales: totalesNuevos });
     let errUp = null;
     try{ ({ error: errUp } = await sb.from('flash_reportes').upsert({ periodo: m.periodo, data: merged })); }
@@ -2851,12 +2869,18 @@ function parseDailyWorkbookDynamic(wb, XLSXref){
       if((typeof fechaAqui!=='number') && typeof valAqui==='number'){ rTot = rr; break; }
     }
   }
-  const totales = rTot!=null ? {
-    proy_ton_total: numv((aoaP[rTot]||[])[colProyTonAcum]),
-    real_ton_total: numv((aoaP[rTot]||[])[colRealTonAcum]),
-    proy_oz_total: numv((aoaP[rTot]||[])[colProyOzAcum]),
-    real_oz_total: numv((aoaP[rTot]||[])[colRealOzAcum]),
-  } : { proy_ton_total:0, real_ton_total:0, proy_oz_total:0, real_oz_total:0 };
+  // El total REAL no debería depender de encontrar la fila de "Totales" de PROYECCIONES
+  // (eso falla en meses de formato viejo, como enero/febrero 2026, y ahí dejaba
+  // real_ton_total/real_oz_total en 0 aunque los días sí traen su dato real) — se suma
+  // directo desde el día a día, que siempre sale de RESUMEN/DINÁMICA (obligatorias, no
+  // dependen de PROYECCIONES). El PROY sigue viniendo de la fila de Totales cuando existe.
+  const sumaDiasReal = (campo) => dias.reduce((acc,d)=> d.fecha!=null ? acc+(d[campo]||0) : acc, 0);
+  const totales = {
+    proy_ton_total: rTot!=null ? numv((aoaP[rTot]||[])[colProyTonAcum]) : 0,
+    real_ton_total: sumaDiasReal('molido_seco'),
+    proy_oz_total: rTot!=null ? numv((aoaP[rTot]||[])[colProyOzAcum]) : 0,
+    real_oz_total: sumaDiasReal('oz_eq_au'),
+  };
 
   // Panel Ejecutivo (Real vs Presupuesto): opcional, si algo falla el resto del Flash
   // sigue igual. El lado REAL solo necesita el día 1 de RESUMEN (d1R, ya obligatorio
