@@ -629,7 +629,9 @@ body[data-theme="dark"] .pn-vacio{ color:#8a8f94; }
     <p>Estamos actualizando la información. Vuelve en un momento.</p>
   </div>
 
-  <div class="maint-admin-banner" id="maintAdminBanner">🔧 Modo mantenimiento activo — solo tú ves esta pantalla de carga. Los demás ven el aviso de mantenimiento. Cuando termines, usa el botón de abajo para reactivar el reporte para todos.</div>
+  <div class="maint-admin-banner" id="maintAdminBanner">🔧 Modo mantenimiento activo — solo tú ves esta pantalla de carga. Los demás ven el aviso de mantenimiento. Cuando termines, usa el botón de abajo para reactivar el reporte para todos.
+    <div style="margin-top:8px;"><label style="font-weight:normal; cursor:pointer;"><input type="checkbox" id="chkRitmoProyeccion"> Mostrar en las gráficas de acumulado del mes el ritmo diario necesario para cerrar en el Presupuesto</label></div>
+  </div>
 
   <div class="locked-banner" id="lockedBanner" style="display:none">🔒 Copia archivada de <b id="lockedMes"></b> — solo lectura, no admite nuevos datos.</div>
 
@@ -850,7 +852,7 @@ function linearTrend(values){
   return values.map((v,i)=> (v===null || v===undefined || isNaN(v)) ? null : slope*i + intercept);
 }
 
-let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, stockProcedencia: BASE_DATA.stockProcedencia || [], fletes: BASE_DATA.fletes || [], panel: BASE_DATA.panel || null, selectedDay: 1, paused: false, ensayePendiente: BASE_DATA.ensayePendiente || false, visitas: BASE_DATA.visitas || {total:0, porDia:{}}, datosSubidosEn: BASE_DATA.datosSubidosEn || null };
+let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, stockProcedencia: BASE_DATA.stockProcedencia || [], fletes: BASE_DATA.fletes || [], panel: BASE_DATA.panel || null, selectedDay: 1, paused: false, mostrarRitmoTooltip: BASE_DATA.mostrarRitmoTooltip || false, ensayePendiente: BASE_DATA.ensayePendiente || false, visitas: BASE_DATA.visitas || {total:0, porDia:{}}, datosSubidosEn: BASE_DATA.datosSubidosEn || null };
 let isMaintAdmin = false; // solo dura mientras la pestaña esté abierta; no se guarda en la BD
 
 async function loadState(){
@@ -866,7 +868,7 @@ async function loadState(){
       } else {
         // la tabla está vacía todavía: sembramos con los datos que ya traía el archivo,
         // para que el piloto no arranque en ceros
-        await sb.from('flash_reportes').upsert({periodo: state.mes, data:{mes:state.mes,dias:state.dias,totales:state.totales,stock:state.stock,stockProcedencia:state.stockProcedencia,fletes:state.fletes,panel:state.panel,paused:state.paused,ensayePendiente:state.ensayePendiente,visitas:state.visitas,datosSubidosEn:state.datosSubidosEn}});
+        await sb.from('flash_reportes').upsert({periodo: state.mes, data:{mes:state.mes,dias:state.dias,totales:state.totales,stock:state.stock,stockProcedencia:state.stockProcedencia,fletes:state.fletes,panel:state.panel,paused:state.paused,mostrarRitmoTooltip:state.mostrarRitmoTooltip,ensayePendiente:state.ensayePendiente,visitas:state.visitas,datosSubidosEn:state.datosSubidosEn}});
       }
     }catch(e){
       console.error('No se pudo conectar a la base de datos, se muestran los datos de respaldo incluidos en el archivo.', e);
@@ -880,7 +882,7 @@ async function saveState(){
   try{
     const { error } = await sb.from('flash_reportes').upsert({
       periodo: state.mes,
-      data: {mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, fletes:state.fletes, panel:state.panel, paused:state.paused, ensayePendiente:state.ensayePendiente, visitas:state.visitas, datosSubidosEn:state.datosSubidosEn},
+      data: {mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, fletes:state.fletes, panel:state.panel, paused:state.paused, mostrarRitmoTooltip:state.mostrarRitmoTooltip, ensayePendiente:state.ensayePendiente, visitas:state.visitas, datosSubidosEn:state.datosSubidosEn},
       updated_at: new Date().toISOString()
     });
     if(error) throw error;
@@ -1044,6 +1046,25 @@ function computeDelta(proy, real, unit, dec){
   const diff = real - proy;
   const pct = proy ? (diff/proy*100) : 0;
   return { diff, pct, unit, dec: dec||0 };
+}
+// Ritmo diario necesario el resto del mes para cerrar exacto en el Presupuesto:
+// (Meta del mes completo − Real acumulado) / días que faltan. La meta del mes completo
+// se saca de panel.ppto (día 1, siempre parejo entre todos los días del mes — ver
+// construyeMatrizProyeccion), NUNCA de totales.proy_ton_total/proy_oz_total: ese campo,
+// mientras el mes está en curso, solo trae el acumulado hasta el último día capturado
+// (viene de la propia hoja PROYECCIONES del balance, que crece día a día), no la meta
+// completa de los 30/31 días — usarlo aquí daría un "faltante" chico y un ritmo mentiroso.
+// claveDia: '3' = TMS/día, '23' = Oz Eq Au/día (mismas claves numéricas de panel.ppto.dias).
+function ritmoNecesarioInfo(claveDia, real, unidad){
+  const ppto = state.panel && state.panel.ppto;
+  const dia1 = ppto && ppto.dias && ppto.dias[1];
+  if(!dia1 || dia1[claveDia]==null) return null;
+  const nd = diasEnMesDePresupuesto(state.mes);
+  const diasRestantes = nd - lastDiaConDato();
+  if(diasRestantes<=0) return null;
+  const metaMes = dia1[claveDia]*nd;
+  const dec = unidad==='t' ? 2 : 2;
+  return { metaMes, real, unidad, dec, diasRestantes };
 }
 function ensayeTickCallback(lastTickIdx){
   return function(val, idx){
@@ -1299,7 +1320,8 @@ function renderCharts(){
           padding:{top:1, bottom:1, left:3, right:3},
           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
         }}]}),
-     delta:()=>computeDelta(state.totales.proy_ton_total, state.totales.real_ton_total, 't', 0)},
+     delta:()=>computeDelta(state.totales.proy_ton_total, state.totales.real_ton_total, 't', 0),
+     ritmoInfo:()=>ritmoNecesarioInfo('3', state.totales.real_ton_total, 't')},
     // Fila 2
     {id:'ch3', title:'Oz Eq Au Diarias — Real vs Proyección', type:'bar', colSpan:3, alwaysLabels:true,
      mk:()=>({labels, datasets:[
@@ -1327,7 +1349,8 @@ function renderCharts(){
           formatter:(v)=> (v===null||v===undefined||isNaN(v)) ? '' : (Math.round(v*100)/100)
         }}]}),
      scales:{ x:{ ticks:{ callback: ensayeTickCallback(1) } } },
-     delta:()=>computeDelta(state.totales.proy_oz_total, state.totales.real_oz_total, 'oz', 1)},
+     delta:()=>computeDelta(state.totales.proy_oz_total, state.totales.real_oz_total, 'oz', 1),
+     ritmoInfo:()=>ritmoNecesarioInfo('23', state.totales.real_oz_total, 'oz')},
     // Fila 3
     {id:'ch16', title:'Flujo en M³ / Solución Rica-Estéril (Au / Ag, mg/L)', type:'bar', full:true,
      dlDisplay: etiquetasFlujo,
@@ -1653,6 +1676,27 @@ function renderCharts(){
       const real = (ctx.parsed.y||0) / f;
       return ctx.dataset.label + ': ' + (Math.round(real*1000)/1000);
     }}} : {};
+    // Ritmo necesario para cerrar el mes en el Presupuesto, solo en las dos gráficas que
+    // lo traen (ch11/ch12) y solo si el administrador lo prendió desde el modo
+    // mantenimiento (checkbox). No toca el resto del tooltip (título ni la línea de
+    // valor de siempre): solo agrega líneas debajo, y solo en la barra "Real".
+    if(c.ritmoInfo && state.mostrarRitmoTooltip){
+      const info = c.ritmoInfo();
+      if(info){
+        tooltipOpts.callbacks = tooltipOpts.callbacks || {};
+        tooltipOpts.callbacks.afterBody = (items)=>{
+          if(!items.length || items[0].label !== 'Real') return [];
+          const falt = info.metaMes - info.real;
+          const ritmo = falt / info.diasRestantes;
+          return [
+            '',
+            'Meta del mes: ' + fmt(info.metaMes, info.dec) + ' ' + info.unidad,
+            'Faltan: ' + fmt(falt, info.dec) + ' ' + info.unidad + ' en ' + info.diasRestantes + ' día' + (info.diasRestantes===1?'':'s'),
+            '→ Ritmo necesario: ' + fmt(ritmo, info.dec) + ' ' + info.unidad + '/día'
+          ];
+        };
+      }
+    }
     // Opciones por omisión: las usan las gráficas cuyos datasets no traen su propio
     // bloque de etiquetas (Ratio $Au/$Ag, entre otras). Aquí también va la rotación
     // automática; sin esto, esas gráficas se quedaban con las etiquetas derechas y
@@ -3184,7 +3228,7 @@ document.getElementById('chkTrend').addEventListener('change', (e)=>{
 document.getElementById('btnExport').onclick = ()=>{
   let newHtml = document.documentElement.outerHTML.replace(
     /const BASE_DATA = \{.*?\};\s*\n/s,
-    'const BASE_DATA = '+JSON.stringify({mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, fletes:state.fletes, panel:state.panel, paused:false, ensayePendiente:state.ensayePendiente, visitas:state.visitas, datosSubidosEn:state.datosSubidosEn})+';\n'
+    'const BASE_DATA = '+JSON.stringify({mes:state.mes, dias:state.dias, totales:state.totales, stock:state.stock, stockProcedencia:state.stockProcedencia, fletes:state.fletes, panel:state.panel, paused:false, mostrarRitmoTooltip:state.mostrarRitmoTooltip, ensayePendiente:state.ensayePendiente, visitas:state.visitas, datosSubidosEn:state.datosSubidosEn})+';\n'
   );
   // La copia guardada queda archivada: no admite arrastrar más archivos ni restablecer.
   newHtml = newHtml.replace('const IS_LOCKED_COPY = false;', 'const IS_LOCKED_COPY = true;');
@@ -3223,6 +3267,8 @@ function applyMaintenanceUI(){
   document.getElementById('chartsGrid').style.display = showBlankScreen ? 'none' : '';
   document.getElementById('maintScreen').style.display = showBlankScreen ? 'flex' : 'none';
   document.getElementById('maintAdminBanner').style.display = showAdminView ? 'block' : 'none';
+  const chkRitmo = document.getElementById('chkRitmoProyeccion');
+  if(chkRitmo) chkRitmo.checked = !!state.mostrarRitmoTooltip;
   if(!IS_LOCKED_COPY){
     document.getElementById('dropzone').style.display = showBlankScreen ? 'none' : '';
   }
@@ -3252,6 +3298,16 @@ document.getElementById('btnMaint').onclick = async ()=>{
     await guardarSoloCampos({paused:false});
     location.reload();
   }
+};
+
+// Ritmo necesario (t/día y oz/día) para cerrar el mes en el Presupuesto: solo el
+// administrador de mantenimiento puede prenderlo/apagarlo (checkbox dentro del banner
+// de mantenimiento). Se guarda en la BD igual que "paused", así que queda prendido para
+// todos los que vean el reporte, no solo para quien lo activó.
+document.getElementById('chkRitmoProyeccion').onchange = async (e)=>{
+  state.mostrarRitmoTooltip = e.target.checked;
+  await guardarSoloCampos({mostrarRitmoTooltip: state.mostrarRitmoTooltip});
+  renderCharts();
 };
 
 document.getElementById('btnTheme').onclick = ()=>{
