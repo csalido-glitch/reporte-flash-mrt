@@ -1773,7 +1773,7 @@ function mostrarBurbujaRitmo(x, y, info){
   el.innerHTML = lineasRitmo(info).filter(l=>l!=='').join('<br>');
   el.style.left = '0px'; el.style.top = '0px'; el.style.display = 'block';
   const pad = 10;
-  const separacionDedo = 46; // hueco vertical para que el dedo no la tape
+  const separacionDedo = 70; // hueco vertical para que el dedo no la tape
   const r = el.getBoundingClientRect();
   let left = x - r.width/2;
   let top = y - r.height - separacionDedo; // por default, arriba del dedo
