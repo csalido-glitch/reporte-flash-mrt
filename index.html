@@ -854,6 +854,14 @@ function linearTrend(values){
 
 let state = { mes: BASE_DATA.mes, dias: BASE_DATA.dias, totales: BASE_DATA.totales, stock: BASE_DATA.stock, stockProcedencia: BASE_DATA.stockProcedencia || [], fletes: BASE_DATA.fletes || [], panel: BASE_DATA.panel || null, selectedDay: 1, paused: false, mostrarRitmoTooltip: BASE_DATA.mostrarRitmoTooltip || false, ensayePendiente: BASE_DATA.ensayePendiente || false, visitas: BASE_DATA.visitas || {total:0, porDia:{}}, datosSubidosEn: BASE_DATA.datosSubidosEn || null };
 let isMaintAdmin = false; // solo dura mientras la pestaña esté abierta; no se guarda en la BD
+// Truco silencioso: mantener Shift presionado y pasar el mouse sobre la barra "Real" de
+// las gráficas de acumulado del mes revela el ritmo necesario para cerrar en el
+// Presupuesto, aunque el checkbox de mantenimiento esté apagado. No se guarda ni se avisa
+// a nadie; solo cambia lo que ve, en vivo, quien mantiene la tecla presionada.
+let shiftPresionado = false;
+window.addEventListener('keydown', (e)=>{ if(e.key==='Shift') shiftPresionado = true; });
+window.addEventListener('keyup', (e)=>{ if(e.key==='Shift') shiftPresionado = false; });
+window.addEventListener('blur', ()=>{ shiftPresionado = false; }); // por si suelta Shift fuera de la pestaña (Alt+Tab, etc.)
 
 async function loadState(){
   // Una copia archivada (IS_LOCKED_COPY) siempre muestra exactamente los datos con los
@@ -1677,14 +1685,17 @@ function renderCharts(){
       return ctx.dataset.label + ': ' + (Math.round(real*1000)/1000);
     }}} : {};
     // Ritmo necesario para cerrar el mes en el Presupuesto, solo en las dos gráficas que
-    // lo traen (ch11/ch12) y solo si el administrador lo prendió desde el modo
-    // mantenimiento (checkbox). No toca el resto del tooltip (título ni la línea de
+    // lo traen (ch11/ch12). Se ve para todos si el administrador lo prendió desde el modo
+    // mantenimiento (checkbox), o para cualquiera que sepa el truco de mantener Shift
+    // presionado mientras pasa el mouse por la barra "Real" (silencioso: nadie más se
+    // entera, no se guarda nada). No toca el resto del tooltip (título ni la línea de
     // valor de siempre): solo agrega líneas debajo, y solo en la barra "Real".
-    if(c.ritmoInfo && state.mostrarRitmoTooltip){
+    if(c.ritmoInfo){
       const info = c.ritmoInfo();
       if(info){
         tooltipOpts.callbacks = tooltipOpts.callbacks || {};
         tooltipOpts.callbacks.afterBody = (items)=>{
+          if(!(state.mostrarRitmoTooltip || shiftPresionado)) return [];
           if(!items.length || items[0].label !== 'Real') return [];
           const falt = info.metaMes - info.real;
           const ritmo = falt / info.diasRestantes;
