@@ -1080,6 +1080,19 @@ function ensayeTickCallback(lastTickIdx){
     return (state.ensayePendiente && idx===lastTickIdx) ? [lbl,'Proyección'] : lbl;
   };
 }
+// Techo dinámico para ejes con max fijo: si algún dato (real o proyección) se acerca o
+// rebasa el techo de siempre, lo sube lo necesario -redondeado a "paso"- dejando además
+// un margen de aire arriba para que quepa la etiqueta de datalabels (que usa clip:false,
+// por eso si el punto queda muy pegado al techo la etiqueta se sale del área de la gráfica
+// y se monta sobre lo que esté arriba, ej. el título o los acumulados).
+function techoConHueco(valores, techoDeSiempre, paso){
+  const datos = valores.filter(v=>v!=null && !isNaN(v));
+  if(!datos.length) return techoDeSiempre;
+  const maxDato = Math.max(...datos);
+  const conHueco = maxDato * 1.15;
+  const techo = Math.ceil(conHueco / paso) * paso;
+  return Math.max(techoDeSiempre, techo);
+}
 // Escapa HTML y convierte saltos de línea (Alt+Enter en Excel) en <br> para que
 // los comentarios multilínea se vean igual que en la celda de origen.
 function escapeYSaltos(txt){
@@ -1493,8 +1506,8 @@ function renderCharts(){
          datalabels:{display:false}},
      ]}),
      scales:{
-       y:{ type:'linear', position:'left', min:0, max:2.4, title:{display:true, text:'Au (g/t)'} },
-       y1:{ type:'linear', position:'right', min:0, max:160, title:{display:true, text:'Ag (g/t)'}, grid:{drawOnChartArea:false} },
+       y:{ type:'linear', position:'left', min:0, max: techoConHueco(dias.flatMap(d=>[d.ley_au, d.proy_ley_au_banda]), 2.4, 0.2), title:{display:true, text:'Au (g/t)'} },
+       y1:{ type:'linear', position:'right', min:0, max: techoConHueco(dias.flatMap(d=>[d.ley_ag, d.proy_ley_ag_banda]), 160, 10), title:{display:true, text:'Ag (g/t)'}, grid:{drawOnChartArea:false} },
        x:{ ticks:{ callback: ensayeTickCallback(dias.length-1) } },
      },
      badges:()=>[
