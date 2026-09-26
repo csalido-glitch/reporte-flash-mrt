@@ -981,9 +981,17 @@ function renderVisitas(){
   const hoyCount = state.visitas.porDia[hoy] || 0;
   el.textContent = `👁 ${state.visitas.total||0} visitas totales · ${hoyCount} hoy`;
 }
+// Un día "tiene dato" si operó Trituración O Molienda. No basta con Trituración sola:
+// un paro de mantenimiento la deja en cero un día completo aunque Molienda (con lo que
+// ya había en stock triturado) sí haya trabajado normal — pasó el 25-sep-26. Iban a
+// desaparecer días reales del reporte por un mantenimiento parcial, el mismo caso que ya
+// se documentó para el Presupuesto (los paros son por área, nunca la planta completa).
+function diaTieneDato(d){
+  return !!(d && (d.ton_humedas_trituracion>0 || d.molido_seco>0));
+}
 function lastDiaConDato(){
   let last = 0;
-  state.dias.forEach(d=>{ if(d.ton_humedas_trituracion>0) last = d.dia; });
+  state.dias.forEach(d=>{ if(diaTieneDato(d)) last = d.dia; });
   return last;
 }
 function fmt(n, dec=1){
@@ -1206,7 +1214,7 @@ function renderDayChips(){
   const maxShow = Math.max(last, 1);
   for(let i=1;i<=maxShow;i++){
     const d = state.dias[i-1];
-    const hasData = d && d.ton_humedas_trituracion>0;
+    const hasData = diaTieneDato(d);
     const chip = document.createElement('div');
     chip.className = 'day-chip' + (i===state.selectedDay?' active':'') + (!hasData?' empty':'');
     chip.textContent = i;
@@ -3449,7 +3457,7 @@ function labelPeriodo(periodo){
 }
 function lastDiaConDatoDe(dias){
   let last = 0;
-  (dias||[]).forEach(d=>{ if(d && d.ton_humedas_trituracion>0) last = d.dia; });
+  (dias||[]).forEach(d=>{ if(diaTieneDato(d)) last = d.dia; });
   return last;
 }
 function buildSheetForPeriod(periodo, d){
