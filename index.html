@@ -405,7 +405,9 @@ body[data-theme="dark"] .chart-toggle{color:#c7ccd1;}
 body[data-theme="dark"] #visitasCounter{color:#666;}
 
 /* ===== Panel Ejecutivo: estilos portados de panel_tabla.html ===== */
-:root{ --line:#e3e6e9; --pn-verde:#2e7d32; --pn-ambar:#c9911a; --pn-rojo:#b03a2e; --pn-naranja:#C55A11; }
+:root{ --line:#e3e6e9; --pn-verde:#2e7d32; --pn-ambar:#c9911a; --pn-rojo:#b03a2e; --pn-naranja:#C55A11;
+  /* oct-26: colores de la lamina de Mina (pedido de Noel Menera y JC) */
+  --pn-azul:#13294b; --pn-azul2:#1e3a63; --pn-gris:#e2e7ee; --pn-durazno:#fcefe3; }
 .pe-aviso{background:#fff8e6;border:1px solid #e0c477;color:#7a5d10;border-radius:8px;padding:10px 13px;font-size:12px;margin-bottom:12px;line-height:1.6;}
 .flash-note-sep{height:5px;}
 
@@ -468,11 +470,12 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
 .pn-d{ font-size:12px; font-weight:800; margin-top:4px; }
 .pn-tabla{ border:1px solid var(--line); border-radius:8px; overflow:hidden; }
 .pn-tabla table{ width:100%; border-collapse:collapse; font-size:12.5px; }
-.pn-tabla thead th{ background:var(--pn-naranja); color:#fff; font-size:10.5px; font-weight:700; padding:6px 8px; text-align:right; white-space:nowrap; }
+.pn-tabla thead th{ background:var(--pn-azul); color:#fff; font-size:10.5px; font-weight:700; padding:6px 8px; text-align:right; white-space:nowrap; }
 .pn-tabla thead th:first-child{ text-align:left; }
 .pn-tabla tbody td{ padding:5px 8px; border-top:1px solid #f0f2f4; text-align:right; white-space:nowrap; }
 .pn-tabla tbody td:first-child{ text-align:left; }
-.pn-tabla tr.pn-g td{ background:var(--pn-naranja); color:#fff; font-weight:700; font-style:italic; font-size:11px; padding:3px 8px; border-top:0; }
+.pn-tabla tr.pn-g td{ background:var(--pn-gris); color:var(--pn-azul); font-weight:700; font-size:11px; padding:4px 8px; border-top:0; }
+.pn-tabla tr.pn-clave td, .tb-tres tr.pn-clave td.tb-met{ background:var(--pn-durazno); }
 .pn-nom{ color:var(--navy); font-weight:600; }
 .pn-uni{ color:#8a8578; font-size:10.5px; font-weight:400; }
 .pn-real{ font-weight:700; color:var(--navy); }
@@ -509,12 +512,12 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
 .tb-tres table{ font-size:12px; min-width:100%; }
 /* la columna del nombre se queda fija al deslizar de lado */
 .tb-tres th.tb-met-h, .tb-tres td.tb-met{ position:sticky; left:0; z-index:2; }
-.tb-tres th.tb-met-h{ background:var(--pn-naranja); }
+.tb-tres th.tb-met-h{ background:var(--pn-azul); }
 .tb-tres td.tb-met{ background:#fff; box-shadow:1px 0 0 #e6eaed; }
 /* el título del grupo se queda a la vista aunque se deslice de lado */
 .tb-tres tr.pn-g td{ padding-left:0; }
 .tb-tres tr.pn-g span{ position:sticky; left:8px; display:inline-block; }
-.tb-tres thead th{ background:var(--pn-naranja); color:#fff; text-align:center; }
+.tb-tres thead th{ background:var(--pn-azul); color:#fff; text-align:center; }
 .tb-bloque{ border-left:2px solid #fff; padding:6px 8px 5px; }
 .tb-cab{ display:flex; align-items:center; justify-content:center; gap:8px; }
 .tb-per{ font-size:10.5px; font-weight:800; letter-spacing:.6px; white-space:nowrap; }
@@ -524,7 +527,7 @@ body[data-theme="dark"] #visitasCounter{color:#666;}
 .tb-fl:hover:not([disabled]){ background:rgba(255,255,255,.3); }
 .tb-fl[disabled]{ opacity:.25; cursor:default; }
 .tb-sub{ display:block; font-size:9px; font-weight:400; opacity:.85; margin-top:1px; white-space:nowrap; }
-.tb-sub-tr th{ font-size:9.5px; padding:3px 8px; font-weight:600; background:#a1490f; }
+.tb-sub-tr th{ font-size:9.5px; padding:3px 8px; font-weight:600; background:var(--pn-azul2); }
 .tb-met-h{ text-align:left !important; vertical-align:bottom; }
 .tb-met{ white-space:nowrap; }
 .tb-tres tbody td{ padding:5px 8px; }
@@ -598,6 +601,8 @@ body[data-theme="dark"] .tb-tres tbody td:nth-child(2),
 body[data-theme="dark"] .tb-tres tbody td:nth-child(5),
 body[data-theme="dark"] .tb-tres tbody td:nth-child(8){ border-left-color:#333c44; }
 body[data-theme="dark"] .tb-mes{ color:#8a8f94; }
+body[data-theme="dark"] .pn-tabla tr.pn-g td{ background:#262e35; color:#e2e2e2; }
+body[data-theme="dark"] .pn-tabla tr.pn-clave td, body[data-theme="dark"] .tb-tres tr.pn-clave td.tb-met{ background:#3a2f22; }
 body[data-theme="dark"] .tb-ver{ color:#4a5157; }
 body[data-theme="dark"] .tb-ver.on{ color:#c7ccd1; }
 body[data-theme="dark"] .tb-ver:hover{ color:#E8B93D; }
@@ -4134,7 +4139,7 @@ function panelHtmlEjecutivo(){
         <td class="pn-pres"><span>${valor(p,f)}</span></td>
         <td class="pn-dev" style="color:${c||'#9aa2a9'}">${d==null?'—':(c?'<span class="pn-punto" style="background:'+c+'"></span>':'')+nf(d*100,0)+'%'}</td>`;
     }).join('');
-    return `<tr><td class="tb-met"><span class="pn-nom">${f.n}</span> <span class="pn-uni">${f.u}</span></td>${celdas}</tr>`;
+    return `<tr${f.k==='ozEq'?' class="pn-clave"':''}><td class="tb-met"><span class="pn-nom">${f.n}</span> <span class="pn-uni">${f.u}</span></td>${celdas}</tr>`;
   }).join('');
 
   const sinDatos = T.mes.real.tms == null || T.mes.real.tms === 0;
