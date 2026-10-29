@@ -646,6 +646,12 @@ body.sin-buzon #btnVerComentarios, body.sin-admin #btnUsuarios, body.sin-semanal
 .usr-caja td{ padding:6px 8px; border-top:1px solid #eef0f2; text-align:center; }
 .usr-caja td:first-child{ text-align:left; }
 .usr-caja td .n{ display:block; color:#7c858d; font-size:11px; }
+.usr-tabs{ display:flex; gap:4px; margin-left:auto; margin-right:10px; }
+.usr-tabs button{ font-size:12px; padding:5px 12px; border-radius:6px; border:1px solid #c9ced3; background:#fff; cursor:pointer; color:#5a656d; }
+.usr-tabs button.on{ background:#13294b; color:#fff; border-color:#13294b; }
+.acc-sub{ font-size:12.5px; font-weight:700; color:var(--navy); padding:12px 18px 6px; }
+.acc-no{ color:#9aa2a9; }
+.acc-mal td{ background:#fdf0ee; }
 .usr-msg{ padding:6px 18px 0; font-size:12px; min-height:16px; color:#5a656d; }
 .usr-msg.mal{ color:var(--red); } .usr-msg.ok{ color:#2e7d32; }
 .usr-nota{ padding:0 18px 14px; font-size:11px; color:#7c858d; line-height:1.5; }
@@ -824,8 +830,10 @@ body[data-theme="dark"] .auth-btn{ background:#2a3238; color:#e8e8e8; border-col
   <div class="cmt-panel" style="max-width:900px;">
     <div class="cmt-panel-head">
       <div><h4>👥 Usuarios con acceso al Flash</h4><div class="cnt" id="usrConteo"></div></div>
+      <div class="usr-tabs"><button type="button" class="on" data-usrtab="perm">Permisos</button><button type="button" data-usrtab="acc">🕒 Accesos</button></div>
       <button class="cmt-cerrar" id="usrCerrar" title="Cerrar">✕</button>
     </div>
+    <div id="usrPanePerm">
     <div class="usr-forma">
       <div><label for="usrCorreo">Correo (cuenta de Google)</label><input id="usrCorreo" type="email" maxlength="120" placeholder="nombre@mrtcorporativo.mx" autocomplete="off"></div>
       <div><label for="usrNombre">Nombre</label><input id="usrNombre" maxlength="80" placeholder="Nombre y apellido" autocomplete="off"></div>
@@ -837,6 +845,17 @@ body[data-theme="dark"] .auth-btn{ background:#2a3238; color:#e8e8e8; border-col
       <tbody id="usrTabla"></tbody>
     </table></div>
     <div class="usr-nota">Los cambios se guardan al momento y aplican la próxima vez que esa persona abra o recargue el Flash. El acceso lo revisa la base de datos, no esta pantalla: quien no esté en la lista no ve datos aunque tenga el link. Cada cambio queda en la bitácora.</div>
+    </div>
+    <div id="usrPaneAcc" hidden>
+      <div class="usr-msg" id="accMsg"></div>
+      <div class="acc-sub">⚠ Intentos sin permiso <span class="pn-uni" id="accIntN"></span></div>
+      <div class="usr-nota" style="padding-bottom:6px">Entraron con su cuenta de Google pero su correo no está en la lista. Si es alguien que sí debe ver el Flash, dale acceso en <b>Permisos</b> con ese mismo correo.</div>
+      <div class="usr-caja"><table><thead><tr><th>Correo</th><th>Nombre en Google</th><th>Intentos</th><th>Último intento</th></tr></thead><tbody id="accInt"></tbody></table></div>
+      <div class="acc-sub">Por usuario</div>
+      <div class="usr-caja"><table><thead><tr><th>Usuario</th><th>Último acceso</th><th>Accesos (30 días)</th><th>Total</th></tr></thead><tbody id="accRes"></tbody></table></div>
+      <div class="acc-sub">Bitácora <span class="pn-uni">(últimos 200; la misma persona en la misma vista cuenta una vez cada 10 min)</span></div>
+      <div class="usr-caja"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Abrió</th></tr></thead><tbody id="accBit"></tbody></table></div>
+    </div>
   </div>
 </div>
 
@@ -978,6 +997,7 @@ async function authArrancar(){
   const { data, error } = await sb.from('flash_autorizados').select('*').eq('correo', email).maybeSingle();
   if(error){ authMsg('No se pudo revisar tu acceso: ' + error.message, true); document.getElementById('authOtra').style.display = ''; return false; }
   if(!data || !(data.ver || data.admin)){
+    registrarAcceso(vistaActual(), meta.full_name || meta.name || null);   // queda como intento sin permiso
     document.getElementById('authTexto').innerHTML = 'La cuenta <b>' + cmtEsc(email) + '</b> no tiene acceso al Reporte Flash.';
     authMsg('Si debes tenerlo, pídeselo a César Salido.', true);
     document.getElementById('authEntrar').style.display = 'none';
@@ -987,7 +1007,15 @@ async function authArrancar(){
   AUTH.ok = true; AUTH.email = email; AUTH.perm = data;
   AUTH.nombre = data.nombre || meta.full_name || meta.name || null;
   authAplicarUI();
+  registrarAcceso(vistaActual());
   return true;
+}
+// 29-oct-26: registro de accesos. El correo lo pone la base (sesión de Google), no esto.
+function vistaActual(){ return (typeof IS_PANEL_TAB!=='undefined' && IS_PANEL_TAB) ? 'panel' : (typeof IS_HISTORY_TAB!=='undefined' && IS_HISTORY_TAB) ? 'historico' : 'flash'; }
+async function registrarAcceso(vista, nombre){
+  if(!sb || IS_LOCKED_COPY) return;
+  try{ await sb.rpc('flash_registrar_acceso', { p_vista: vista, p_nombre: nombre || AUTH.nombre || null }); }
+  catch(e){ console.error('No se pudo registrar el acceso', e); }
 }
 // Pide permiso para una acción. Ya no hay contraseñas: decide el correo.
 function authPermiso(p, accion){
@@ -1044,9 +1072,41 @@ async function usrQuitar(correo){
   usrMsg('✓ ' + correo + ' ya no tiene acceso.', 'ok');
   usrCargar();
 }
+// ── Accesos (solo admin) ──
+const VISTA_TXT = { flash:'Flash', panel:'Panel Ejecutivo', historico:'Histórico', semanal:'Reporte semanal' };
+function accFecha(iso){ const s = selloSubida(iso); return s ? s.fecha + ' ' + s.hora : '—'; }
+async function accCargar(){
+  const m = document.getElementById('accMsg'); m.textContent = 'Cargando…'; m.className = 'usr-msg';
+  const [res, bit, intn] = await Promise.all([
+    sb.rpc('flash_accesos_resumen'),
+    sb.from('flash_accesos').select('cuando,correo,nombre,vista').eq('permitido', true).order('cuando', {ascending:false}).limit(200),
+    sb.from('flash_accesos').select('cuando,correo,nombre').eq('permitido', false).order('cuando', {ascending:false}).limit(500)
+  ]);
+  const err = res.error || bit.error || intn.error;
+  if(err){ m.textContent = 'No se pudo leer: ' + err.message; m.className = 'usr-msg mal'; return; }
+  m.textContent = '';
+  const ints = {};
+  (intn.data||[]).forEach(r => { const k = r.correo; if(!ints[k]) ints[k] = {correo:k, nombre:r.nombre, n:0, ultimo:r.cuando}; ints[k].n++; });
+  const li = Object.values(ints);
+  document.getElementById('accIntN').textContent = '(' + li.length + ')';
+  document.getElementById('accInt').innerHTML = li.map(r => '<tr class="acc-mal"><td><b>' + cmtEsc(r.correo) + '</b></td><td>' + cmtEsc(r.nombre||'—') + '</td><td>' + r.n + '</td><td>' + accFecha(r.ultimo) + '</td></tr>').join('')
+    || '<tr><td colspan="4" class="acc-no">Ninguno. ✔</td></tr>';
+  const nom = {}; (USR.lista||[]).forEach(u => nom[u.correo] = u.nombre);
+  document.getElementById('accRes').innerHTML = (res.data||[]).map(r => '<tr><td><b>' + cmtEsc(r.nombre || r.correo) + '</b>' + (r.nombre ? '<span class="n">' + cmtEsc(r.correo) + '</span>' : '') + '</td><td>' + (r.ultimo ? accFecha(r.ultimo) : '<span class="acc-no">nunca</span>') + '</td><td>' + r.accesos_30d + '</td><td>' + r.accesos_total + '</td></tr>').join('')
+    || '<tr><td colspan="4" class="acc-no">Sin datos.</td></tr>';
+  document.getElementById('accBit').innerHTML = (bit.data||[]).map(r => '<tr><td>' + accFecha(r.cuando) + '</td><td>' + cmtEsc(nom[r.correo] || r.nombre || r.correo) + '<span class="n">' + cmtEsc(r.correo) + '</span></td><td>' + (VISTA_TXT[r.vista] || cmtEsc(r.vista)) + '</td></tr>').join('')
+    || '<tr><td colspan="3" class="acc-no">Todavía no hay accesos registrados.</td></tr>';
+}
+function usrTab(t){
+  document.querySelectorAll('[data-usrtab]').forEach(b => b.classList.toggle('on', b.dataset.usrtab === t));
+  document.getElementById('usrPanePerm').hidden = t !== 'perm';
+  document.getElementById('usrPaneAcc').hidden = t !== 'acc';
+  if(t === 'acc') accCargar();
+}
 (function(){
   const modal = document.getElementById('usrModal');
-  document.getElementById('btnUsuarios').onclick = ()=>{ if(!authPermiso('admin','administrar usuarios')) return; usrMsg(''); modal.classList.add('abierto'); usrCargar(); };
+  document.querySelectorAll('[data-usrtab]').forEach(b => b.onclick = ()=> usrTab(b.dataset.usrtab));
+  document.getElementById('btnUsuarios').onclick = ()=>{ if(!authPermiso('admin','administrar usuarios')) return; usrMsg(''); usrTab('perm'); modal.classList.add('abierto'); usrCargar(); };
   document.getElementById('usrCerrar').onclick = ()=> modal.classList.remove('abierto');
   modal.addEventListener('click', e => { if(e.target === modal) modal.classList.remove('abierto'); });
   document.getElementById('usrAgregar').onclick = usrAgregar;
@@ -1060,6 +1120,7 @@ async function usrQuitar(correo){
     if(!authPermiso('semanal','generar el Reporte Semanal')) return;
     const f = document.getElementById('semFrame');
     if(!f.getAttribute('src')) f.setAttribute('src', 'generador_semanal.html');
+    registrarAcceso('semanal');
     sem.classList.add('abierto'); document.body.style.overflow = 'hidden';
   };
   document.getElementById('semCerrar').onclick = ()=>{ sem.classList.remove('abierto'); document.body.style.overflow = ''; };
@@ -3567,7 +3628,7 @@ document.getElementById('chkTrend').addEventListener('change', (e)=>{
 });
 document.getElementById('btnExport').onclick = ()=>{
   if(!authPermiso('exportar', 'guardar una copia')) return;
-  const _usr = document.getElementById('usrTabla'); if(_usr) _usr.innerHTML = '';
+  ['usrTabla','accInt','accRes','accBit'].forEach(i=>{ const e=document.getElementById(i); if(e) e.innerHTML=''; });
   const _quien = document.getElementById('authQuien'); if(_quien) _quien.textContent = '';
   let newHtml = document.documentElement.outerHTML.replace(
     /const BASE_DATA = \{.*?\};\s*\n/s,
