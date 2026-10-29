@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reporte Semanal de Planta — Generador Automático</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+/* ===== Estilos de gráficas (copiados del Flash para que las capturas se vean igual) ===== */
+.charts-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; background:#fff; padding:14px; }
+.chart-box{ background:#fff; border:1px solid #e6e6e6; border-radius:8px; padding:12px 14px; }
+.chart-box.full-row{ grid-column:1 / -1; }
+.chart-box h3{ margin:0 0 8px; font-size:13px; color:var(--navy); }
+.chart-box .canvas-wrap{ position:relative; height:320px; }
+.chart-badges{ display:flex; gap:22px; justify-content:center; flex-wrap:wrap; font-size:12.5px; margin:-4px 0 2px; }
+.chart-badges b{ font-size:15px; }
+.chart-badges-proy{ margin:0 0 8px; }
+.chart-badge-value{ color:#2a2a2a; }
+.chart-delta{ text-align:center; font-size:13px; font-weight:700; margin:-2px 0 6px; }
+.chart-note{ text-align:center; font-size:11px; color:#999; margin-top:6px; font-style:italic; }
+/* Bloque "Mineral por Procedencia": los tres pasos del Flash —lo que llegó, lo que se
+   alimentó y lo que quedó en patio— juntos en una sola slide. En el Flash van apilados,
+   porque la pantalla es alta; aquí van en tres columnas, que es lo que cabe en una slide
+   16:9 sin deformar la imagen ni cambiarle el marco a la plantilla. */
+.mp-fila{ display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; align-items:start; }
+.mp-fila.apilado{ grid-template-columns:1fr; gap:10px; }
+.mp-paso{ min-width:0; }
+.mp-cab{ display:flex; align-items:center; gap:7px; }
+.mp-num{ width:18px; height:18px; border-radius:50%; background:var(--navy); color:#fff;
+  font-size:10px; font-weight:700; display:inline-flex; align-items:center;
+  justify-content:center; flex:0 0 auto; }
+.mp-cab h4{ margin:0; font-size:12.5px; color:var(--navy); }
+.mp-tot{ margin:3px 0 0 25px; font-size:10.5px; color:#8a8578; }
+.mp-tot b{ color:var(--navy); font-size:14px; }
+.mp-lienzo{ position:relative; margin-top:6px; }
+.mp-vacio{ font-size:11.5px; color:#a09a8a; font-style:italic; text-align:center; padding:20px 0; }
+.stock-proc-head{ display:flex; justify-content:flex-end; font-size:12px; color:#8a8578; margin:-4px 0 10px; }
+.stock-proc-list{ display:flex; flex-direction:column; gap:7px; }
+.stock-proc-row{ display:grid; grid-template-columns:130px 1fr 70px; align-items:center; gap:8px; padding:3px 6px; border-radius:6px; }
+.stock-proc-name{ font-size:12.5px; color:var(--navy); }
+.stock-proc-bar-wrap{ background:#efe8d4; border-radius:4px; height:14px; }
+.stock-proc-bar{ background:#C99700; height:100%; border-radius:4px; }
+.stock-proc-val{ font-size:12px; color:var(--navy); text-align:right; }
+.stock-proc-empty{ font-size:12.5px; color:#8a8578; }
+#captureZone{ position:absolute; left:-99999px; top:0; width:1300px; }
+.capture-group{ background:#fff; }
+.capture-group.two{ display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; padding:14px; }
+.capture-group.one{ padding:14px; }
+:root{ --pn-verde:#2e7d32; --pn-ambar:#c9911a; --pn-rojo:#b03a2e; --pn-naranja:#C55A11;
+  /* 25-oct-26: colores de la lamina de Mina, igual que el Panel Ejecutivo del Flash (pedido de Noel Menera y JC) */
+  --pn-azul:#13294b; --pn-azul2:#1e3a63; --pn-gris:#e2e7ee; --pn-durazno:#fcefe3; }
+/* --- Panel de Producción: el mismo estilo de tablas del Flash --- */
+.pn-tabla{ border:1px solid #e3e6e9; border-radius:8px; overflow:hidden; }
+.pn-tabla table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+.pn-tabla thead th{ background:var(--pn-azul); color:#fff; font-size:10.5px; font-weight:700; padding:6px 8px; text-align:right; white-space:nowrap; }
+.pn-tabla thead th:first-child{ text-align:left; }
+.pn-tabla tbody td{ padding:5px 8px; border-top:1px solid #f0f2f4; text-align:right; white-space:nowrap; }
+.pn-tabla tbody td:first-child{ text-align:left; }
+.pn-tabla tr.pn-g td{ background:var(--pn-gris); color:var(--pn-azul); font-weight:700; font-size:11px; padding:3px 8px; border-top:0; }
+.pn-tabla tr.pn-clave td, .tb-tres tr.pn-clave td.tb-met{ background:var(--pn-durazno); }
+.pn-nom{ color:var(--navy); font-weight:600; }
+.pn-uni{ color:#8a8578; font-size:10.5px; font-weight:400; }
+.pn-real{ font-weight:700; color:var(--navy); }
+.pn-pres{ color:#5a656d; }
+.pn-dev{ font-weight:800; }
+.pn-punto{ display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:4px; vertical-align:1px; }
+.pn-consumos{ margin-top:14px; }
+.pn-sub{ font-size:12px; font-weight:700; color:var(--navy); margin:0 0 7px; }
+.pn-tabla.tb-tres{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.tb-tres table{ font-size:12px; min-width:100%; }
+/* la columna del nombre se queda fija al deslizar de lado */
+.tb-tres th.tb-met-h, .tb-tres td.tb-met{ position:sticky; left:0; z-index:2; }
+.tb-tres th.tb-met-h{ background:var(--pn-azul); }
+.tb-tres td.tb-met{ background:#fff; box-shadow:1px 0 0 #e6eaed; }
+/* el título del grupo se queda a la vista aunque se deslice de lado */
+.tb-tres tr.pn-g td{ padding-left:0; }
+.tb-tres tr.pn-g span{ position:sticky; left:8px; display:inline-block; }
+.tb-tres thead th{ background:var(--pn-azul); color:#fff; text-align:center; }
+.tb-bloque{ border-left:2px solid #fff; padding:6px 8px 5px; }
+.tb-cab{ display:flex; align-items:center; justify-content:center; gap:8px; }
+.tb-per{ font-size:10.5px; font-weight:800; letter-spacing:.6px; white-space:nowrap; }
+.tb-fl{ border:1px solid rgba(255,255,255,.45); background:rgba(255,255,255,.12); color:#fff;
+  width:19px; height:17px; border-radius:4px; cursor:pointer; font-size:8px; line-height:1;
+  font-family:inherit; display:flex; align-items:center; justify-content:center; padding:0; flex:none; }
+.tb-fl:hover:not([disabled]){ background:rgba(255,255,255,.3); }
+.tb-fl[disabled]{ opacity:.25; cursor:default; }
+.tb-sub{ display:block; font-size:9px; font-weight:400; opacity:.85; margin-top:1px; white-space:nowrap; }
+.tb-sub-tr th{ font-size:9.5px; padding:3px 8px; font-weight:600; background:var(--pn-azul2); }
+.tb-met-h{ text-align:left !important; vertical-align:bottom; }
+.tb-met{ white-space:nowrap; }
+.tb-tres tbody td{ padding:5px 8px; }
+.tb-tres tbody td:nth-child(2),.tb-tres tbody td:nth-child(5),.tb-tres tbody td:nth-child(8){ border-left:1px solid #e6eaed; }#capPanelProd .tb-tres table, #capPanelCons .tb-tres table{ font-size:13.5px; }
+#capPanelProd .tb-tres tbody td, #capPanelCons .tb-tres tbody td{ padding:8px 10px; }
+#capPanelProd .tb-tres tr.pn-g td, #capPanelCons .tb-tres tr.pn-g td{ padding:4px 10px; }
+#capPanelProd .tb-tres thead th, #capPanelCons .tb-tres thead th{ font-size:11.5px; padding:7px 10px; }
+
+</style>
+<style>
+:root{
+  --gold:#B8912A; --gold-dark:#8a6a17; --navy:#1a2733; --gray:#9a9a9a; --gray-lt:#e8e8e8;
+  --blue:#5B9BD5; --green:#4EA72E; --red:#c0392b;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#fafafa;color:#222;}
+.wrap{max-width:980px;margin:0 auto;padding:24px 20px 60px;}
+.header{background:var(--navy);color:#fff;padding:22px 26px;border-radius:10px;margin-bottom:22px;}
+.header h1{margin:0 0 4px;font-size:22px;color:var(--gold);}
+.header p{margin:0;font-size:13px;color:#c9d2d8;}
+.card{background:#fff;border:1px solid var(--gray-lt);border-radius:10px;padding:20px 22px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.card h2{font-size:15px;color:var(--navy);margin:0 0 14px;border-bottom:2px solid var(--gold);padding-bottom:8px;}
+label{font-size:12.5px;color:#555;display:block;margin-bottom:4px;font-weight:600;}
+input[type=date],input[type=file]{padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:14px;}
+input[type=text]{padding:6px 8px;border:1px solid #ccc;border-radius:5px;font-size:13.5px;width:100%;}
+button{background:var(--gold);color:#fff;border:none;padding:10px 18px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;}
+button:hover{background:var(--gold-dark);}
+button:disabled{background:#ccc;cursor:not-allowed;}
+.row{display:flex;gap:14px;align-items:end;flex-wrap:wrap;}
+.badge{display:inline-block;background:var(--gray-lt);color:var(--navy);font-weight:700;padding:4px 12px;border-radius:20px;font-size:13px;margin-right:8px;}
+.badge.gold{background:var(--gold);color:#fff;}
+table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13.5px;}
+th,td{padding:7px 10px;border-bottom:1px solid var(--gray-lt);text-align:left;}
+th{color:#666;font-weight:600;font-size:12px;text-transform:uppercase;}
+td.slide{color:#888;font-size:12px;}
+.status{font-size:13px;padding:10px 14px;border-radius:6px;margin-top:12px;white-space:pre-wrap;}
+.status.ok{background:#eaf6ec;color:var(--green);}
+.status.err{background:#fbeaea;color:var(--red);}
+.status.info{background:#eef4fb;color:#2a5d8f;}
+.note{font-size:12px;color:#888;margin-top:10px;line-height:1.5;}
+.hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <h1>Reporte Semanal de Planta</h1>
+    <p>Calcula automáticamente los datos de la semana (domingo a sábado) desde el Flash, y genera el PowerPoint con los textos actualizados. Las gráficas/imágenes se siguen pegando manualmente.</p>
+  </div>
+
+  <div class="card">
+    <h2>1. Selecciona la semana a reportar</h2>
+    <div class="row">
+      <div>
+        <label>Cualquier día dentro de la semana</label>
+        <input type="date" id="fecha">
+      </div>
+      <button id="btnCalcular">Calcular semana desde el Flash</button>
+    </div>
+    <div id="rangoInfo" class="note"></div>
+    <div id="statusCalculo"></div>
+  </div>
+
+  <div class="card hidden" id="cardResultados">
+    <h2>2. Valores calculados (puedes corregir cualquiera antes de generar el PPTX)</h2>
+    <div id="badges"></div>
+    <table>
+      <thead><tr><th>Slide (PPTX)</th><th>Campo</th><th>Valor</th></tr></thead>
+      <tbody id="tablaValores"></tbody>
+    </table>
+
+    <h3 id="tituloMes" style="margin:22px 0 0; font-size:15px; color:#1f2b33;"></h3>
+    <table>
+      <thead><tr><th>Mes</th><th>Campo</th><th>Valor</th></tr></thead>
+      <tbody id="tablaMes"></tbody>
+    </table>
+    <div class="note" id="notaMensual"></div>
+  </div>
+
+  <div class="card hidden" id="cardPptx">
+    <h2>3. Genera el PPTX</h2>
+    <div class="row">
+      <div>
+        <label>Plantilla PPTX (la de la semana anterior, o cualquier PLANTA reciente)</label>
+        <input type="file" id="archivoPlantilla" accept=".pptx">
+      </div>
+      <button id="btnGenerar" disabled>Generar y descargar PPTX de esta semana</button>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <label style="display:flex; align-items:center; gap:6px; font-weight:400;">
+        <input type="checkbox" id="chkGraficas" checked style="width:auto;">
+        Recrear también las gráficas (Molienda, Alimentación, Stock, Merrill Crowe, Oz Eq Au, Leyes, Recuperación) con los datos reales de esta semana
+      </label>
+    </div>
+    <div id="statusPptx"></div>
+    <div class="note">Se actualizan los textos de: Molienda Seco (Tonelaje Procesado), Merrill Crowe mg/lt + Flujo, Oz Eq Au (Estadística de Producción Diaria), Merrill Crowe % Au/Ag, Leyes de Proceso, % Recuperación Au-Ag, y el número de semana / mes donde aparezcan. Si marcas la casilla de gráficas, también se reconstruyen las imágenes de las 7 gráficas mostrando el mes en curso hasta el fin de esta semana (igual que se ven en el Flash). El stock de patios en una semana normal es siempre el más reciente guardado en el Flash (con su fecha); si la semana cruza de mes, es el del cierre de ese mes.</div>
+  </div>
+
+</div>
+<div id="captureZone"></div>
+
+<script>
+// ============ CONFIG (mismo proyecto Supabase que el Flash) ============
+const SUPABASE_URL = 'https://vknnwhivhqzbyeqnnegy.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrbm53aGl2aHF6YnllcW5uZWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyMjA3ODAsImV4cCI6MjEwMTc5Njc4MH0._1bIE726QDVcWnN9LaC8CKoM2IVoCNA4ncouyx2Zl5Y';
+const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+// ── 29-oct-26 · Candado: misma sesión de Google que el Flash (mismo sitio, misma base) ──
+// La base solo entrega datos a correos autorizados; esto solo tapa la pantalla mientras.
+(function(){
+  const PERMISO = 'semanal', ACCION = 'Reporte Semanal de Planta';
+  const st = document.createElement('style');
+  st.textContent = '#gateFlash{position:fixed;inset:0;z-index:99999;background:#f4f5f7;display:flex;align-items:flex-start;justify-content:center;padding:60px 16px;font-family:"Segoe UI",Arial,sans-serif}'
+    + '#gateFlash .c{background:#fff;border:1px solid #e3e6e9;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.08);padding:26px;max-width:420px;width:100%;text-align:center}'
+    + '#gateFlash h2{margin:0 0 6px;font-size:17px;color:#1a2733}#gateFlash p{font-size:13px;color:#5a656d;margin:0 0 16px;line-height:1.5}'
+    + '#gateFlash button{width:100%;padding:11px;border-radius:8px;border:1px solid #c9ced3;background:#fff;font:600 14px "Segoe UI",Arial,sans-serif;cursor:pointer;margin-top:6px}'
+    + '#gateFlash .m{font-size:12.5px;color:#c0392b;min-height:18px;margin-top:10px}'
+    + '#gateBarra{position:fixed;top:6px;right:10px;z-index:9999;font:11.5px "Segoe UI",Arial,sans-serif;color:#7c858d;background:rgba(255,255,255,.9);padding:3px 8px;border-radius:6px}'
+    + '#gateBarra button{background:none;border:none;color:#5a656d;text-decoration:underline;cursor:pointer;font-size:11.5px}';
+  document.head.appendChild(st);
+  const g = document.createElement('div'); g.id = 'gateFlash';
+  g.innerHTML = '<div class="c"><h2>🔒 ' + ACCION + '</h2><p id="gateTxt">Entra con tu cuenta de Google del trabajo (la misma del Reporte Flash).</p>'
+    + '<button id="gateEntrar" type="button">Entrar con Google</button><button id="gateOtra" type="button" style="display:none">Usar otra cuenta</button><div class="m" id="gateMsg"></div></div>';
+  const poner = () => document.body.appendChild(g);
+  if(document.body) poner(); else document.addEventListener('DOMContentLoaded', poner);
+  const url = () => location.origin + location.pathname + location.search;
+  const msg = t => { const m = document.getElementById('gateMsg'); if(m) m.textContent = t || ''; };
+  async function salir(){ try{ await sb.auth.signOut(); }catch(e){} location.replace(url()); }
+  window.FLASH_SESION = (async () => {
+    await new Promise(r => document.body ? r() : document.addEventListener('DOMContentLoaded', r));
+    document.getElementById('gateEntrar').onclick = () => sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo:url(), queryParams:{ prompt:'select_account' } } });
+    document.getElementById('gateOtra').onclick = salir;
+    if(location.protocol === 'file:'){
+      document.getElementById('gateTxt').innerHTML = 'Desde el 29-oct-26 esta herramienta se abre desde el sitio del Flash, no desde el archivo:<br><b>csalido-glitch.github.io/reporte-flash-mrt/generador_semanal.html</b>';
+      document.getElementById('gateEntrar').style.display = 'none';
+      return false;
+    }
+    if(!sb){ msg('No se pudo cargar la conexión. Recarga la página.'); return false; }
+    const { data:{ session } } = await sb.auth.getSession();
+    if(!session) return false;
+    const email = String(session.user.email || '').toLowerCase();
+    const { data, error } = await sb.from('flash_autorizados').select('*').eq('correo', email).maybeSingle();
+    if(error){ msg('No se pudo revisar tu acceso: ' + error.message); return false; }
+    if(!data || !(data.admin || data[PERMISO])){
+      document.getElementById('gateTxt').innerHTML = 'La cuenta <b>' + email.replace(/</g,'&lt;') + '</b> no tiene permiso para esta herramienta.';
+      document.getElementById('gateEntrar').style.display = 'none';
+      document.getElementById('gateOtra').style.display = '';
+      return false;
+    }
+    g.remove();
+    if(window.top !== window) return true;   // dentro del Flash: la barra de sesión ya está arriba
+    const b = document.createElement('div'); b.id = 'gateBarra';
+    b.innerHTML = '👤 ' + email.replace(/</g,'&lt;') + ' · <button type="button">Salir</button>';
+    b.querySelector('button').onclick = salir; document.body.appendChild(b);
+    return true;
+  })();
+})();
+
+
+const MESES_ES_FULL = {1:'Enero',2:'Febrero',3:'Marzo',4:'Abril',5:'Mayo',6:'Junio',7:'Julio',8:'Agosto',9:'Septiembre',10:'Octubre',11:'Noviembre',12:'Diciembre'};
+
+// ============ Fechas / semana domingo-sábado ============
+function domSabRange(dateStr){
+  const d = new Date(dateStr+'T00:00:00');
+  const dow = d.getDay();
+  const start = new Date(d); start.setDate(d.getDate()-dow);
+  const end = new Date(start); end.setDate(start.getDate()+6);
+  return {start, end};
+}
+function iso(d){ return d.toISOString().slice(0,10); }
+function isoWeekNumber(date){
+  const d = new Date(Date.UTC(date.getFullYear(),date.getMonth(),date.getDate()));
+  const dayNum = (d.getUTCDay()+6)%7;
+  d.setUTCDate(d.getUTCDate()-dayNum+3);
+  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(),0,4));
+  const firstDayNum = (firstThursday.getUTCDay()+6)%7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate()-firstDayNum+3);
+  return 1 + Math.round((d-firstThursday)/(7*86400000));
+}
+function periodosEnRango(start,end){
+  const set = new Set(); let d = new Date(start);
+  while(d<=end){ set.add(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); d.setDate(d.getDate()+1); }
+  return [...set];
+}
+function mesDominante(start,end){
+  const counts = {}; let d = new Date(start);
+  while(d<=end){ const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); counts[k]=(counts[k]||0)+1; d.setDate(d.getDate()+1); }
+  let best=null,bestN=-1;
+  for(const k in counts){ if(counts[k]>bestN){bestN=counts[k];best=k;} }
+  return best;
+}
+function lastDayOfMonth(yyyyMM){
+  const [y,m] = yyyyMM.split('-').map(Number);
+  return new Date(y, m, 0); // dia 0 del mes siguiente = ultimo dia del mes actual
+}
+/* Qué mes acompaña a la semana.
+
+   Si la semana cae completa dentro de un mes, el bloque mensual es ese mes A LA FECHA:
+   total y media diaria del día 1 al sábado de la semana.
+
+   Si la semana cruza de mes, el que cerró ya está entero —la semana del 30-ago al 5-sep
+   deja agosto terminado— así que se reporta AGOSTO COMPLETO, sus 31 días, y no un
+   acumulado de septiembre a medias. */
+function mesDelBloque(start, end){
+  const mIni = iso(start).slice(0,7), mFin = iso(end).slice(0,7);
+  if(mIni !== mFin) return {key:mIni, completo:true,  hasta:iso(lastDayOfMonth(mIni))};
+  return             {key:mFin, completo:false, hasta:iso(end)};
+}
+
+// ============ Agregaciones ============
+function avgSimple(arr, field){
+  const vals = arr.map(d=>d[field]).filter(v=>typeof v==='number'&&isFinite(v));
+  return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+}
+function sumField(arr, field){
+  return arr.map(d=>d[field]).filter(v=>typeof v==='number'&&isFinite(v)).reduce((a,b)=>a+b,0);
+}
+function pondTon(arr, field){
+  let num=0,den=0;
+  for(const d of arr){ const ton=d.molido_seco, v=d[field];
+    if(typeof ton==='number'&&isFinite(ton)&&typeof v==='number'&&isFinite(v)){ num+=ton*v; den+=ton; } }
+  return den ? num/den : null;
+}
+function pondMetal(arr, leyField, recupField){
+  let num=0,den=0;
+  for(const d of arr){ const ton=d.molido_seco, ley=d[leyField], rec=d[recupField];
+    if([ton,ley,rec].every(v=>typeof v==='number'&&isFinite(v))){ num+=ton*ley*rec; den+=ton*ley; } }
+  return den ? num/den : null;
+}
+
+// ============ Formato ============
+function fmtInt(v){ return v==null ? '—' : Math.round(v).toLocaleString('en-US'); }
+function fechaCorta(isoStr){
+  const [y,m,d] = isoStr.split('-').map(Number);
+  return d+'-'+MESES_ES[m]+'-'+String(y).slice(2);
+}
+function fmtDec(v,n){ return v==null ? '—' : v.toFixed(n); }
+
+// ============ Estado global ============
+let CTX = null;
+
+// ============ 1. Calcular semana ============
+document.getElementById('btnCalcular').addEventListener('click', calcularSemana);
+
+async function calcularSemana(){
+  const fechaInput = document.getElementById('fecha').value;
+  const statusEl = document.getElementById('statusCalculo');
+  statusEl.className = 'status info'; statusEl.textContent = 'Consultando el Flash...';
+  document.getElementById('cardResultados').classList.add('hidden');
+  document.getElementById('cardPptx').classList.add('hidden');
+
+  if(!fechaInput){ statusEl.className='status err'; statusEl.textContent='Selecciona una fecha primero.'; return; }
+  if(!sb){ statusEl.className='status err'; statusEl.textContent='No se pudo inicializar la conexión a Supabase (revisa tu conexión a internet).'; return; }
+
+  const {start,end} = domSabRange(fechaInput);
+  const thursday = new Date(start); thursday.setDate(start.getDate()+4);
+  const semana = isoWeekNumber(thursday);
+  const domKey = mesDominante(start,end);
+  const [dy,dm] = domKey.split('-').map(Number);
+  const mesLabel = MESES_ES_FULL[dm];
+  const B = mesDelBloque(start,end);
+  const periodos = periodosEnRango(start,end);
+  if(!periodos.includes(B.key)) periodos.push(B.key);
+  const [cy,cm] = B.key.split('-').map(Number);
+  const mesCompNombre = MESES_ES_FULL[cm];
+  const mesCompLabel = mesCompNombre+' '+cy;
+  const mesCompTitulo = B.completo ? 'mes completo' : 'mes a la fecha';
+
+  document.getElementById('rangoInfo').textContent =
+    `Semana ${semana} · ${mesLabel} ${dy} · rango: ${iso(start)} a ${iso(end)} · ${mesCompTitulo}: ${mesCompLabel} · periodos consultados: ${periodos.join(', ')}`;
+
+  try{
+    let pool = [];
+    const periodoDataMap = {};
+    for(const p of periodos){
+      const {data, error} = await sb.from('flash_reportes').select('data').eq('periodo', p).maybeSingle();
+      if(error) throw error;
+      if(data && data.data && Array.isArray(data.data.dias)){
+        pool = pool.concat(data.data.dias);
+        periodoDataMap[p] = data.data;
+      }
+    }
+    if(!pool.length){ statusEl.className='status err'; statusEl.textContent='No se encontraron datos en el Flash para esta semana (¿periodo aún no capturado?).'; return; }
+
+    const startStr = iso(start), endStr = iso(end);
+    const diasSemana = pool.filter(d=>d && d.fecha && d.fecha>=startStr && d.fecha<=endStr);
+    if(diasSemana.length < 7){
+      statusEl.className='status info';
+      statusEl.textContent = `Atención: solo se encontraron ${diasSemana.length} de 7 días con datos en esta semana. Los promedios se calculan sobre los días disponibles.`;
+    } else {
+      statusEl.className='status ok'; statusEl.textContent='Datos de la semana obtenidos correctamente.';
+    }
+
+    // el bloque mensual: entero si la semana cruzo de mes, a la fecha si no
+    const monthStart = B.key+'-01';
+    const monthEndCap = B.hasta;
+    const diasMes = pool.filter(d=>d && d.fecha && d.fecha>=monthStart && d.fecha<=monthEndCap);
+    const ndMes = diasMes.length;
+
+    const vals = {
+      mol_sem: sumField(diasSemana,'molido_seco'),
+      mol_media: sumField(diasSemana,'molido_seco')/(diasSemana.length||1),
+      mol_mensual: avgSimple(diasMes,'molido_seco'),
+      ozeq_sem: sumField(diasSemana,'oz_eq_au'),
+      ozeq_prom_sem: sumField(diasSemana,'oz_eq_au')/(diasSemana.length||1),
+      ozeq_prom_mes: avgSimple(diasMes,'oz_eq_au'),
+      mc_au: avgSimple(diasSemana,'sol_rica_au'),
+      mc_ag: avgSimple(diasSemana,'sol_rica_ag'),
+      flujo_sem: sumField(diasSemana,'m3_bombeados'),
+      flujo_prom: sumField(diasSemana,'m3_bombeados')/(diasSemana.length||1),
+      efic_au: avgSimple(diasSemana,'eficiencia_au'),
+      efic_ag: avgSimple(diasSemana,'eficiencia_ag'),
+      ley_au: pondTon(diasSemana,'ley_au'),
+      ley_ag: pondTon(diasSemana,'ley_ag'),
+      rec_au: pondMetal(diasSemana,'ley_au','recuperacion_au'),
+      rec_ag: pondMetal(diasSemana,'ley_ag','recuperacion_ag'),
+    };
+    // recuperacion puede venir como fraccion (0.93) o ya en % (93) segun el Flash; normalizamos a %
+    if(vals.rec_au!=null && vals.rec_au<=1.5) vals.rec_au*=100;
+    if(vals.rec_ag!=null && vals.rec_ag<=1.5) vals.rec_ag*=100;
+
+    /* El mes completo con los mismos criterios que la semana: los volumenes se suman,
+       las leyes se ponderan por tonelaje y las recuperaciones por metal alimentado. */
+    const mes = {
+      dias: ndMes,
+      mol_total: sumField(diasMes,'molido_seco'),
+      mol_media: ndMes ? sumField(diasMes,'molido_seco')/ndMes : null,
+      ozeq_total: sumField(diasMes,'oz_eq_au'),
+      ozeq_prom: ndMes ? sumField(diasMes,'oz_eq_au')/ndMes : null,
+      mc_au: avgSimple(diasMes,'sol_rica_au'),
+      mc_ag: avgSimple(diasMes,'sol_rica_ag'),
+      flujo_total: sumField(diasMes,'m3_bombeados'),
+      flujo_prom: ndMes ? sumField(diasMes,'m3_bombeados')/ndMes : null,
+      efic_au: avgSimple(diasMes,'eficiencia_au'),
+      efic_ag: avgSimple(diasMes,'eficiencia_ag'),
+      ley_au: pondTon(diasMes,'ley_au'),
+      ley_ag: pondTon(diasMes,'ley_ag'),
+      rec_au: pondMetal(diasMes,'ley_au','recuperacion_au'),
+      rec_ag: pondMetal(diasMes,'ley_ag','recuperacion_ag'),
+    };
+    if(mes.rec_au!=null && mes.rec_au<=1.5) mes.rec_au*=100;
+    if(mes.rec_ag!=null && mes.rec_ag<=1.5) mes.rec_ag*=100;
+
+    CTX = {start,end,semana,mesLabel,mesNum:dm,anio:dy,vals,mes,
+           mesCompKey:B.key, mesCompLabel, mesCompNombre, mesCompTitulo, mesCompleto:B.completo,
+           domKey,monthStart,monthEndCap,periodoDataMap};
+    mostrarResultados();
+  }catch(err){
+    statusEl.className='status err'; statusEl.textContent='Error consultando el Flash: '+(err.message||err);
+  }
+}
+
+function campo(slide, nombre, id, value){
+  return `<tr><td class="slide">${slide}</td><td>${nombre}</td><td><input type="text" id="${id}" value="${value}"></td></tr>`;
+}
+
+function mostrarResultados(){
+  const v = CTX.vals, m = CTX.mes;
+  document.getElementById('badges').innerHTML =
+    `<span class="badge gold">Semana ${CTX.semana}</span><span class="badge">${CTX.mesLabel} ${CTX.anio}</span>`
+    + `<span class="badge">${CTX.mesCompTitulo==='mes completo' ? 'Mes completo' : 'Mes a la fecha'}: ${CTX.mesCompLabel}</span>`;
+
+  document.getElementById('tablaValores').innerHTML = [
+    campo('Tonelaje Procesado','Molienda Seco (TMS semanal)','v_mol_sem', fmtInt(v.mol_sem)),
+    campo('Tonelaje Procesado','Media diaria (TMS)','v_mol_media', fmtInt(v.mol_media)),
+    campo('Tonelaje Procesado',`Media Mensual (TMS) · ${CTX.mesCompLabel}`,'v_mol_mensual', fmtInt(v.mol_mensual)),
+    campo('Estadística Producción','Oz Eq Au Semanal','v_ozeq_sem', fmtInt(v.ozeq_sem)),
+    campo('Estadística Producción','Promedio Semanal','v_ozeq_prom_sem', fmtInt(v.ozeq_prom_sem)),
+    campo('Estadística Producción',`Promedio Mensual · ${CTX.mesCompLabel}`,'v_ozeq_prom_mes', fmtInt(v.ozeq_prom_mes)),
+    campo('Merrill Crowe (mg/lt)','Au mg/lt','v_mc_au', fmtDec(v.mc_au,2)),
+    campo('Merrill Crowe (mg/lt)','Ag mg/lt','v_mc_ag', fmtDec(v.mc_ag,1)),
+    campo('Merrill Crowe (mg/lt)','Flujo Semanal (m³)','v_flujo_sem', fmtInt(v.flujo_sem)),
+    campo('Merrill Crowe (mg/lt)','Promedio Semanal (m³/día)','v_flujo_prom', fmtInt(v.flujo_prom)),
+    campo('Merrill Crowe (%)','Au %','v_efic_au', fmtDec(v.efic_au,1)),
+    campo('Merrill Crowe (%)','Ag %','v_efic_ag', fmtDec(v.efic_ag,1)),
+    campo('Leyes de Proceso','Au gr/T','v_ley_au', fmtDec(v.ley_au,2)),
+    campo('Leyes de Proceso','Ag gr/T','v_ley_ag', fmtDec(v.ley_ag,1)),
+    campo('% Recuperación Au-Ag','Au %','v_rec_au', fmtDec(v.rec_au,1)),
+    campo('% Recuperación Au-Ag','Ag %','v_rec_ag', fmtDec(v.rec_ag,1)),
+  ].join('');
+
+  const mCampo = (nombre, id, value) =>
+    `<tr><td class="slide">${CTX.mesCompLabel}</td><td>${nombre}</td><td><input type="text" id="${id}" value="${value}"></td></tr>`;
+
+  document.getElementById('tituloMes').textContent = CTX.mesCompleto
+    ? `${CTX.mesCompLabel} completo — los ${CTX.mes.dias} días del mes`
+    : `${CTX.mesCompLabel} a la fecha — del 1 al ${fechaCorta(CTX.monthEndCap)} (${CTX.mes.dias} días)`;
+
+  document.getElementById('tablaMes').innerHTML = [
+    mCampo('Molienda Seco (TMS del mes)','m_mol_total', fmtInt(m.mol_total)),
+    mCampo('Media diaria (TMS/día)','m_mol_media', fmtInt(m.mol_media)),
+    mCampo('Oz Eq Au del mes','m_ozeq_total', fmtInt(m.ozeq_total)),
+    mCampo('Promedio diario (Oz Eq Au)','m_ozeq_prom', fmtInt(m.ozeq_prom)),
+    mCampo('Merrill Crowe Au mg/lt','m_mc_au', fmtDec(m.mc_au,2)),
+    mCampo('Merrill Crowe Ag mg/lt','m_mc_ag', fmtDec(m.mc_ag,1)),
+    mCampo('Flujo del mes (m³)','m_flujo_total', fmtInt(m.flujo_total)),
+    mCampo('Promedio diario (m³/día)','m_flujo_prom', fmtInt(m.flujo_prom)),
+    mCampo('Merrill Crowe Au %','m_efic_au', fmtDec(m.efic_au,1)),
+    mCampo('Merrill Crowe Ag %','m_efic_ag', fmtDec(m.efic_ag,1)),
+    mCampo('Ley de Proceso Au gr/T (ponderada)','m_ley_au', fmtDec(m.ley_au,2)),
+    mCampo('Ley de Proceso Ag gr/T (ponderada)','m_ley_ag', fmtDec(m.ley_ag,1)),
+    mCampo('% Recuperación Au (ponderada)','m_rec_au', fmtDec(m.rec_au,1)),
+    mCampo('% Recuperación Ag (ponderada)','m_rec_ag', fmtDec(m.rec_ag,1)),
+  ].join('');
+
+  document.getElementById('notaMensual').textContent = CTX.mesCompleto
+    ? `Esta semana cruza de mes, así que ${CTX.mesCompLabel} ya cerró: el bloque mensual va con los `+
+      `${CTX.mes.dias} días completos. Los volúmenes se suman, las leyes se ponderan por tonelaje y las `+
+      `recuperaciones por metal alimentado, igual que en la semana. "Media/Promedio Mensual" de la tabla `+
+      `de arriba —los dos que entran al PPTX— también salen de ${CTX.mesCompLabel} completo.`
+    : `La semana cae completa dentro de ${CTX.mesCompLabel}, así que el bloque mensual es el mes a la `+
+      `fecha: del día 1 al ${fechaCorta(CTX.monthEndCap)}. Cuando la semana cruce de mes, se reportará el `+
+      `mes que cerró con sus días completos.`;
+
+  document.getElementById('cardResultados').classList.remove('hidden');
+  document.getElementById('cardPptx').classList.remove('hidden');
+  document.getElementById('btnGenerar').disabled = false;
+}
+
+// ============ 1.5 Motor de gráficas (copiado del Flash, mismos colores/formato) ============
+if(typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined'){ Chart.register(ChartDataLabels); }
+const GOLD='#C99700', SILVER='#707070', SILVER_DARK='#454545';
+const MESES_ES = {1:'ene',2:'feb',3:'mar',4:'abr',5:'may',6:'jun',7:'jul',8:'ago',9:'sep',10:'oct',11:'nov',12:'dic'};
+const MEZCLA_PALETTE = ['#C99700','#5B9BD5','#2f6f62','#B0413E','#8E44AD','#3D9970','#D4AC0D','#7B7D7D','#117864','#A04000','#707070','#E8A33D'];
+const procColorMap = {}; let procColorIdx = 0;
+function colorForProcedencia(nombre){ if(!procColorMap[nombre]) procColorMap[nombre] = MEZCLA_PALETTE[procColorIdx++ % MEZCLA_PALETTE.length]; return procColorMap[nombre]; }
+function diaLabelG(d){ if(!d || !d.fecha) return ''; const [y,m,day] = d.fecha.split('-').map(Number); return day+'-'+MESES_ES[m]+'-'+String(y).slice(2); }
+function fmtG(n, dec=1){ if(n===null||n===undefined||isNaN(n)) return '-'; return Number(n).toLocaleString('es-MX',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+function highlightColorsG(baseColor, n, selIdx){ const arr=[]; for(let i=0;i<n;i++) arr.push(i===selIdx?'#c0392b':baseColor); return arr; }
+function highlightRangeColorsG(baseColor, n, startIdx, endIdx){ const arr=[]; for(let i=0;i<n;i++) arr.push((i>=startIdx && i<=endIdx)?'#c0392b':baseColor); return arr; }
+function weekPointStyleG(baseColor, len, startIdx, endIdx, ensayePendiente){
+  const inWeek = (i)=> i>=startIdx && i<=endIdx;
+  const lastIdx = len-1;
+  return {
+    pointRadius: Array.from({length:len},(_,i)=> (ensayePendiente&&i===lastIdx)?7:(inWeek(i)?6:3)),
+    pointBackgroundColor: Array.from({length:len},(_,i)=> (ensayePendiente&&i===lastIdx)?'#fff':(inWeek(i)?'#c0392b':baseColor)),
+    pointBorderColor: Array.from({length:len},(_,i)=> inWeek(i)?'#c0392b':baseColor),
+    pointBorderWidth: Array.from({length:len},(_,i)=> (ensayePendiente&&i===lastIdx)?2:(inWeek(i)?2:1)),
+  };
+}
+function offsetDodgeG(dataA, dataB, farOffset, closeOffset, scaleAId, scaleBId, closeDist){
+  scaleAId=scaleAId||'y'; scaleBId=scaleBId||'y1'; closeDist=closeDist||26;
+  return function(ctx){
+    const i=ctx.dataIndex; const a=dataA[i], b=dataB[i];
+    if(a==null||b==null||isNaN(a)||isNaN(b)) return farOffset;
+    const chart=ctx.chart; const yA=chart.scales[scaleAId], yB=chart.scales[scaleBId];
+    if(!yA||!yB) return farOffset;
+    const pxA=yA.getPixelForValue(a), pxB=yB.getPixelForValue(b);
+    return Math.abs(pxA-pxB)<closeDist ? closeOffset : farOffset;
+  };
+}
+function dlTextColorG(){ return '#444'; }
+function dlBgColorG(){ return 'rgba(255,255,255,.85)'; }
+function ensayeTickCallbackG(lastTickIdx, ensayePendiente){
+  return function(val, idx){ const lbl=this.getLabelForValue(val); return (ensayePendiente && idx===lastTickIdx)?[lbl,'Proyección']:lbl; };
+}
+function applyEnsayeLineG(baseColor, len, ensayePendiente){
+  if(!ensayePendiente) return {};
+  const lastIdx=len-1;
+  return {
+    pointRadius: Array.from({length:len},(_,i)=> i===lastIdx?6:3),
+    pointBackgroundColor: Array.from({length:len},(_,i)=> i===lastIdx?'#fff':baseColor),
+    pointBorderColor: Array.from({length:len},()=>baseColor),
+    pointBorderWidth: Array.from({length:len},(_,i)=> i===lastIdx?2:1),
+  };
+}
+function applyEnsayeBarG(colors, ensayePendiente){
+  if(!ensayePendiente) return { backgroundColor: colors };
+  const lastIdx=colors.length-1;
+  return {
+    backgroundColor: colors.map((c,i)=> i===lastIdx?'rgba(0,0,0,0)':c),
+    borderColor: colors,
+    borderWidth: colors.map((c,i)=> i===lastIdx?2:0),
+    borderDash: [4,3],
+  };
+}
+function promSimpleG(dias, key){ const vals=dias.map(d=>d[key]).filter(v=>v!=null && !isNaN(v)); if(!vals.length) return null; return vals.reduce((a,b)=>a+b,0)/vals.length; }
+function computeDeltaG(proy, real, unit, dec){ const diff=real-proy; const pct=proy?(diff/proy*100):0; return {diff,pct,unit,dec:dec||0}; }
+function withDefaultXTicksG(scales){
+  const s = Object.assign({}, scales);
+  const xTicksDefault = { autoSkip:false, minRotation:0, maxRotation:45, font:{size:9} };
+  s.x = Object.assign({}, s.x, { ticks: Object.assign({}, xTicksDefault, (s.x && s.x.ticks) || {}) });
+  return s;
+}
+function escapeYSaltosG(txt){
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const bloques = String(txt).split(/\r\n\s*\r\n|\n\s*\n/);
+  return bloques.map(b => esc(b).replace(/\r\n|\r|\n/g,'<br>')).join('<div class="flash-note-sep"></div>');
+}
+
+/* Techo de un eje que deja hueco sobre el dato más alto: el que traía fijo desbordaba en
+   cuanto un valor lo pasaba (Au arriba de 2.4 g/t en la semana del 27-sep). Nunca baja del
+   techo de siempre, así que con datos normales la gráfica sale igual que antes. */
+function techoConHueco(valores, techoDeSiempre, paso){
+  const datos = valores.filter(v=>v!=null && !isNaN(v));
+  if(!datos.length) return techoDeSiempre;
+  const conHueco = Math.max(...datos) * 1.15;
+  return Math.max(techoDeSiempre, Math.ceil(conHueco / paso) * paso);
+}
+/* Cuando la semana cruza de mes, el bloque mensual es el mes que cerró; los acumulados
+   de los encabezados de las gráficas se calculan solo con ese mes, no con ese mes más los
+   primeros días del siguiente. En una semana que no cruza, son todos los días. */
+function diasDelBloque(dias){
+  return (CTX && CTX.mesCompleto) ? dias.filter(d=> d && d.fecha && d.fecha <= CTX.monthEndCap) : dias;
+}
+
+let capturedCharts = {};
+function destroyCapturedCharts(){ Object.values(capturedCharts).forEach(c=>{ try{c.destroy();}catch(e){} }); capturedCharts = {}; }
+
+function buildChartDefs(dias, ensayePendiente, totales, weekStartIdx, weekEndIdx){
+  const labels = dias.map(diaLabelG);
+  const diasB = diasDelBloque(dias);
+  const n = dias.length;
+  const selIdx = n-1;
+  if(weekStartIdx==null) weekStartIdx = selIdx;
+  if(weekEndIdx==null) weekEndIdx = selIdx;
+  /* Etiquetas de las barras diarias.
+
+     A 20° se montaban unas con otras: cuando la semana cruza de mes la gráfica trae 36
+     barras en unos 950 px, o sea 26 px por barra, y "1008.42" pide cerca de 45. A 75° la
+     etiqueta ocupa unos 14 px —sobra el doble de lo que necesita, así que ya no depende de
+     qué tan parejos vengan los tonelajes— y conserva la inclinación, que se lee mejor de
+     corrido que la vertical seca.
+
+     Los decimales también costaban la mitad del ancho. Arriba de 100 no aportan nada en
+     una molienda diaria, así que solo se dejan donde el número es chico, como las Oz Eq. */
+  const dlBase = {
+    display:true, anchor:'end', align:'top', offset:2, clip:false, rotation:-75,
+    font:{size:10, weight:'bold'}, color: dlTextColorG(), backgroundColor: dlBgColorG(), borderRadius:3,
+    padding:{top:1, bottom:1, left:3, right:3},
+    formatter:(v)=>{
+      if(v===null||v===undefined||isNaN(v)) return '';
+      return Math.abs(v) >= 100
+        ? Math.round(v).toLocaleString('es-MX')
+        : (Math.round(v*10)/10).toLocaleString('es-MX',{minimumFractionDigits:1,maximumFractionDigits:1});
+    }
+  };
+  return {
+    ch1: {id:'ch1', title:'Molienda Diario — Real vs Proyección', type:'bar',
+      mk:()=>({labels, datasets:[
+        {label:'TON Molienda Seco', data:dias.map(d=>d.ton_molienda_seco), backgroundColor:highlightRangeColorsG(GOLD,n,weekStartIdx,weekEndIdx), datalabels:dlBase},
+        {label:'Proyección Molienda', type:'line', data:dias.map(d=>d.proy_molienda_dia), borderColor:'#5B9BD5', borderDash:[6,4], pointRadius:0, fill:false, tension:.2, datalabels:{display:false}}
+      ]}),
+      badges:()=>[{label:'Proyección Molienda', value: fmtG(dias.map(d=>d.proy_molienda_dia).find(x=>x!=null),0)+' t', color:'#5B9BD5', dash:true}]},
+    ch11: {id:'ch11', title:'Real vs Ptto (Tonelaje acumulado de '+((CTX&&CTX.mesCompNombre)||'el mes')+')', type:'bar',
+      mk:()=>({labels:['Proyección','Real'], datasets:[{label:'Tonelaje', data:[totales.proy_ton_total, totales.real_ton_total], backgroundColor:['#5B9BD5',GOLD],
+        datalabels:{display:true,anchor:'end',align:'top',offset:2,clip:false,font:{size:11,weight:'bold'},color:dlTextColorG(),backgroundColor:dlBgColorG(),borderRadius:3,padding:{top:1,bottom:1,left:3,right:3},formatter:(v)=>(v==null||isNaN(v))?'':fmtG(v,0)}}]}),
+      delta:()=>computeDeltaG(totales.proy_ton_total, totales.real_ton_total, 't', 0)},
+    ch3: {id:'ch3', title:'Oz Eq Au Diarias — Real vs Proyección', type:'bar',
+      mk:()=>({labels, datasets:[
+        {label:'Oz Eq Precipitadas', data:dias.map(d=>d.oz_eq_au), ...applyEnsayeBarG(highlightRangeColorsG(GOLD,n,weekStartIdx,weekEndIdx), ensayePendiente), datalabels:dlBase},
+        {label:'Proyección', type:'line', data:dias.map(d=>d.proy_oz_dia), borderColor:'#5B9BD5', borderDash:[6,4], pointRadius:0, fill:false, tension:.2, datalabels:{display:false}}
+      ]}),
+      scales:{ x:{ ticks:{ callback: ensayeTickCallbackG(n-1, ensayePendiente) } } },
+      badges:()=>[{label:'Proyección Oz Eq Au', value: fmtG(dias.map(d=>d.proy_oz_dia).find(x=>x!=null),1), color:'#5B9BD5', dash:true}]},
+    ch12: {id:'ch12', title:'Proyección vs Real (Oz Eq Au acumulado de '+((CTX&&CTX.mesCompNombre)||'el mes')+')', type:'bar',
+      mk:()=>({labels:['Proyección','Real'], datasets:[{label:'Oz Eq Au', data:[totales.proy_oz_total, totales.real_oz_total], ...applyEnsayeBarG(['#5B9BD5',GOLD], ensayePendiente),
+        datalabels:{display:true,anchor:'end',align:'top',offset:2,clip:false,font:{size:11,weight:'bold'},color:dlTextColorG(),backgroundColor:dlBgColorG(),borderRadius:3,padding:{top:1,bottom:1,left:3,right:3},formatter:(v)=>(v==null||isNaN(v))?'':fmtG(v,1)}}]}),
+      scales:{ x:{ ticks:{ callback: ensayeTickCallbackG(1, ensayePendiente) } } },
+      delta:()=>computeDeltaG(totales.proy_oz_total, totales.real_oz_total, 'oz', 1)},
+    ch16: {id:'ch16', title:'Flujo en M³ / Solución Rica-Estéril (Au / Ag, mg/L)', type:'bar',
+      mk:()=>({labels, datasets:[
+        {label:'M³ Bombeados', type:'bar', data:dias.map(d=>d.m3_bombeados), backgroundColor:'rgba(21,96,130,.32)', yAxisID:'y2', order:3,
+         datalabels:{display:true,anchor:'end',align:'top',offset:4,clip:false,rotation:-20,font:{size:10,weight:'bold'},color:dlTextColorG(),backgroundColor:dlBgColorG(),borderRadius:3,padding:{top:1,bottom:1,left:3,right:3},formatter:(v)=>(v==null||isNaN(v))?'':Math.round(v)}},
+        {label:'Sol Rica Au', type:'line', data:dias.map(d=>d.sol_rica_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, yAxisID:'y', order:1, ...weekPointStyleG(GOLD, n, weekStartIdx, weekEndIdx, ensayePendiente),
+         datalabels:{display:true,anchor:'end',align:'top',offset:offsetDodgeG(dias.map(d=>d.sol_rica_au),dias.map(d=>d.sol_rica_ag),6,20),clip:false,font:{size:10,weight:'bold'},color:GOLD,backgroundColor:dlBgColorG(),borderRadius:3,padding:{top:1,bottom:1,left:3,right:3},formatter:(v)=>(v==null||isNaN(v))?'':(Math.round(v*100)/100)}},
+        {label:'Sol Estéril Au', type:'line', data:dias.map(d=>d.sol_esteril_au), borderColor:GOLD, backgroundColor:GOLD, borderDash:[4,3], tension:.25, yAxisID:'y', order:1, ...applyEnsayeLineG(GOLD, n, ensayePendiente)},
+        {label:'Sol Rica Ag', type:'line', data:dias.map(d=>d.sol_rica_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, yAxisID:'y1', order:2, ...weekPointStyleG(SILVER, n, weekStartIdx, weekEndIdx, ensayePendiente),
+         datalabels:{display:true,anchor:'end',align:'bottom',offset:offsetDodgeG(dias.map(d=>d.sol_rica_au),dias.map(d=>d.sol_rica_ag),6,20),clip:false,font:{size:10,weight:'bold'},color:SILVER,backgroundColor:dlBgColorG(),borderRadius:3,padding:{top:1,bottom:1,left:3,right:3},formatter:(v)=>(v==null||isNaN(v))?'':Math.round(v)}},
+        {label:'Sol Estéril Ag', type:'line', data:dias.map(d=>d.sol_esteril_ag), borderColor:SILVER_DARK, backgroundColor:SILVER_DARK, borderDash:[4,3], tension:.25, yAxisID:'y1', order:2, ...applyEnsayeLineG(SILVER_DARK, n, ensayePendiente)},
+      ]}),
+      scales:{
+        y:{ type:'linear', position:'left', min:0, max: techoConHueco(dias.flatMap(d=>[d.sol_rica_au, d.sol_esteril_au]), 1, 0.1), title:{display:true,text:'Au (mg/L)'} },
+        y1:{ type:'linear', position:'right', min:0, max: techoConHueco(dias.flatMap(d=>[d.sol_rica_ag, d.sol_esteril_ag]), 40, 5), title:{display:true,text:'Ag (mg/L)'}, grid:{drawOnChartArea:false} },
+        y2:{ type:'linear', position:'right', title:{display:true,text:'M³'}, grid:{drawOnChartArea:false} },
+        x:{ ticks:{ callback: ensayeTickCallbackG(n-1, ensayePendiente) } },
+      },
+      badges:()=>[
+        {label:'M³ Total Acumulado', value: fmtG(diasB.reduce((a,d)=>a+(Number(d.m3_bombeados)||0),0),0), color:'#5B9BD5'},
+        {label:'M³ Promedio', value: fmtG(promSimpleG(diasB,'m3_bombeados'),0), color:'#5B9BD5'},
+        {label:'Sol Rica Au Promedio', value: fmtG(promSimpleG(diasB,'sol_rica_au'),2), color:GOLD},
+        {label:'Sol Rica Ag Promedio', value: fmtG(promSimpleG(diasB,'sol_rica_ag'),1), color:SILVER},
+      ]},
+    chMezcla: {id:'chMezcla', title:'Mezcla Alimentada por Procedencia (Diario)', note:'Tonelaje Húmedo', type:'bar',
+      mk:()=>{
+        const procSet = new Set();
+        dias.forEach(d=> Object.keys(d.mezcla||{}).forEach(k=>procSet.add(k)));
+        const procNames = Array.from(procSet);
+        const datasets = procNames.map(name=>{
+          const totalProc = dias.reduce((a,d)=>a+((d.mezcla && d.mezcla[name])||0),0);
+          return { label: name+' ('+fmtG(totalProc,0)+' t)', data: dias.map(d=> (d.mezcla && d.mezcla[name]) || 0), backgroundColor: colorForProcedencia(name), stack:'mezcla',
+            datalabels:{ display:(ctx)=> ctx.dataset.data[ctx.dataIndex] > 0, anchor:'center', align:'center', font:{size:10,weight:'bold'}, color:'#fff', backgroundColor:'rgba(0,0,0,.45)', borderRadius:3, padding:{top:2,bottom:2,left:5,right:5}, formatter:(v)=> v?Math.round(v):'' } };
+        });
+        datasets.push({ label:'Total del día', type:'line', data: dias.map(d=> d.mezcla_total||0), borderColor:'transparent', backgroundColor:'transparent', pointRadius:0, borderWidth:0,
+          datalabels:{ display:(ctx)=> ctx.dataset.data[ctx.dataIndex] > 0, anchor:'end', align:'top', offset:2, font:{size:8,weight:'bold'}, color:dlTextColorG(), backgroundColor:dlBgColorG(), borderRadius:3, padding:{top:1,bottom:1,left:3,right:3}, formatter:(v)=> v?Math.round(v):'' } });
+        return { labels, datasets };
+      },
+      scales:{ x:{stacked:true}, y:{stacked:true, beginAtZero:true} }},
+    ch6: {id:'ch6', title:'Comportamiento Leyes Alimentación - Cola Planta', type:'line',
+      mk:()=>({labels, datasets:[
+        {label:'Ley Au', data:dias.map(d=>d.ley_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, yAxisID:'y', ...weekPointStyleG(GOLD, n, weekStartIdx, weekEndIdx, ensayePendiente),
+         datalabels:{display:true,anchor:'end',align:'top',offset:offsetDodgeG(dias.map(d=>d.ley_au),dias.map(d=>d.ley_ag),2,14),clip:false,font:{size:8,weight:'bold'},color:dlTextColorG(),backgroundColor:dlBgColorG(),borderRadius:3,padding:{top:1,bottom:1,left:3,right:3},formatter:(v)=>(v==null||isNaN(v))?'':(Math.round(v*100)/100)}},
+        {label:'Proyección Au', data:dias.map(d=>d.proy_ley_au_banda), borderColor:GOLD, borderDash:[4,4], pointRadius:0, tension:.25, yAxisID:'y', datalabels:{display:false}},
+        {label:'Ley Ag', data:dias.map(d=>d.ley_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, yAxisID:'y1', ...weekPointStyleG(SILVER, n, weekStartIdx, weekEndIdx, ensayePendiente),
+         datalabels:{display:true,anchor:'end',align:'bottom',offset:offsetDodgeG(dias.map(d=>d.ley_au),dias.map(d=>d.ley_ag),2,14),clip:false,font:{size:8,weight:'bold'},color:dlTextColorG(),backgroundColor:dlBgColorG(),borderRadius:3,padding:{top:1,bottom:1,left:3,right:3},formatter:(v)=>(v==null||isNaN(v))?'':(Math.round(v*100)/100)}},
+        {label:'Proyección Ag', data:dias.map(d=>d.proy_ley_ag_banda), borderColor:SILVER, borderDash:[4,4], pointRadius:0, tension:.25, yAxisID:'y1', datalabels:{display:false}},
+      ]}),
+      scales:{
+        y:{ type:'linear', position:'left', min:0, max: techoConHueco(dias.flatMap(d=>[d.ley_au, d.proy_ley_au_banda]), 2.4, 0.2), title:{display:true,text:'Au (g/t)'} },
+        y1:{ type:'linear', position:'right', min:0, max: techoConHueco(dias.flatMap(d=>[d.ley_ag, d.proy_ley_ag_banda]), 160, 10), title:{display:true,text:'Ag (g/t)'}, grid:{drawOnChartArea:false} },
+        x:{ ticks:{ callback: ensayeTickCallbackG(n-1, ensayePendiente) } },
+      },
+      badges:()=>[
+        {label:'Au Acumulado', value:fmtG(pondTon(diasB,'ley_au'),2), color:GOLD},
+        {label:'Ag Acumulado', value:fmtG(pondTon(diasB,'ley_ag'),2), color:SILVER},
+        {label:'Proyección Au', value:fmtG(dias.map(d=>d.proy_ley_au_banda).find(x=>x!=null),2), color:GOLD, dash:true},
+        {label:'Proyección Ag', value:fmtG(dias.map(d=>d.proy_ley_ag_banda).find(x=>x!=null),2), color:SILVER, dash:true},
+      ]},
+    ch4: {id:'ch4', title:'Recuperación Planta Au / Ag (%)', type:'line',
+      mk:()=>({labels, datasets:[
+        {label:'Recuperación Au', data:dias.map(d=>d.recuperacion_au*100), borderColor:GOLD, backgroundColor:GOLD, tension:.25, ...weekPointStyleG(GOLD, n, weekStartIdx, weekEndIdx, ensayePendiente),
+         datalabels:{display:true,anchor:'end',align:'top',offset:offsetDodgeG(dias.map(d=>d.recuperacion_au*100),dias.map(d=>d.recuperacion_ag*100),2,14,'y','y'),clip:false,font:{size:8,weight:'bold'},color:dlTextColorG(),backgroundColor:dlBgColorG(),borderRadius:3,padding:{top:1,bottom:1,left:3,right:3},formatter:(v)=>(v==null||isNaN(v))?'':(Math.round(v*100)/100)}},
+        {label:'Recuperación Ag', data:dias.map(d=>d.recuperacion_ag*100), borderColor:SILVER, backgroundColor:SILVER, tension:.25, ...weekPointStyleG(SILVER, n, weekStartIdx, weekEndIdx, ensayePendiente),
+         datalabels:{display:true,anchor:'end',align:'bottom',offset:offsetDodgeG(dias.map(d=>d.recuperacion_au*100),dias.map(d=>d.recuperacion_ag*100),2,14,'y','y'),clip:false,font:{size:8,weight:'bold'},color:dlTextColorG(),backgroundColor:dlBgColorG(),borderRadius:3,padding:{top:1,bottom:1,left:3,right:3},formatter:(v)=>(v==null||isNaN(v))?'':(Math.round(v*100)/100)}},
+        {label:'Proyección Au', data:dias.map(d=>d.proy_recup_au*100), borderColor:GOLD, borderDash:[4,4], pointRadius:0, tension:.25, datalabels:{display:false}},
+        {label:'Proyección Ag', data:dias.map(d=>d.proy_recup_ag*100), borderColor:SILVER, borderDash:[4,4], pointRadius:0, tension:.25, datalabels:{display:false}},
+      ]}),
+      scales:{ y:{ type:'linear', min:20, max:100 }, x:{ ticks:{ callback: ensayeTickCallbackG(n-1, ensayePendiente) } } },
+      badges:()=>[
+        {label:'Rec Au Acumulado', value:fmtG(pondMetal(diasB,'ley_au','recuperacion_au')*100,2)+'%', color:GOLD},
+        {label:'Rec Ag Acumulado', value:fmtG(pondMetal(diasB,'ley_ag','recuperacion_ag')*100,2)+'%', color:SILVER},
+        {label:'Proyección Au', value:fmtG((dias.map(d=>d.proy_recup_au).find(x=>x!=null)||0)*100,1)+'%', color:GOLD, dash:true},
+        {label:'Proyección Ag', value:fmtG((dias.map(d=>d.proy_recup_ag).find(x=>x!=null)||0)*100,1)+'%', color:SILVER, dash:true},
+      ]},
+  };
+}
+
+function buildStockProcHtml(stockProcedencia, lastDiaLabel){
+  const list = stockProcedencia || [];
+  if(!list.length){
+    return `<div class="stock-proc-head"><span>Stock al día ${lastDiaLabel}</span></div><div class="stock-proc-empty">Sin desglose por procedencia disponible para este periodo.</div>`;
+  }
+  const totalTxt = fmtG(list.reduce((a,p)=>a+(Number(p.valor)||0),0),0);
+  const max = Math.max(...list.map(p=>p.valor));
+  const rows = list.map(p=>{
+    const pct = max>0 ? Math.max(2,(p.valor/max*100)) : 0;
+    return `<div class="stock-proc-row">
+      <span class="stock-proc-name">${escapeYSaltosG(p.nombre)}</span>
+      <div class="stock-proc-bar-wrap"><div class="stock-proc-bar" style="width:${pct}%"></div></div>
+      <span class="stock-proc-val">${fmtG(p.valor,0)}</span>
+    </div>`;
+  }).join('');
+  return `<div class="stock-proc-head"><span>Stock al día ${lastDiaLabel}: ${totalTxt} t</span></div><div class="stock-proc-list">${rows}</div>`;
+}
+
+function makeGroup(zone, kind, id, width){
+  const wrap = document.createElement('div');
+  wrap.className = 'capture-group ' + kind;
+  wrap.id = id;
+  wrap.style.width = width;
+  zone.appendChild(wrap);
+  return wrap;
+}
+function makeBox(parent, def, colSpan){
+  const box = document.createElement('div');
+  box.className = 'chart-box';
+  if(colSpan) box.style.gridColumn = 'span '+colSpan;
+  let badgesHtml = '';
+  if(def.badges){
+    const all = def.badges();
+    const real = all.filter(b=>!b.dash), proy = all.filter(b=>b.dash);
+    const badgeSpan = (b)=>{
+      const swatch = b.dash ? `<span style="display:inline-block;width:14px;height:0;border-top:2px dashed ${b.color};margin-right:4px;vertical-align:middle;"></span>` : '';
+      return `<span><span style="color:${b.color};">${swatch}<b>${b.label}:</b></span> <b class="chart-badge-value">${b.value}</b></span>`;
+    };
+    if(real.length) badgesHtml += `<div class="chart-badges">${real.map(badgeSpan).join('')}</div>`;
+    if(proy.length) badgesHtml += `<div class="chart-badges chart-badges-proy">${proy.map(badgeSpan).join('')}</div>`;
+  }
+  let deltaHtml = '';
+  if(def.delta){
+    const dl = def.delta();
+    const isPos = dl.diff>=0;
+    const color = isPos ? '#008300' : '#a32d2d';
+    const arrow = isPos ? '▲' : '▼';
+    const sign = isPos ? '+' : '';
+    deltaHtml = `<div class="chart-delta" style="color:${color};">${arrow} ${sign}${fmtG(dl.diff,dl.dec)} ${dl.unit} (${sign}${fmtG(dl.pct,1)}%) vs Ptto</div>`;
+  }
+  const noteHtml = def.note ? `<div class="chart-note">${def.note}</div>` : '';
+  box.innerHTML = `<h3>${def.title}</h3>${deltaHtml}${badgesHtml}<div class="canvas-wrap"><canvas></canvas></div>${noteHtml}`;
+  parent.appendChild(box);
+  return box.querySelector('canvas');
+}
+function renderChartInto(canvas, def){
+  const built = def.mk();
+  const chart = new Chart(canvas, {
+    type: def.type, data: built,
+    options: {
+      responsive:true, maintainAspectRatio:false, animation:false, devicePixelRatio:2,
+      // aire arriba para las etiquetas paradas a 75°, que suben más que las inclinadas
+      layout:{ padding:{ top: 34 } },
+      plugins:{
+        legend:{ display: built.datasets.length>1, position:'bottom', labels:{boxWidth:10,font:{size:10}} },
+        datalabels:{ display:false }
+      },
+      scales: withDefaultXTicksG(def.scales||{})
+    }
+  });
+  capturedCharts[def.id] = chart;
+  return chart;
+}
+
+/* ── Bloque "Mineral por Procedencia" ──────────────────────────────────────────
+   Es el mismo bloque del Flash: tres pasos del mineral —1 lo que llegó (FLETES),
+   2 lo que se alimentó (la mezcla diaria) y 3 lo que quedó en patio— con el mismo
+   color por procedencia en los tres, para poder seguir a una procedencia con la
+   vista de un paso al siguiente. Sustituye a las dos slides que había antes,
+   "Alimentación por Procedencia" y "Stock Estimado por Procedencia".
+
+   Los pasos 1 y 2 comparten escala: son flujo del mismo periodo, así que un largo
+   significa lo mismo en los dos. El 3 lleva escala propia porque es un nivel
+   acumulado, no un flujo.
+
+   El periodo es el del bloque mensual: agosto completo cuando la semana cruza de
+   mes, o el mes a la fecha cuando la semana cae dentro de un solo mes. */
+function mineralSeriesG(){
+  const pdata = (CTX.periodoDataMap || {})[CTX.mesCompKey] || {};
+  const hasta = Number(CTX.monthEndCap.slice(8,10));
+
+  // Fletes: se recortan al último día del bloque con el desglose por día que ya trae
+  // el Flash. Los camiones no vienen por día, así que solo se muestran cuando el
+  // bloque abarca el mes entero; si no, el número mentiría.
+  const completo = !!CTX.mesCompleto;
+  const fl = (pdata.fletes || []).map(p=>{
+    let t = 0;
+    if(p.porDia){ for(let d=1; d<=hasta; d++) t += Number(p.porDia[d] || 0); }
+    else t = Number(p.ton || 0);
+    return {nombre:p.nombre, valor:t, camiones: completo ? Number(p.camiones||0) : 0};
+  }).filter(p=> p.valor > 0).sort((a,b)=> b.valor - a.valor);
+
+  const ac = {};
+  (pdata.dias || []).forEach((d,i)=>{
+    if((i+1) > hasta) return;
+    const mz = d.mezcla || {};
+    Object.keys(mz).forEach(k=>{ ac[k] = (ac[k]||0) + Number(mz[k]||0); });
+  });
+  const al = Object.keys(ac).map(k=>({nombre:k, valor:ac[k]}))
+              .filter(p=> p.valor > 0).sort((a,b)=> b.valor - a.valor);
+
+  // Los residuos de menos de 1 t son redondeos y arrastres de procedencias ya
+  // inactivas: salían como barras de "0 t" que solo estorban.
+  const st = (pdata.stockProcedencia || []).map(p=>({nombre:p.nombre, valor:Number(p.valor)||0}))
+              .filter(p=> p.valor >= 1).sort((a,b)=> b.valor - a.valor);
+
+  // El día del stock: el último con captura del mes del bloque, que es la foto que
+  // trae el archivo de ese mes.
+  let ultimo = 0;
+  (pdata.dias || []).forEach((d,i)=>{ if((i+1) <= hasta && Number(d.molido_seco||0) > 0) ultimo = i+1; });
+  const dStock = (pdata.dias || [])[ultimo-1];
+  // Semana normal: el stock es el actual del Flash (último día con dato), no el del fin de la semana.
+  if(!completo && CTX.stockActual && CTX.stockActual.st.length)
+    return {fl, al, st: CTX.stockActual.st, stockLabel: CTX.stockActual.stockLabel};
+  return {fl, al, st, stockLabel: dStock ? diaLabelG(dStock) : ''};
+}
+
+// Mide con canvas el nombre más largo de la serie, para reservarle ancho al eje: sin
+// esto Chart.js le da como máximo un tercio del ancho y recorta ("RC Metal Molino"
+// salía como "Metal Molino").
+function anchoNombresG(serie, tam){
+  const cx = document.createElement('canvas').getContext('2d');
+  cx.font = tam + "px 'Segoe UI', Arial, sans-serif";
+  let w = 0;
+  serie.forEach(p=>{ w = Math.max(w, cx.measureText(p.nombre).width); });
+  return Math.ceil(w) + 10;
+}
+
+function mineralBloqueHtml(s, altos, cuales, apilado){
+  const suma = arr => arr.reduce((a,p)=> a + p.valor, 0);
+  const cam = s.fl.reduce((a,p)=> a + (p.camiones||0), 0);
+  const alto = k => (altos && typeof altos==='object') ? altos[k] : altos;
+  const paso = (num, titulo, totHtml, id, serie, vacio, h) => `
+    <div class="mp-paso">
+      <div class="mp-cab"><span class="mp-num">${num}</span><h4>${titulo}</h4></div>
+      <div class="mp-tot">${totHtml}</div>
+      ${serie.length
+        ? `<div class="mp-lienzo" style="height:${h}px"><canvas id="${id}"></canvas></div>`
+        : `<div class="mp-vacio" style="height:${h}px">${vacio}</div>`}
+    </div>`;
+  const todos = {
+    1: () => paso(1, 'Fletes', `<b>${fmtG(suma(s.fl),0)} t</b>${cam ? ' · '+fmtG(cam,0)+' camiones' : ''}`,
+        'mpFletes', s.fl, 'Sin acarreo registrado en este periodo.', alto('fl')),
+    2: () => paso(2, 'Alimentación a planta', `<b>${fmtG(suma(s.al),0)} t</b> húmedas`,
+        'mpAlim', s.al, 'Sin alimentación registrada en este periodo.', alto('al')),
+    3: () => paso(3, 'Stock en patio',
+        `<b>${fmtG(suma(s.st),0)} t</b> húmedas${s.stockLabel ? ' · al '+s.stockLabel : ''}`,
+        'mpStock', s.st, 'Sin desglose por procedencia en este archivo.', alto('st')),
+  };
+  return `<div class="mp-fila${apilado ? ' apilado' : ''}">` + (cuales || [1,2,3]).map(k=> todos[k]()).join('') + `</div>`;
+}
+
+function mineralPintaG(id, serie, maxComun){
+  if(!serie.length) return;
+  const cv = document.getElementById(id);
+  if(!cv) return;
+  const total = serie.reduce((a,p)=> a + p.valor, 0);
+  const base = serie.map(p=> colorForProcedencia(p.nombre));
+  const crudo = maxComun || Math.max(...serie.map(p=>p.valor));
+  // Marcas del eje en números redondos, y el máximo múltiplo exacto del paso: si no,
+  // Chart.js ignora el stepSize y reparte las marcas por su cuenta.
+  const pasoLindo = (rango, divisiones)=>{
+    const bruto = rango / divisiones;
+    const dec = Math.pow(10, Math.floor(Math.log10(bruto)));
+    const n = bruto / dec;
+    return ([1, 1.5, 2, 2.5, 3, 4, 5, 10].find(e => n <= e) || 10) * dec;
+  };
+  const objetivo = crudo * 1.03;
+  let paso = pasoLindo(objetivo, 4), max = Math.ceil(objetivo/paso)*paso;
+  const enMiles = max >= 2000 && paso % 500 === 0;
+  capturedCharts[id] = new Chart(cv, {
+    type:'bar',
+    data:{ labels: serie.map(p=>p.nombre), datasets:[{
+      data: serie.map(p=>p.valor), backgroundColor: base, borderRadius:3, barPercentage:.8,
+      datalabels:{
+        display:true, anchor:'end', align:'right', offset:4, clip:false,
+        color:'#444', font:{size:9, weight:'bold'}, textAlign:'left',
+        // El tonelaje y el porcentaje en dos renglones: en una columna angosta,
+        // "20,180 t · 73%" en un solo renglón se come la barra más larga.
+        formatter: v => [fmtG(v,0)+' t', (total ? Math.round(v/total*100) : 0)+'%']
+      }
+    }]},
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false, animation:false, devicePixelRatio:2,
+      layout:{ padding:{ right:58 } },
+      plugins:{ legend:{display:false}, tooltip:{enabled:false} },
+      scales:{
+        x:{ min:0, max:max, ticks:{ font:{size:8.5}, stepSize:paso, maxRotation:0, autoSkip:false,
+              callback: v => v ? (enMiles ? (Math.round(v/100)/10)+'k' : fmtG(v,0)) : 0 },
+            grid:{ color:'#f2f2f2' } },
+        y:{ grid:{display:false},
+            afterFit: (sc)=>{ sc.width = Math.max(sc.width, anchoNombresG(serie, 10)); },
+            ticks:{ font:{size:10}, autoSkip:false } }
+      }
+    }
+  });
+}
+
+
+/* Stock actual: en semana normal el stock que importa es el más reciente que tiene el
+   Flash (no el del fin de la semana pedida). Busca el último periodo guardado, toma su
+   foto de stock por procedencia y el último día con captura de molienda. */
+async function stockActualDelFlash(){
+  const {data: lista, error} = await sb.from('flash_reportes').select('periodo').order('periodo', {ascending:false});
+  if(error) throw error;
+  const claves = (lista || []).map(r=>r.periodo).filter(Boolean).sort().reverse();
+  for(const clave of claves){
+    let pdata = (CTX.periodoDataMap || {})[clave];
+    if(!pdata){
+      const {data, error:e2} = await sb.from('flash_reportes').select('data').eq('periodo', clave).maybeSingle();
+      if(e2) throw e2;
+      pdata = data && data.data;
+    }
+    if(!pdata || !Array.isArray(pdata.dias)) continue;
+    let ultimo = -1;
+    pdata.dias.forEach((d,i)=>{ if(d && d.fecha && Number(d.molido_seco||0) > 0) ultimo = i; });
+    if(ultimo < 0) continue;
+    const st = (pdata.stockProcedencia || []).map(p=>({nombre:p.nombre, valor:Number(p.valor)||0}))
+                .filter(p=> p.valor >= 1).sort((a,b)=> b.valor - a.valor);
+    return {st, stockLabel: diaLabelG(pdata.dias[ultimo]), periodo: clave};
+  }
+  return null;
+}
+
+async function captureCharts(){
+  destroyCapturedCharts();
+  CTX.stockActual = null;
+  if(!CTX.mesCompleto){
+    try{ CTX.stockActual = await stockActualDelFlash(); }catch(e){ console.error('Stock actual:', e); }
+  }
+  const zone = document.getElementById('captureZone');
+  zone.innerHTML = '';
+
+  const periodKeys = Object.keys(CTX.periodoDataMap).sort();
+  if(!periodKeys.length) throw new Error('No hay datos del Flash para esta semana.');
+
+  let dias, pdataForFlags;
+  if(periodKeys.length > 1){
+    // Semana que cruza fin de mes: se concatena el mes anterior completo con los
+    // primeros días del mes nuevo hasta el fin de la semana, en una sola vista continua.
+    const earlierKey = periodKeys[0], laterKey = periodKeys[periodKeys.length-1];
+    /* El Flash guarda 31 casillas por mes: en uno de 30 días la última viene vacía (sin fecha, todo en 0)
+       y al empalmar los dos meses salía como un día '0' entre el 30-sep y el 1-oct. */
+    const earlierDias = (CTX.periodoDataMap[earlierKey].dias || []).filter(d => d && d.fecha);
+    const laterDayNum = CTX.end.getDate();
+    const laterDias = (CTX.periodoDataMap[laterKey].dias || []).slice(0, laterDayNum);
+    dias = earlierDias.concat(laterDias);
+    pdataForFlags = CTX.periodoDataMap[laterKey];
+  } else {
+    const pdata = CTX.periodoDataMap[periodKeys[0]];
+    const dayNum = Number(CTX.monthEndCap.split('-')[2]);
+    dias = (pdata.dias || []).slice(0, dayNum);
+    pdataForFlags = pdata;
+  }
+  if(!dias.length) throw new Error('No hay días con datos para construir las gráficas de esta semana.');
+
+  const lastReal = dias[dias.length-1];
+  /* Las barras de Real vs Ptto acumulado son del MES, así que se cortan en el último día
+     del bloque mensual y no en el último día de la semana. Cuando la semana cruza de mes,
+     el último día de la semana cae en el mes nuevo y el acumulado que trae es el de esos
+     pocos días —para la del 30-ago al 5-sep salían 4,236 t contra 5,667 de presupuesto,
+     que es la fracción de septiembre, no el mes—. Con el corte en el 31-ago las barras
+     comparan agosto entero, igual que la Media Mensual de la misma slide. */
+  const diaMes = dias.filter(d => d.fecha <= CTX.monthEndCap).pop() || lastReal;
+  const totales = {
+    proy_ton_total: diaMes.proy_ton_acum, real_ton_total: diaMes.real_ton_acum,
+    proy_oz_total: diaMes.proy_oz_acum, real_oz_total: diaMes.real_oz_acum,
+  };
+  let trueLast = 0;
+  (pdataForFlags.dias||[]).forEach(d=>{ if(d.ton_humedas_trituracion>0) trueLast = d.dia; });
+  const lastRealDayNum = Number(lastReal.fecha.split('-')[2]);
+  const ensayePendiente = !!(pdataForFlags.ensayePendiente && trueLast === lastRealDayNum);
+
+  // Índices (0-based) dentro de "dias" que corresponden a la semana dom-sáb reportada,
+  // buscando por fecha real (funciona igual si la semana cruza de mes o no).
+  const startStr = CTX.start.toISOString().slice(0,10);
+  let weekStartIdx = dias.findIndex(d=>d.fecha===startStr);
+  if(weekStartIdx < 0) weekStartIdx = 0;
+  const weekEndIdx = dias.length-1;
+
+  const defs = buildChartDefs(dias, ensayePendiente, totales, weekStartIdx, weekEndIdx);
+
+  const gA = makeGroup(zone,'two','capA','1300px');
+  renderChartInto(makeBox(gA, defs.ch1, 3), defs.ch1);
+  renderChartInto(makeBox(gA, defs.ch11, 1), defs.ch11);
+
+  const gB = makeGroup(zone,'two','capB','1300px');
+  renderChartInto(makeBox(gB, defs.ch3, 3), defs.ch3);
+  renderChartInto(makeBox(gB, defs.ch12, 1), defs.ch12);
+
+  // Mineral por Procedencia (1 Fletes y 2 Alimentación, apiladas y con la misma escala) y,
+  // en su propia imagen, el Stock en patio (3): son dos slides distintas del mazo.
+  const sMin = mineralSeriesG();
+  const periodoTxt = CTX.mesCompleto ? CTX.mesCompLabel+' completo' : CTX.mesCompLabel+' al '+fechaCorta(CTX.monthEndCap);
+  const altoDe = n => Math.max(90, Math.max(n,3)*26 + 34);
+  const gC = makeGroup(zone,'one','capMineral','1040px');
+  const boxC = document.createElement('div'); boxC.className='chart-box';
+  boxC.innerHTML = `<h3>Mineral por Procedencia — ${periodoTxt}</h3>`
+    + mineralBloqueHtml(sMin, {fl:altoDe(sMin.fl.length), al:altoDe(sMin.al.length)}, [1,2], true)
+    + `<div class="chart-note">Tonelaje Húmedo</div>`;
+  gC.appendChild(boxC);
+  const gS = makeGroup(zone,'one','capStock','1300px');
+  const boxS = document.createElement('div'); boxS.className='chart-box';
+  boxS.innerHTML = mineralBloqueHtml(sMin, {st:altoDe(sMin.st.length)}, [3], true)
+    + `<div class="chart-note">Tonelaje Húmedo</div>`;
+  gS.appendChild(boxS);
+  // El color se reparte en el orden de los fletes, que es el que usa el Flash: así una
+  // procedencia lleva el mismo color aquí y allá.
+  sMin.fl.concat(sMin.al, sMin.st).forEach(p=> colorForProcedencia(p.nombre));
+  const maxFlujo = Math.max(1, ...sMin.fl.map(p=>p.valor), ...sMin.al.map(p=>p.valor));
+  mineralPintaG('mpFletes', sMin.fl, maxFlujo);
+  mineralPintaG('mpAlim',   sMin.al, maxFlujo);
+  mineralPintaG('mpStock',  sMin.st, null);
+
+  const gE = makeGroup(zone,'one','capE','1300px');
+  renderChartInto(makeBox(gE, defs.ch16), defs.ch16);
+
+  const gF = makeGroup(zone,'one','capF','900px');
+  const boxF = document.createElement('div'); boxF.className='chart-box';
+  const auProm = fmtG(promSimpleG(diasDelBloque(dias),'eficiencia_au'),1), agProm = fmtG(promSimpleG(diasDelBloque(dias),'eficiencia_ag'),1);
+  boxF.innerHTML = `<h3>Eficiencia de Precipitación Au / Ag (%)</h3>
+    <div class="chart-badges"><span><span style="color:${GOLD};"><b>Efic Au Promedio:</b></span> <b class="chart-badge-value">${auProm}%</b></span>
+    <span><span style="color:${SILVER};"><b>Efic Ag Promedio:</b></span> <b class="chart-badge-value">${agProm}%</b></span></div>
+    <div class="canvas-wrap" style="height:150px"><canvas id="capF_a"></canvas></div>
+    <div class="canvas-wrap" style="height:160px; margin-top:6px;"><canvas id="capF_b"></canvas></div>`;
+  gF.appendChild(boxF);
+  const dlFor = (color)=>({ display:true, anchor:'end', align:'top', offset:4, clip:false, font:{size:10,weight:'bold'}, color:dlTextColorG(), backgroundColor:dlBgColorG(), borderRadius:3, padding:{top:1,bottom:1,left:3,right:3}, formatter:(v)=>(v==null||isNaN(v))?'':(Math.round(v*100)/100) });
+  const labelsF = dias.map(diaLabelG);
+  capturedCharts['capF_a'] = new Chart(boxF.querySelector('#capF_a'), { type:'line', data:{ labels:labelsF, datasets:[{label:'Au', data:dias.map(d=>d.eficiencia_au), borderColor:GOLD, backgroundColor:GOLD, tension:.25, ...weekPointStyleG(GOLD, dias.length, weekStartIdx, weekEndIdx, ensayePendiente), datalabels:dlFor(GOLD)}] },
+    options:{ responsive:true, maintainAspectRatio:false, animation:false, devicePixelRatio:2, layout:{padding:{top:26}}, plugins:{legend:{display:true,position:'top',align:'end',labels:{boxWidth:10,font:{size:9}}}, datalabels:{display:false}}, scales: withDefaultXTicksG({ x:{ ticks:{display:false} }, y:{type:'linear',min:90,max:100} }) } });
+  capturedCharts['capF_b'] = new Chart(boxF.querySelector('#capF_b'), { type:'line', data:{ labels:labelsF, datasets:[{label:'Ag', data:dias.map(d=>d.eficiencia_ag), borderColor:SILVER, backgroundColor:SILVER, tension:.25, ...weekPointStyleG(SILVER, dias.length, weekStartIdx, weekEndIdx, ensayePendiente), datalabels:dlFor(SILVER)}] },
+    options:{ responsive:true, maintainAspectRatio:false, animation:false, devicePixelRatio:2, layout:{padding:{top:26}}, plugins:{legend:{display:true,position:'top',align:'end',labels:{boxWidth:10,font:{size:9}}}, datalabels:{display:false}}, scales: withDefaultXTicksG({ x:{ ticks:{ callback: ensayeTickCallbackG(dias.length-1, ensayePendiente) } }, y:{type:'linear',min:90,max:100} }) } });
+
+  const gG = makeGroup(zone,'one','capG','900px');
+  renderChartInto(makeBox(gG, defs.ch6), defs.ch6);
+
+  const gH = makeGroup(zone,'one','capH','900px');
+  renderChartInto(makeBox(gH, defs.ch4), defs.ch4);
+
+  // Panel de Producción (Semana / Mes / Año) y su lámina de Consumos
+  CTX.avisos = [];
+  let panelT = null;
+  try{ panelT = await panelDelContexto(); }catch(e){ console.error('Panel:', e); }
+  if(panelT){
+    const gP = makeGroup(zone,'one','capPanelProd','1584px'); gP.innerHTML = panelHtmlProd(panelT);
+    const gQ = makeGroup(zone,'one','capPanelCons','1584px'); gQ.innerHTML = panelHtmlCons(panelT);
+    if(panelT.faltan && panelT.faltan.length)
+      CTX.avisos.push('El Flash no trae el panel de '+panelT.faltan.join(', ')+': la Semana del panel quedó incompleta.');
+  } else {
+    CTX.avisos.push('No se pudo armar el Panel de Producción (el Flash no trae el panel de '+CTX.mesCompLabel+'): esas dos láminas quedaron como estaban.');
+  }
+
+  await new Promise(r=>setTimeout(r, 300));
+
+  const shots = {};
+  const groups = [['molienda','capA'],['ozeq','capB'],['mineral','capMineral'],['stock','capStock'],['merrillMgLt','capE'],['merrillPct','capF'],['leyes','capG'],['recuperacion','capH'],['panelProd','capPanelProd'],['panelCons','capPanelCons']];
+  for(const [key, elId] of groups){
+    const el = document.getElementById(elId);
+    if(!el) continue;
+    const canvas = await html2canvas(el, {backgroundColor:'#ffffff', scale:2, useCORS:true, logging:false});
+    shots[key] = await new Promise(res=> canvas.toBlob(b=>res(b), 'image/png'));
+  }
+  zone.innerHTML = '';
+  return shots;
+}
+
+async function replaceSlideImages(zip, slidePath, pngBlob){
+  const m = slidePath.match(/slide(\d+)\.xml$/);
+  if(!m) return false;
+  const relsPath = `ppt/slides/_rels/slide${m[1]}.xml.rels`;
+  const relsFile = zip.file(relsPath);
+  if(!relsFile) return false;
+  const relsXml = await relsFile.async('string');
+  const imgMatches = [...relsXml.matchAll(/<Relationship[^>]*Type="[^"]*\/image"[^>]*>/g)]
+    .map(x=>{ const t = x[0].match(/Target="\.\.\/media\/([^"]+)"/), id = x[0].match(/Id="([^"]+)"/); return t && id ? {media:t[1], rid:id[1]} : null; })
+    .filter(Boolean);
+  if(!imgMatches.length) return false;
+  const pngBuf = await pngBlob.arrayBuffer();
+  for(const im of imgMatches){ zip.file('ppt/media/'+im.media, pngBuf); }
+
+  /* La imagen nueva puede traer otra proporción que la que había (el panel crece o se achica
+     según los renglones). Si cambió más de un 12 %, se acomoda dentro del mismo marco, centrada
+     y sin deformarse; si es casi igual, se deja el marco como estaba. */
+  const dv = new DataView(pngBuf);
+  const iw = dv.getUint32(16), ih = dv.getUint32(20);
+  let xml = await zip.file(slidePath).async('string');
+  let cambio = false;
+  for(const im of imgMatches){
+    const re = new RegExp('<p:pic>(?:(?!</p:pic>)[\\s\\S])*?r:embed="'+im.rid+'"[\\s\\S]*?</p:pic>');
+    const pm = xml.match(re);
+    if(!pm) continue;
+    const pic = pm[0];
+    const xf = pic.match(/<a:off x="(-?\d+)" y="(-?\d+)"\/><a:ext cx="(\d+)" cy="(\d+)"\/>/);
+    if(!xf || !iw || !ih) continue;
+    const x0=+xf[1], y0=+xf[2], cx=+xf[3], cy=+xf[4];
+    const ratioMarco = cx/cy, ratioImg = iw/ih;
+    if(Math.abs(ratioImg/ratioMarco - 1) <= 0.12) continue;
+    let w=cx, h=cy;
+    if(ratioImg > ratioMarco){ h = Math.round(cx/ratioImg); } else { w = Math.round(cy*ratioImg); }
+    const nx = x0 + Math.round((cx-w)/2), ny = y0 + Math.round((cy-h)/2);
+    let nuevo = pic.replace(xf[0], `<a:off x="${nx}" y="${ny}"/><a:ext cx="${w}" cy="${h}"/>`)
+                   .replace(/<a:srcRect[^>]*\/>/, '');
+    xml = xml.replace(pic, nuevo); cambio = true;
+  }
+  if(cambio) zip.file(slidePath, xml);
+  return true;
+}
+
+/* ============ Panel de Producción (mismo motor que el Panel Ejecutivo del Flash) ============
+   Dos láminas del mazo: "Panel de Producción" (TMS, leyes de cabeza, recuperación y producción
+   metálica) y "Panel de Producción – Consumos". Tres bloques, igual que en el Flash:
+
+     SEMANA   la semana dom-sáb que se reporta. Si cruza de mes se suman los dos tramos
+              (27-sep al 30-sep + 1-oct al 3-oct), igual que el Flash.
+     MES      el bloque mensual de siempre (mesDelBloque): semana normal → el mes en curso a la
+              fecha de la semana; semana que cruza de mes → el mes que cerró, completo.
+              Real hasta el corte del bloque contra el Ppto del mes completo.
+     AÑO      enero hasta ese mismo mes (con el mismo corte), contra el Ppto anual.
+
+   No recalcula nada del balance: suma y navega lo que el Flash ya guardó en Supabase como
+   panel.real / panel.ppto / panel.consumos. */
+const PANEL_FILAS = [
+  {g:'TMS Procesadas'},
+  {k:'tms',  n:'TMS Procesadas', u:'Tm',   dec:0, vol:true},
+  {g:'Leyes de Cabeza'},
+  {k:'leyAu',n:'Au', u:'g/Tm', dec:2}, {k:'leyAg',n:'Ag', u:'g/Tm', dec:2},
+  {g:'Recuperación'},
+  {k:'recAu',n:'Au', u:'%', pct:true}, {k:'recAg',n:'Ag', u:'%', pct:true},
+  {g:'Producción Metálica'},
+  {k:'ozAu', n:'Au', u:'Oz', dec:2, vol:true},
+  {k:'ozAg', n:'Ag', u:'Oz', dec:2, vol:true},
+  {k:'ozEq', n:'Oz Au Eq', u:'Oz', dec:2, vol:true},
+];
+const CONSUMOS_OCULTOS_PANEL = ['BOLA 1.5'];
+const PANEL = { meses:{} };
+
+function panelCargaMeses(rows){
+  PANEL.meses = {};
+  (rows||[]).forEach(row=>{
+    const d = row.data || {};
+    if(!d.panel || !d.panel.real) return;               // meses sin Panel Ejecutivo calculado
+    const nd = d.panel.ndias;
+    const [y0,m0] = row.periodo.split('-').map(Number);
+    const p = n=>String(n).padStart(2,'0');
+    const fechas = [];
+    for(let i=1;i<=nd;i++){
+      const dt = new Date(Date.UTC(y0, m0-1, i));
+      const t = (d.panel.real.dias[i]||{})[3];
+      fechas.push({dia:i, fecha:dt.getUTCFullYear()+'-'+p(dt.getUTCMonth()+1)+'-'+p(dt.getUTCDate()),
+                   tms:(typeof t==='number'&&!isNaN(t))?t:0});
+    }
+    PANEL.meses[row.periodo] = {
+      clave:row.periodo, nombre:(MESES_ES_FULL[m0]||row.periodo)+' '+y0,
+      ndias:nd, bd:d.panel.real, pr:d.panel.ppto||null, dias:fechas,
+      consumos:d.panel.consumos||[], pptoAnualCompleto:d.panel.pptoAnualCompleto||null
+    };
+  });
+}
+
+function pnClave(dt){ return dt.getUTCFullYear()+'-'+String(dt.getUTCMonth()+1).padStart(2,'0'); }
+function pnFechaUTC(f){ const [y,m,d]=f.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)); }
+function pnSemanaISO(dt){
+  const j = new Date(dt); j.setUTCDate(j.getUTCDate() + 4);
+  const d = new Date(Date.UTC(j.getUTCFullYear(), j.getUTCMonth(), j.getUTCDate()));
+  const n = (d.getUTCDay()+6)%7;
+  d.setUTCDate(d.getUTCDate() - n + 3);
+  const primerJue = new Date(Date.UTC(d.getUTCFullYear(),0,4));
+  const pn = (primerJue.getUTCDay()+6)%7;
+  primerJue.setUTCDate(primerJue.getUTCDate() - pn + 3);
+  return 1 + Math.round((d - primerJue)/(7*86400000));
+}
+function pnNorm(s){ return String(s).trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+function pnUltimoConDato(M){ let last=0; (M.dias||[]).forEach(d=>{ if(d.tms>0) last=d.dia; }); return last; }
+
+/* ---- cortes por periodo (idéntico al criterio del Flash) ---- */
+function panelCorte(m, per, dFin, ultimoDia, dIni){
+  if(!m) return {};
+  const A = (d,i) => (m.acum[d]||{})[i];
+  const nn = v => (typeof v==='number' && !isNaN(v)) ? v : null;
+  const div = (a,b)=> (a==null||b==null||b===0) ? null : a/b;
+  const ozEqRango = (a,b)=>{
+    let t=null;
+    for(let d=a; d<=b; d++){ const v = nn((m.dias[d]||{})[23]); if(v!=null) t=(t||0)+v; }
+    return t;
+  };
+  if(per==='sem'){
+    const ini = Math.max(0, (dIni!=null ? dIni-1 : dFin-7));
+    const base = i => { const v = nn(A(ini,i)); return (v==null && ini===0) ? 0 : v; };
+    const dif = i => { const a=nn(A(dFin,i)), b=base(i); return (a==null||b==null)?null:a-b; };
+    const tms = dif(30);
+    const leyAu = (dif(32)==null||!tms) ? null : dif(32)*1000/tms;
+    const leyAg = (dif(34)==null||!tms) ? null : dif(34)*1000/tms;
+    const ozAu = dif(50), ozAg = dif(51);
+    return {tms, leyAu, leyAg,
+      recAu: div(dif(37), (tms!=null && leyAu) ? tms*leyAu/1000 : null),
+      recAg: div(dif(38), (tms!=null && leyAg) ? tms*leyAg/1000 : null),
+      ozAu, ozAg,
+      ozEq: ozEqRango(ini+1, dFin)};
+  }
+  const dRef = (per==='mescPpto') ? ultimoDia : dFin;
+  return {tms:nn(A(dRef,30)), leyAu:nn(A(dRef,31)), leyAg:nn(A(dRef,33)),
+    recAu:nn(A(dRef,39)), recAg:nn(A(dRef,40)),
+    ozAu:nn(A(dRef,50)), ozAg:nn(A(dRef,51)), ozEq:ozEqRango(1, dRef)};
+}
+function sumaMeses(cortes){
+  const s = k => { let t=0; for(const c of cortes){ if(c[k]==null) return null; t+=c[k]; } return t; };
+  const pond = (k,pesoK) => { let num=0,den=0;
+    for(const c of cortes){ if(c[k]==null||c[pesoK]==null) return null; num+=c[k]*c[pesoK]; den+=c[pesoK]; }
+    return den?num/den:null; };
+  const pondMetal = (k,leyK) => { let num=0,den=0;
+    for(const c of cortes){ if(c[k]==null||c[leyK]==null||c.tms==null) return null;
+      const peso=c.tms*c[leyK]; num+=c[k]*peso; den+=peso; } return den?num/den:null; };
+  return { tms:s('tms'), ozAu:s('ozAu'), ozAg:s('ozAg'), ozEq:s('ozEq'),
+    leyAu:pond('leyAu','tms'), leyAg:pond('leyAg','tms'),
+    recAu:pondMetal('recAu','leyAu'), recAg:pondMetal('recAg','leyAg') };
+}
+/* La semana dom-sáb del día d de M, partida por mes cuando cruza (cada tramo con su mes). */
+function pnTramosSemana(M, d){
+  const f = M.dias[d-1];
+  if(!f) return {tramos:[], faltan:[], ini:null, fin:null};
+  const base = pnFechaUTC(f.fecha);
+  const ini = new Date(base); ini.setUTCDate(ini.getUTCDate() - base.getUTCDay());
+  const fin = new Date(ini);  fin.setUTCDate(fin.getUTCDate() + 6);
+  const tramos = [], faltan = [];
+  let cur = new Date(Date.UTC(ini.getUTCFullYear(), ini.getUTCMonth(), 1));
+  const tope = new Date(Date.UTC(fin.getUTCFullYear(), fin.getUTCMonth(), 1));
+  while(cur <= tope){
+    const clave = pnClave(cur);
+    const finMes = new Date(Date.UTC(cur.getUTCFullYear(), cur.getUTCMonth()+1, 0));
+    const desde = (ini > cur) ? ini : cur;
+    const hasta = (fin < finMes) ? fin : finMes;
+    const N = PANEL.meses[clave];
+    if(N){
+      const dI = desde.getUTCDate(), dF = Math.min(hasta.getUTCDate(), N.dias.length);
+      if(dI <= dF) tramos.push({clave, M:N, ini:dI, fin:dF});
+    } else {
+      faltan.push(MESES_ES_FULL[cur.getUTCMonth()+1]);
+    }
+    cur.setUTCMonth(cur.getUTCMonth()+1);
+  }
+  return {tramos, faltan, ini, fin};
+}
+
+/* Todo el panel de la semana. finSemana = sábado ('YYYY-MM-DD'); claveBloque = mes del bloque
+   mensual ('YYYY-MM'); hasta = último día de ese bloque ('YYYY-MM-DD'). */
+function panelCalcula(finSemana, claveBloque, hasta){
+  const M = PANEL.meses[claveBloque];
+  if(!M) return null;
+  const nd = M.dias.length;
+  const corte = Math.min(Number(hasta.slice(8,10)), nd);        // último día del mes que entra
+  const Mfin = PANEL.meses[finSemana.slice(0,7)];
+  const dFin = Number(finSemana.slice(8,10));
+  const sem = Mfin ? pnTramosSemana(Mfin, Math.min(dFin, Mfin.dias.length))
+                   : {tramos:[], faltan:[MESES_ES_FULL[Number(finSemana.slice(5,7))]], ini:null, fin:null};
+
+  const semReal = sem.tramos.length ? sumaMeses(sem.tramos.map(x => panelCorte(x.M.bd,'sem',x.fin,null,x.ini))) : {};
+  const semPres = sem.tramos.length ? sumaMeses(sem.tramos.map(x => panelCorte(x.M.pr,'sem',x.fin,null,x.ini))) : {};
+
+  const mesReal = panelCorte(M.bd, 'mes', corte, null);
+  const mesPres = M.pr ? panelCorte(M.pr, 'mescPpto', nd, nd) : {};
+
+  const claves = Object.keys(PANEL.meses).sort()
+    .filter(c => c.slice(0,4)===claveBloque.slice(0,4) && c<=claveBloque);
+  const anoReal = sumaMeses(claves.map(c => {
+    const N = PANEL.meses[c];
+    return panelCorte(N.bd, 'mes', c===claveBloque ? corte : N.dias.length, null);
+  }));
+  let anoPres, pptoAnual = false;
+  const anual = M.pptoAnualCompleto;
+  if(anual && anual.anio === claveBloque.slice(0,4)){ anoPres = anual; pptoAnual = true; }
+  else {
+    const conPpto = claves.filter(c => PANEL.meses[c].pr);
+    anoPres = (conPpto.length === claves.length)
+      ? sumaMeses(conPpto.map(c => { const N = PANEL.meses[c]; return panelCorte(N.pr,'mescPpto',N.dias.length,N.dias.length); }))
+      : {};
+  }
+
+  // ---- consumos: ponderados por el tonelaje molido de cada día ----
+  const lSem = [], lMes = [], lAno = [];
+  sem.tramos.forEach(x => { for(let d=x.ini; d<=x.fin; d++) lSem.push({M:x.M, dia:d}); });
+  for(let d=1; d<=corte; d++) lMes.push({M, dia:d});
+  claves.forEach(c => { const N = PANEL.meses[c], fin = (c===claveBloque ? corte : N.dias.length);
+    for(let d=1; d<=fin; d++) lAno.push({M:N, dia:d}); });
+  const nombres = [];
+  lMes.forEach(x => (x.M.consumos||[]).forEach(c => {
+    if(!nombres.includes(c.nombre) && !CONSUMOS_OCULTOS_PANEL.some(o => pnNorm(c.nombre).indexOf(o)===0)) nombres.push(c.nombre); }));
+  const busca = (N,n) => (N.consumos||[]).find(c => c.nombre === n);
+  const tms = x => { const v = (x.M.bd.dias[x.dia]||{})[3]; return (typeof v==='number' && v>0) ? v : null; };
+  const dato = (lista, nom, lado) => {
+    if(!lista.length) return null;
+    if(lista.length===1){ const x=lista[0], c=busca(x.M,nom); const v = c && c[lado][x.dia-1]; return typeof v==='number' ? v : null; }
+    let num=0, den=0;
+    lista.forEach(x => { const c=busca(x.M,nom); if(!c) return;
+      const v=c[lado][x.dia-1], t=tms(x);
+      if(typeof v==='number' && t!=null){ num+=v*t; den+=t; } });
+    return den ? num/den : null;
+  };
+  const cons = nombres.map(nom => ({ nombre:nom,
+    sem:[dato(lSem,nom,'real'), dato(lSem,nom,'proy')],
+    mes:[dato(lMes,nom,'real'), dato(lMes,nom,'proy')],
+    ano:[dato(lAno,nom,'real'), dato(lAno,nom,'proy')] }));
+
+  return { semana: sem.ini ? pnSemanaISO(sem.ini) : null, faltan: sem.faltan,
+    sem:{real:semReal, pres:semPres}, mes:{real:mesReal, pres:mesPres},
+    ano:{real:anoReal, pres:anoPres, claves, pptoAnual},
+    mesNombre:M.nombre, anio:claveBloque.slice(0,4), cons };
+}
+
+/* ---- HTML: las mismas tablas del Flash (mismas clases), sin la barra de navegación ---- */
+function panelHtmlProd(T){
+  const nf = (v,d)=> v==null ? '—' : v.toLocaleString('es-MX',{minimumFractionDigits:d,maximumFractionDigits:d});
+  const valor = (v,f)=> v==null ? '—' : (f.pct ? nf(v*100,2)+'%' : nf(v, Math.abs(v)>=1000 ? 0 : (f.dec==null?2:f.dec)));
+  const dev = (r,p)=> (r==null||p==null||p===0) ? null : r/p;
+  const color = (d,f)=> (d==null || !f.vol) ? null : (d>=1 ? 'var(--pn-verde)' : d>=0.95 ? 'var(--pn-ambar)' : 'var(--pn-rojo)');
+  const cabs = [['sem','SEMANA'+(T.semana ? ' '+T.semana : '')], ['mes', T.mesNombre.toUpperCase()], ['ano','AÑO '+T.anio]];
+  const thBloques = cabs.map(([k,t])=>`<th colspan="3" class="tb-bloque"><span class="tb-per">${t}</span></th>`).join('');
+  const thSub = cabs.map(()=>`<th>Real</th><th>Ppto</th><th>Dev %</th>`).join('');
+  const filas = PANEL_FILAS.map(f=>{
+    if(f.g) return `<tr class="pn-g"><td colspan="${1+cabs.length*3}"><span>${f.g}</span></td></tr>`;
+    const celdas = cabs.map(([k])=>{
+      const D = T[k], r = D.real[f.k], p = D.pres[f.k];
+      const d = dev(r,p), c = color(d,f);
+      return `<td class="pn-real"><span>${valor(r,f)}</span></td>
+        <td class="pn-pres"><span>${valor(p,f)}</span></td>
+        <td class="pn-dev" style="color:${c||'#9aa2a9'}">${d==null?'—':(c?'<span class="pn-punto" style="background:'+c+'"></span>':'')+nf(d*100,0)+'%'}</td>`;
+    }).join('');
+    return `<tr${f.k==='ozEq'?' class="pn-clave"':''}><td class="tb-met"><span class="pn-nom">${f.n}</span> <span class="pn-uni">${f.u}</span></td>${celdas}</tr>`;
+  }).join('');
+  return `<div class="pn-tabla tb-tres"><table>
+      <thead><tr><th rowspan="2" class="tb-met-h">Métrica</th>${thBloques}</tr><tr class="tb-sub-tr">${thSub}</tr></thead>
+      <tbody>${filas}</tbody></table></div>`;
+}
+function panelHtmlCons(T){
+  const nf = v => v==null ? '—' : v.toLocaleString('es-MX',{minimumFractionDigits:2, maximumFractionDigits:3});
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const bloques = ['sem','mes','ano'];
+  const filas = T.cons.map(c=>{
+    const celdas = bloques.map(per=>{
+      const [r,p] = c[per];
+      const d = (r==null||p==null||p===0) ? null : r/p;
+      // Aquí menos es mejor: gastar por debajo de lo proyectado es lo bueno.
+      const col = d==null ? null : (d<=1 ? 'var(--pn-verde)' : d<=1.05 ? 'var(--pn-ambar)' : 'var(--pn-rojo)');
+      return `<td class="pn-real">${nf(r)}</td><td class="pn-pres">${nf(p)}</td>
+        <td class="pn-dev" style="color:${col||'#9aa2a9'}">${d==null?'—':(col?'<span class="pn-punto" style="background:'+col+'"></span>':'')+Math.round(d*100)+'%'}</td>`;
+    }).join('');
+    return `<tr><td class="tb-met"><span class="pn-nom">${esc(c.nombre)}</span></td>${celdas}</tr>`;
+  }).join('');
+  const nom = {sem:'SEMANA', mes:T.mesNombre.toUpperCase(), ano:'AÑO '+T.anio};
+  return `<div class="pn-consumos"><div class="pn-sub">Consumos — Real vs Proyección <span class="pn-uni">(por tonelada molida)</span></div>
+    <div class="pn-tabla tb-tres"><table><thead>
+      <tr><th rowspan="2" class="tb-met-h">Consumo</th>${bloques.map(k=>`<th colspan="3" class="tb-bloque"><span class="tb-per">${nom[k]}</span></th>`).join('')}</tr>
+      <tr class="tb-sub-tr">${bloques.map(()=>'<th>Real</th><th>Proy</th><th>Dev %</th>').join('')}</tr>
+    </thead><tbody>${filas}</tbody></table></div></div>`;
+}
+
+async function panelDelContexto(){
+  if(!sb) return null;
+  const {data:rows, error} = await sb.from('flash_reportes').select('periodo,data').order('periodo');
+  if(error || !rows) return null;
+  panelCargaMeses(rows);
+  return panelCalcula(iso(CTX.end), CTX.mesCompKey, CTX.monthEndCap);
+}
+
+// ============ 2. Parche de PPTX (JSZip, edición quirúrgica de XML) ============
+function normLabel(s){ return s.trim().toLowerCase().replace(/[:.]/g,'').replace(/\s+/g,' ').trim(); }
+function hasDigit(s){ return /\d/.test(s); }
+
+function extractTNodes(xml){
+  const re = /<a:t>([\s\S]*?)<\/a:t>/g;
+  const nodes = []; let m;
+  while((m = re.exec(xml))){
+    nodes.push({inner:m[1], fullStart:m.index+5, fullEnd:re.lastIndex-6});
+  }
+  return nodes;
+}
+
+/* Los <a:t> de un mismo párrafo, para cuando un texto viene partido en varias corridas
+   (PowerPoint parte una palabra en dos en cuanto le cambias una letra a mano). */
+function extractParagraphs(xml){
+  const re = /<a:p\b[\s\S]*?<\/a:p>/g;
+  const out = []; let m;
+  while((m = re.exec(xml))) out.push({start:m.index, end:re.lastIndex});
+  return out;
+}
+
+function patchSlideXml(xml, rules){
+  const nodes = extractTNodes(xml);
+  const parrafos = extractParagraphs(xml);
+  const enParrafo = p => nodes.filter(n=> n.fullStart >= p.start && n.fullEnd <= p.end);
+  const replacements = []; const applied = [];
+  for(let i=0;i<nodes.length;i++){
+    const norm = normLabel(nodes[i].inner);
+    for(const rule of rules){
+      if(rule.applied || rule.type) continue;
+      if(norm === rule.label){
+        let j=i+1; while(j<nodes.length && !hasDigit(nodes[j].inner)) j++;
+        if(j<nodes.length){
+          const valNode = nodes[j];
+          const newInner = valNode.inner.replace(/-?[\d,]+(?:\.\d+)?/, rule.value);
+          replacements.push({start:valNode.fullStart,end:valNode.fullEnd,text:newInner});
+          rule.applied = true; applied.push(rule.label+' -> '+newInner);
+        }
+      }
+    }
+  }
+  for(let i=0;i<nodes.length;i++){
+    const trimmed = nodes[i].inner.trim();
+    for(const rule of rules){
+      if(rule.applied || !rule.type) continue;
+      if(rule.type==='semana' && /^semana\s+\d+$/i.test(trimmed)){
+        const newInner = nodes[i].inner.replace(/\d+/, rule.value);
+        replacements.push({start:nodes[i].fullStart,end:nodes[i].fullEnd,text:newInner});
+        rule.applied = true; applied.push('semana -> '+newInner);
+      }
+      if(rule.type==='mes' && MES_NAMES.includes(trimmed)){
+        replacements.push({start:nodes[i].fullStart,end:nodes[i].fullEnd,text:rule.value});
+        rule.applied = true; applied.push('mes -> '+rule.value);
+      }
+    }
+  }
+  // Títulos de slide: se compara el párrafo completo, no cada corrida por separado.
+  for(const rule of rules){
+    if(rule.applied || rule.type !== 'titulo') continue;
+    for(const p of parrafos){
+      const dentro = enParrafo(p);
+      if(!dentro.length) continue;
+      if(!rule.test.test(dentro.map(n=>n.inner).join('').toUpperCase())) continue;
+      replacements.push({start:dentro[0].fullStart, end:dentro[0].fullEnd, text:rule.value});
+      for(let k=1;k<dentro.length;k++)
+        replacements.push({start:dentro[k].fullStart, end:dentro[k].fullEnd, text:''});
+      rule.applied = true; applied.push('título -> '+rule.value);
+      break;
+    }
+  }
+  replacements.sort((a,b)=>b.start-a.start);
+  let out = xml;
+  for(const r of replacements) out = out.slice(0,r.start)+r.text+out.slice(r.end);
+  return {out, applied};
+}
+
+const MES_NAMES = Object.values(MESES_ES_FULL);
+
+function classifySlideKind(xml){
+  if(xml.includes('mg/lt')) return 'merrillMgLt';
+  if(xml.includes('TONELAJE PROCESADO')) return 'molienda';
+  if(xml.includes('ESTADISTICA DE PRODUCCI')) return 'ozeq';
+  if(xml.includes('MERRILL CROWE')) return 'merrillPct';
+  if(xml.includes('LEYES DE PROCESO')) return 'leyes';
+  if(xml.includes('RECUPERACI')) return 'recuperacion';
+  // La slide de "Alimentación por Procedencia" pasa a ser la de los tres pasos, y la de
+  // "Stock Estimado por Procedencia" se quita del mazo: su contenido ya va en la otra.
+  // El título puede venir partido en varias corridas y con el mes agregado a mano
+  // ("MINERAL POR PROCEDENCIA Sep-26", "Stock Patios Sep-26"): se compara el texto completo.
+  const txt = (xml.match(/<a:t>[^<]*<\/a:t>/g) || []).map(s=>s.replace(/<[^>]+>/g,'')).join(' ')
+                .toUpperCase().replace(/\s+/g,' ');
+  if(/MINERAL POR PROCEDENCIA/.test(txt) || (txt.includes('ALIMENTACI') && txt.includes('PROCEDENCIA'))) return 'mineral';
+  if(/STOCK\s+(PATIOS?|ESTIMADO|EN PATIO)/.test(txt)) return 'stock';
+  // Las dos láminas del panel se llaman igual: generarPptx las distingue por su orden en el mazo.
+  if(/PANEL\s+DE\s+PRODUCCI/.test(txt)) return 'panel';
+  return null;
+}
+
+function classifyAndRules(xml, ctx, kindForced){
+  const g = id => document.getElementById(id).value;
+  const semana = String(ctx.semana);
+  /* El nombre del mes solo aparece en las slides de Tonelaje Procesado y Estadistica de
+     Produccion, justo arriba de la Media/Promedio Mensual. Por eso lleva el mes del bloque
+     mensual —el que cerro cuando la semana cruza— y no el mes dominante de la semana:
+     si el numero es de agosto, la slide tiene que decir Agosto. */
+  const mesNuevo = ctx.mesCompNombre;
+  // 'Sep-26': el mes del bloque mensual, que es el que llevan las láminas de mineral y stock
+  const abrevMes = ctx.mesCompNombre.slice(0,3)+'-'+ctx.mesCompKey.slice(2,4);
+  // El stock en semana normal es el actual del Flash: su título lleva el mes de esa foto.
+  let abrevStock = abrevMes;
+  if(!ctx.mesCompleto && ctx.stockActual && ctx.stockActual.periodo){
+    const [sy, sm] = ctx.stockActual.periodo.split('-').map(Number);
+    abrevStock = MESES_ES_FULL[sm].slice(0,3)+'-'+String(sy).slice(2);
+  }
+  const kind = kindForced || classifySlideKind(xml);
+  switch(kind){
+    case 'merrillMgLt': return [
+      {label:'au', value:g('v_mc_au')}, {label:'ag', value:g('v_mc_ag')},
+      {label:'flujo sem', value:g('v_flujo_sem')}, {label:'prom sem', value:g('v_flujo_prom')},
+      {type:'semana', value:semana},
+    ];
+    case 'molienda': return [
+      {label:'molienda seco', value:g('v_mol_sem')}, {label:'media', value:g('v_mol_media')},
+      {label:'media mensual', value:g('v_mol_mensual')}, {type:'semana', value:semana}, {type:'mes', value:mesNuevo},
+    ];
+    case 'ozeq': return [
+      {label:'oz eq au semanal', value:g('v_ozeq_sem')}, {label:'promedio semanal', value:g('v_ozeq_prom_sem')},
+      {label:'promedio mensual', value:g('v_ozeq_prom_mes')}, {type:'semana', value:semana}, {type:'mes', value:mesNuevo},
+    ];
+    case 'merrillPct': return [
+      {label:'au', value:g('v_efic_au')}, {label:'ag', value:g('v_efic_ag')}, {type:'semana', value:semana},
+    ];
+    case 'leyes': return [
+      {label:'au', value:g('v_ley_au')}, {label:'ag', value:g('v_ley_ag')}, {type:'semana', value:semana},
+    ];
+    case 'mineral': return [
+      {type:'titulo', test:/MINERAL\s+POR\s+PROCEDENCIA|ALIMENTACI[OÓ]N\s+POR\s+PROCEDENCIA/, value:'MINERAL POR PROCEDENCIA '+abrevMes},
+    ];
+    case 'stock': return [
+      {type:'titulo', test:/STOCK\s+(PATIOS?|ESTIMADO|EN\s+PATIO)/, value:'Stock Patios '+abrevStock},
+    ];
+    case 'recuperacion': return [
+      {label:'au', value:g('v_rec_au')}, {label:'ag', value:g('v_rec_ag')}, {type:'semana', value:semana},
+    ];
+    default: return [];
+  }
+}
+
+/* Quitar una slide del mazo. Hay que desarmarla en los cuatro lados donde el PPTX la
+   nombra —la lista de la presentación, su relación, el Content_Types y el propio
+   archivo— porque si queda mencionada en uno solo, PowerPoint pide repararlo al abrir.
+   Se usa para la de "Stock Estimado por Procedencia", cuyo contenido ya va dentro de
+   la de Mineral por Procedencia. */
+async function quitaSlide(zip, name){
+  const m = name.match(/slide(\d+)\.xml$/);
+  if(!m) return false;
+  const n = m[1];
+  const relsPath = 'ppt/_rels/presentation.xml.rels';
+  const relsFile = zip.file(relsPath), presFile = zip.file('ppt/presentation.xml');
+  const ctFile = zip.file('[Content_Types].xml');
+  if(!relsFile || !presFile || !ctFile) return false;
+
+  let rels = await relsFile.async('string');
+  const rel = rels.match(new RegExp('<Relationship[^>]*slides/slide'+n+'\\.xml"[^>]*/>'));
+  if(!rel) return false;
+  const rid = (rel[0].match(/Id="(rId\d+)"/) || [])[1];
+  if(!rid) return false;
+  zip.file(relsPath, rels.replace(rel[0], ''));
+
+  let pres = await presFile.async('string');
+  pres = pres.replace(new RegExp('<p:sldId[^>]*r:id="'+rid+'"\\s*/>'), '')
+             .replace(new RegExp('<p:sldId[^>]*r:id="'+rid+'"[^>]*>[\\s\\S]*?</p:sldId>'), '');
+  zip.file('ppt/presentation.xml', pres);
+
+  let ct = await ctFile.async('string');
+  zip.file('[Content_Types].xml',
+    ct.replace(new RegExp('<Override[^>]*PartName="/ppt/slides/slide'+n+'\\.xml"[^>]*/>'), ''));
+
+  zip.remove(name);
+  zip.remove('ppt/slides/_rels/slide'+n+'.xml.rels');
+
+  /* Y las propiedades del documento, que llevan su propia cuenta de slides y una lista
+     de títulos. Si se dejan con la cuenta vieja, PowerPoint no se rompe pero muestra un
+     número de diapositivas que no cuadra con lo que hay. */
+  const appFile = zip.file('docProps/app.xml');
+  if(appFile){
+    let app = await appFile.async('string');
+    app = app.replace(/<Slides>(\d+)<\/Slides>/, (t,k)=> '<Slides>'+Math.max(0, Number(k)-1)+'</Slides>');
+    // El último título de la lista, que en esta plantilla son todos genéricos
+    app = app.replace(/<vt:vector size="(\d+)" baseType="lpstr">([\s\S]*?)<\/vt:vector>/,
+      (todo, tam, dentro)=>{
+        const items = dentro.match(/<vt:lpstr>[\s\S]*?<\/vt:lpstr>/g) || [];
+        if(items.length < 2) return todo;
+        items.pop();
+        return '<vt:vector size="'+(Number(tam)-1)+'" baseType="lpstr">'+items.join('')+'</vt:vector>';
+      });
+    zip.file('docProps/app.xml', app);
+  }
+  return true;
+}
+
+/* Las láminas en el orden en que aparecen en el mazo (no el de los archivos slideN.xml). */
+async function ordenDeSlides(zip){
+  const pres = zip.file('ppt/presentation.xml'), rels = zip.file('ppt/_rels/presentation.xml.rels');
+  if(!pres || !rels) return [];
+  const px = await pres.async('string'), rx = await rels.async('string');
+  const destino = {};
+  [...rx.matchAll(/<Relationship[^>]*>/g)].forEach(r=>{
+    const id = r[0].match(/Id="([^"]+)"/), t = r[0].match(/Target="([^"]+)"/);
+    if(id && t) destino[id[1]] = 'ppt/' + t[1].replace(/^\/?(ppt\/)?/, '');
+  });
+  return [...px.matchAll(/<p:sldId [^>]*r:id="([^"]+)"/g)].map(x=> destino[x[1]]).filter(Boolean);
+}
+
+document.getElementById('btnGenerar').addEventListener('click', generarPptx);
+
+async function generarPptx(){
+  const statusEl = document.getElementById('statusPptx');
+  const fileInput = document.getElementById('archivoPlantilla');
+  if(!fileInput.files.length){ statusEl.className='status err'; statusEl.textContent='Sube primero la plantilla PPTX.'; return; }
+  if(!CTX){ statusEl.className='status err'; statusEl.textContent='Calcula la semana primero.'; return; }
+
+  statusEl.className='status info'; statusEl.textContent='Generando...';
+  try{
+    const incluirGraficas = document.getElementById('chkGraficas').checked;
+    let shots = null;
+    if(incluirGraficas){
+      statusEl.textContent = 'Recreando gráficas con los datos de esta semana...';
+      shots = await captureCharts();
+    }
+
+    statusEl.textContent = 'Aplicando cambios al PPTX...';
+    const file = fileInput.files[0];
+    const zip = await JSZip.loadAsync(file);
+    const slideNames = Object.keys(zip.files).filter(n=>/^ppt\/slides\/slide\d+\.xml$/.test(n));
+    let totalApplied = [];
+    const sobran = [];
+    // Las dos láminas "Panel de Producción": la primera del mazo es el panel y la segunda, los consumos
+    const orden = await ordenDeSlides(zip);
+    const panelSlides = [];
+    for(const name of slideNames){
+      if(classifySlideKind(await zip.file(name).async('string')) === 'panel') panelSlides.push(name);
+    }
+    panelSlides.sort((a,b)=> orden.indexOf(a) - orden.indexOf(b));
+    const panelKey = {}; panelSlides.forEach((n,i)=>{ panelKey[n] = (i===0 ? 'panelProd' : 'panelCons'); });
+    for(const name of slideNames){
+      const xml = await zip.file(name).async('string');
+      let kind = classifySlideKind(xml);
+      if(kind === 'panel') kind = panelKey[name] || 'panelProd';
+      if(kind === 'sobra'){ sobran.push(name); continue; }
+      const rules = classifyAndRules(xml, CTX, kind);
+      let appliedHere = [];
+      if(rules.length){
+        const {out, applied} = patchSlideXml(xml, rules);
+        if(applied.length){ zip.file(name, out); appliedHere = applied; }
+      }
+      if(shots && kind && shots[kind]){
+        const ok = await replaceSlideImages(zip, name, shots[kind]);
+        if(ok) appliedHere.push('imagen actualizada');
+      }
+      if(appliedHere.length){
+        totalApplied.push(name.replace('ppt/slides/','')+': '+appliedHere.join(', '));
+      }
+    }
+    for(const name of sobran){
+      if(await quitaSlide(zip, name))
+        totalApplied.push(name.replace('ppt/slides/','')+': slide quitada (su contenido ya va en Mineral por Procedencia)');
+    }
+    if(!totalApplied.length){
+      statusEl.className='status err';
+      statusEl.textContent='No se encontró ningún texto ni gráfica reconocible en la plantilla. Verifica que sea un PPTX de PLANTA con el mismo formato.';
+      return;
+    }
+    const blob = await zip.generateAsync({type:'blob'});
+    const url = URL.createObjectURL(blob);
+    const dd = d => String(d.getDate()).padStart(2,'0');
+    /* Semana dentro de un mes: "27 al 03-Sep 2026". Semana que cruza de mes (o de año), con las dos
+       fechas completas: "27-Sep al 03-Oct 2026" / "27-Dic 2026 al 02-Ene 2027". */
+    const m3 = d => MESES_ES_FULL[d.getMonth()+1].slice(0,3);
+    const yS = CTX.start.getFullYear(), yE = CTX.end.getFullYear();
+    const rangoNombre = CTX.mesCompleto
+      ? `${dd(CTX.start)}-${m3(CTX.start)}${yS!==yE ? ' '+yS : ''} al ${dd(CTX.end)}-${m3(CTX.end)} ${yE}`
+      : `${dd(CTX.start)} al ${dd(CTX.end)}-${CTX.mesLabel.slice(0,3)} ${CTX.anio}`;
+    const nombre = `4.- PLANTA ${rangoNombre} MRT Cieneguita.pptx`;
+    const a = document.createElement('a');
+    a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+
+    statusEl.className='status ok';
+    statusEl.textContent = 'Listo — se descargó "'+nombre+'".\n\nCambios aplicados:\n'+totalApplied.join('\n')
+      + ((CTX.avisos && CTX.avisos.length) ? '\n\nAvisos:\n'+CTX.avisos.join('\n') : '');
+  }catch(err){
+    statusEl.className='status err'; statusEl.textContent='Error generando el PPTX: '+(err.message||err);
+  }
+}
+
+// fecha por defecto: hoy
+document.getElementById('fecha').value = new Date().toISOString().slice(0,10);
+</script>
+</body>
+</html>

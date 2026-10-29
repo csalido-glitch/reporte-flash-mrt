@@ -64,6 +64,58 @@ const SUPABASE_URL = 'https://vknnwhivhqzbyeqnnegy.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrbm53aGl2aHF6YnllcW5uZWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyMjA3ODAsImV4cCI6MjEwMTc5Njc4MH0._1bIE726QDVcWnN9LaC8CKoM2IVoCNA4ncouyx2Zl5Y';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// ── 29-oct-26 · Candado: misma sesión de Google que el Flash (mismo sitio, misma base) ──
+// La base solo entrega datos a correos autorizados; esto solo tapa la pantalla mientras.
+(function(){
+  const PERMISO = 'subir', ACCION = 'Carga del Presupuesto anual';
+  const st = document.createElement('style');
+  st.textContent = '#gateFlash{position:fixed;inset:0;z-index:99999;background:#f4f5f7;display:flex;align-items:flex-start;justify-content:center;padding:60px 16px;font-family:"Segoe UI",Arial,sans-serif}'
+    + '#gateFlash .c{background:#fff;border:1px solid #e3e6e9;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.08);padding:26px;max-width:420px;width:100%;text-align:center}'
+    + '#gateFlash h2{margin:0 0 6px;font-size:17px;color:#1a2733}#gateFlash p{font-size:13px;color:#5a656d;margin:0 0 16px;line-height:1.5}'
+    + '#gateFlash button{width:100%;padding:11px;border-radius:8px;border:1px solid #c9ced3;background:#fff;font:600 14px "Segoe UI",Arial,sans-serif;cursor:pointer;margin-top:6px}'
+    + '#gateFlash .m{font-size:12.5px;color:#c0392b;min-height:18px;margin-top:10px}'
+    + '#gateBarra{position:fixed;top:6px;right:10px;z-index:9999;font:11.5px "Segoe UI",Arial,sans-serif;color:#7c858d;background:rgba(255,255,255,.9);padding:3px 8px;border-radius:6px}'
+    + '#gateBarra button{background:none;border:none;color:#5a656d;text-decoration:underline;cursor:pointer;font-size:11.5px}';
+  document.head.appendChild(st);
+  const g = document.createElement('div'); g.id = 'gateFlash';
+  g.innerHTML = '<div class="c"><h2>🔒 ' + ACCION + '</h2><p id="gateTxt">Entra con tu cuenta de Google del trabajo (la misma del Reporte Flash).</p>'
+    + '<button id="gateEntrar" type="button">Entrar con Google</button><button id="gateOtra" type="button" style="display:none">Usar otra cuenta</button><div class="m" id="gateMsg"></div></div>';
+  const poner = () => document.body.appendChild(g);
+  if(document.body) poner(); else document.addEventListener('DOMContentLoaded', poner);
+  const url = () => location.origin + location.pathname + location.search;
+  const msg = t => { const m = document.getElementById('gateMsg'); if(m) m.textContent = t || ''; };
+  async function salir(){ try{ await sb.auth.signOut(); }catch(e){} location.replace(url()); }
+  window.FLASH_SESION = (async () => {
+    await new Promise(r => document.body ? r() : document.addEventListener('DOMContentLoaded', r));
+    document.getElementById('gateEntrar').onclick = () => sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo:url(), queryParams:{ prompt:'select_account' } } });
+    document.getElementById('gateOtra').onclick = salir;
+    if(location.protocol === 'file:'){
+      document.getElementById('gateTxt').innerHTML = 'Desde el 29-oct-26 esta herramienta se abre desde el sitio del Flash, no desde el archivo:<br><b>csalido-glitch.github.io/reporte-flash-mrt/panel_presupuesto_anual.html</b>';
+      document.getElementById('gateEntrar').style.display = 'none';
+      return false;
+    }
+    if(!sb){ msg('No se pudo cargar la conexión. Recarga la página.'); return false; }
+    const { data:{ session } } = await sb.auth.getSession();
+    if(!session) return false;
+    const email = String(session.user.email || '').toLowerCase();
+    const { data, error } = await sb.from('flash_autorizados').select('*').eq('correo', email).maybeSingle();
+    if(error){ msg('No se pudo revisar tu acceso: ' + error.message); return false; }
+    if(!data || !(data.admin || data[PERMISO])){
+      document.getElementById('gateTxt').innerHTML = 'La cuenta <b>' + email.replace(/</g,'&lt;') + '</b> no tiene permiso para esta herramienta.';
+      document.getElementById('gateEntrar').style.display = 'none';
+      document.getElementById('gateOtra').style.display = '';
+      return false;
+    }
+    g.remove();
+    if(window.top !== window) return true;   // dentro del Flash: la barra de sesión ya está arriba
+    const b = document.createElement('div'); b.id = 'gateBarra';
+    b.innerHTML = '👤 ' + email.replace(/</g,'&lt;') + ' · <button type="button">Salir</button>';
+    b.querySelector('button').onclick = salir; document.body.appendChild(b);
+    return true;
+  })();
+})();
+
+
 const log = document.getElementById('log');
 function linea(txt, cls){ const d=document.createElement('div'); if(cls) d.className=cls; d.textContent=txt; log.appendChild(d); }
 
