@@ -283,13 +283,19 @@ const pctl=(a,p)=>{ const s=a.slice().sort((x,y)=>x-y); const i=(s.length-1)*p, 
 // Sentido físico: la operación mueve la finura; la MEZCLA de mineral mueve las leyes de cabeza (y la finura). Las toneladas no mueven las leyes.
 const CADENA={molido_seco:['p80_real'], pct_cb:['ley_au','ley_ag','p80_real']};   // más t → P80 · más Cerro Blanco → cambian leyes Au/Ag y P80
 let D=[], M_AU=null, M_AG=null, ENL={}, BASE={}, CUR={}, LOCK={}, RANGO={}, PAU=4100, PAG=57.4, TC=0, DIAS=30;   // precios editables (USD/oz) · TC opcional (MXN por USD)
+const MIN_DIAS_MODELO=30;   // con menos días elegidos, el modelo se calcula con todos los meses
+let DM=[], MODELO_GLOBAL=false;
+function datosTodos(){ const s=document.getElementById('sinParo').checked; return TODO.filter(d=>(!s||(d.horas_molienda>=18&&d.molido_seco>=500))&&d.recuperacion_au>0); }
 function preparar(){
-  D=datos(); document.getElementById('nUsados').textContent='· '+D.length+' días usados';
-  XS.forEach(k=>{ const a=D.map(d=>d[k]).filter(v=>v!=null); RANGO[k]={min:Math.min(...a),max:Math.max(...a),p5:pctl(a,.05),p95:pctl(a,.95)}; BASE[k]=media(a); });
-  M_AU=ols(D,'recuperacion_au',XS); M_AG=ols(D,'recuperacion_ag',XS);
-  // relaciones entre entradas (para el efecto en cadena): cada x contra cada otra x, solo si es significativa
-  // Efecto en cadena SOLO en el sentido físico (la operación mueve la molienda fina, no al revés). Para agregar otra: CADENA.
-  ENL={}; XS.forEach(a=>ENL[a]={}); Object.entries(CADENA).forEach(([a,L])=>L.forEach(b=>{ const c=corr(D,a,b); if(c.n>10&&Math.abs(c.r)>=1.96/Math.sqrt(c.n)) ENL[a][b]=c; }));
+  D=datos();
+  // Pocos días (p. ej. solo noviembre): el punto de partida sale de esos días, pero las
+  // relaciones (modelo, efecto en cadena y rangos de las barras) se calculan con todo el histórico.
+  MODELO_GLOBAL=D.length<MIN_DIAS_MODELO; DM=MODELO_GLOBAL?datosTodos():D;
+  document.getElementById('nUsados').innerHTML='· '+D.length+' días usados'+(MODELO_GLOBAL?` <span style="color:#b9770e;font-weight:700">· pocos días: el punto de partida es de los meses elegidos y el modelo usa los ${DM.length} días de todo el histórico</span>`:'');
+  XS.forEach(k=>{ const a=DM.map(d=>d[k]).filter(v=>v!=null), b=D.map(d=>d[k]).filter(v=>v!=null); RANGO[k]={min:Math.min(...a),max:Math.max(...a),p5:pctl(a,.05),p95:pctl(a,.95)}; BASE[k]=b.length?media(b):media(a); });
+  M_AU=ols(DM,'recuperacion_au',XS); M_AG=ols(DM,'recuperacion_ag',XS);
+  // Efecto en cadena SOLO en el sentido físico. Para agregar otra: CADENA.
+  ENL={}; XS.forEach(a=>ENL[a]={}); Object.entries(CADENA).forEach(([a,L])=>L.forEach(b=>{ const c=corr(DM,a,b); if(c.n>10&&Math.abs(c.r)>=1.96/Math.sqrt(c.n)) ENL[a][b]=c; }));
   CUR=Object.assign({},BASE);
 }
 function mover(k,v){ // mueve k y, en cadena, las variables sin candado relacionadas con k
@@ -610,7 +616,7 @@ function pintarPlanta(){
 // ── arranque ──
 const _tabsPrev=null;
 let BASE_H=23;
-function todo(){ preparar(); BASE_H=media(D.map(d=>d.horas_molienda)); ULT_MOV={}; sliders(); tablaModelo(); pintar(); matriz(); disp(); porMes(); if(PL_LISTO) panelPlanta(); }
+function todo(){ preparar(); BASE_H=media((D.length?D:DM).map(d=>d.horas_molienda)); ULT_MOV={}; sliders(); tablaModelo(); pintar(); matriz(); disp(); porMes(); if(PL_LISTO) panelPlanta(); }
 document.getElementById('meses').innerHTML=MESES.map(m=>`<span class="chip on" data-m="${m}">${mesTxt(m)}</span>`).join(' ');
 document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{ const m=c.dataset.m; if(SEL.has(m)&&SEL.size>1) SEL.delete(m); else SEL.add(m); c.classList.toggle('on',SEL.has(m)); todo(); });
 document.getElementById('sinParo').onchange=todo;
