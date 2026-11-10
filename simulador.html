@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de Planta · Flash MRT</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+:root{--oro:#b8902c;--oro2:#9c7a22;--navy:#1c2733;--azul:#1f3864;--fondo:#f4f5f7;--borde:#e3e6ea;--txt:#1d2733;--sub:#6b7480;--verde:#1e8449;--rojo:#c0392b;--ambar:#d68910}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:var(--fondo);color:var(--txt);font-size:13px}
+header{background:#fff;border-bottom:3px solid var(--oro);padding:10px 22px;display:flex;align-items:center;gap:18px}
+header .t{font-weight:800;color:var(--oro2);font-size:18px;letter-spacing:.3px}
+header .s{color:var(--sub);font-size:11px}
+.logo{width:54px;height:40px;border-radius:6px;background:linear-gradient(135deg,#d4b04a,#9c7a22);color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:15px}
+.barra{display:flex;gap:8px;align-items:center;padding:10px 22px;flex-wrap:wrap}
+.bt{border:none;border-radius:6px;padding:7px 13px;font-size:12px;font-weight:700;cursor:pointer;background:var(--oro);color:#fff}
+.bt.gris{background:#e7e9ec;color:#333}
+.bt.sim{background:linear-gradient(135deg,#1f3864,#2f5597);box-shadow:0 0 0 3px #f3d27a}
+.candado{font-size:10px;background:#fff3cd;color:#7a5b00;border:1px solid #f0d58a;border-radius:10px;padding:2px 8px;font-weight:600}
+.aviso{margin:0 22px 10px;background:#eef3fb;border:1px solid #c9d7ef;color:#1f3864;border-radius:8px;padding:8px 12px;font-size:12px}
+.tabs{display:flex;gap:4px;margin:0 22px;border-bottom:2px solid var(--borde)}
+.tab{padding:9px 16px;cursor:pointer;font-weight:700;color:var(--sub);border-bottom:3px solid transparent;margin-bottom:-2px}
+.tab.on{color:var(--azul);border-bottom-color:var(--oro)}
+main{padding:14px 22px 30px}
+.fila{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.card{background:#fff;border:1px solid var(--borde);border-radius:10px;padding:14px 16px}
+.card h3{margin:0 0 10px;font-size:13px;color:var(--azul);text-transform:uppercase;letter-spacing:.4px}
+.filtros{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.chip{border:1px solid #cdd3da;border-radius:14px;padding:3px 10px;font-size:11px;cursor:pointer;background:#fff;user-select:none}
+.chip.on{background:var(--azul);color:#fff;border-color:var(--azul)}
+.var{padding:9px 0;border-bottom:1px solid #f0f1f3}
+.var:last-child{border-bottom:none}
+.var .cab{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.var .nom{font-weight:700}
+.var .val{font-weight:800;color:var(--azul);font-size:14px;min-width:84px;text-align:right}
+.var input[type=range]{width:100%;margin:6px 0 2px;accent-color:var(--oro)}
+.var .rango{display:flex;justify-content:space-between;color:var(--sub);font-size:10px}
+.var .mov{font-size:10px;color:var(--ambar);font-weight:700;min-height:13px}
+.lock{cursor:pointer;font-size:13px;border:1px solid #d6dbe1;border-radius:5px;padding:0 5px;background:#fff}
+.lock.on{background:#fdf2d0;border-color:#e2c164}
+.fuera{color:var(--rojo)!important}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.kpi{background:#fff;border:1px solid var(--borde);border-radius:10px;padding:10px 12px}
+.kpi .n{font-size:10px;color:var(--sub);text-transform:uppercase;font-weight:700}
+.kpi .v{font-size:24px;font-weight:800;color:var(--azul);margin-top:2px}
+.kpi .d{font-size:11px;font-weight:700;margin-top:2px}
+.kpi.prin{border:2px solid var(--oro);background:#fffaf0}
+.up{color:var(--verde)}.dn{color:var(--rojo)}.eq{color:var(--sub)}
+.sem{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+table.t{border-collapse:collapse;width:100%;font-size:12px}
+table.t th,table.t td{border-bottom:1px solid #eef0f2;padding:5px 6px;text-align:left}
+table.t th{color:var(--sub);font-size:10px;text-transform:uppercase}
+.mat td{text-align:center;cursor:pointer;font-weight:700;font-size:11px;border:1px solid #fff;padding:6px 4px;min-width:58px}
+.mat th{font-size:10px;color:var(--sub);padding:4px;font-weight:700}
+.mat td.sel{outline:3px solid var(--oro)}
+.nota{font-size:11px;color:var(--sub);line-height:1.5}
+.cascada{display:flex;flex-direction:column;gap:4px;font-size:12px}
+.cascada .r{display:grid;grid-template-columns:190px 1fr 70px;align-items:center;gap:8px}
+.cascada .b{height:12px;border-radius:3px}
+.oculto{display:none}
+/* Planta */
+.pl-top{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.pl-modo{display:flex;border:1px solid #cdd3da;border-radius:8px;overflow:hidden}
+.pl-sw{padding:6px 12px;font-weight:700;font-size:12px;background:#fff;color:var(--sub)}
+.pl-sw.on{background:var(--azul);color:#fff}
+.pl-sw.off{cursor:not-allowed;opacity:.6}
+.pl-kpis{display:flex;gap:8px;flex-wrap:wrap;flex:1}
+.pl-k{background:#fff;border:1px solid var(--borde);border-radius:8px;padding:5px 10px;min-width:120px}
+.pl-k .n{font-size:9px;color:var(--sub);text-transform:uppercase;font-weight:700}
+.pl-k .v{font-size:17px;font-weight:800;color:var(--azul)}
+.pl-k .d{font-size:10px;font-weight:700}
+.pl-k.oro{border:2px solid var(--oro);background:#fffaf0}
+.pl-wrap{overflow-x:auto}
+.pl-lienzo{position:relative;width:100%;min-width:900px;aspect-ratio:1100/760}
+.pl-lienzo svg{position:absolute;inset:0;width:100%;height:100%}
+.eq{cursor:pointer}
+.eq:hover .cuerpo,.eq.sel .cuerpo{filter:drop-shadow(0 0 4px #f0b429)}
+.eq.brilla .cuerpo{animation:brilla 1.2s ease-out}
+@keyframes brilla{0%{filter:drop-shadow(0 0 10px #f0b429)}100%{filter:none}}
+.tag{position:absolute;transform:translate(-50%,0);background:#fff;border:1px solid #cfd6de;border-left:4px solid #b8bec6;border-radius:6px;padding:2px 6px;font-size:10.5px;line-height:1.3;white-space:nowrap;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.tag b{color:var(--azul)}
+.tag .t{font-weight:800;font-size:9.5px;color:var(--sub);text-transform:uppercase}
+.tag.mov{border-left-color:var(--oro)}
+.tag.res{border-left-color:#1f3864;background:#f6f8fc}
+.tag.sin{border-left-color:#d6dbe1;color:#9aa3ad;background:#fafbfc}
+.tag.sel{outline:2px solid var(--oro)}
+.tag .up,.tag .dn{font-weight:800}
+.flujo-on{animation:fluye 1.4s linear}
+@keyframes fluye{0%{stroke:#f0b429;stroke-width:5}100%{}}
+.pl-ley{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--sub);padding:6px 6px 2px}
+.pl-ley i{display:inline-block;width:26px;vertical-align:middle;margin-right:4px}
+.pl-dot{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:middle;margin-right:3px}
+.pl-dot.mov{background:var(--oro)}.pl-dot.res{background:#1f3864}.pl-dot.sin{background:#d6dbe1}
+.pl-panel{flex:0 0 320px;position:sticky;top:8px;align-self:flex-start;max-height:calc(100vh - 16px);overflow:auto}
+.pl-panel h3 small{font-weight:400;text-transform:none;color:var(--sub)}
+.pl-panel table.t td:last-child{text-align:right}
+.bt-mini{border:1px solid #cdd3da;background:#fff;border-radius:5px;padding:4px 9px;font-size:11px;cursor:pointer;font-weight:600}
+</style>
+</head>
+<body>
+<div class="aviso" id="simAviso">🧪 Datos reales del Flash de Planta (<span id="nDias">cargando…</span>). Solo calcula: no cambia nada del Flash. Se actualiza solo cada vez que se suben días nuevos.</div>
+<div class="tabs">
+  <div class="tab on" data-t="sim">🎛️ Simulador</div>
+  <div class="tab" data-t="planta">🏭 Planta</div>
+  <div class="tab" data-t="cor">🔗 Correlaciones</div>
+  <div class="tab" data-t="como">ℹ️ Cómo funciona</div>
+</div>
+<main>
+  <div class="filtros">
+    <b style="color:var(--azul)">Datos:</b> <span id="meses"></span>
+    <label><input type="checkbox" id="sinParo" checked> Sin días de paro (&lt;18 h o &lt;500 t)</label>
+    <span id="nUsados" class="nota"></span>
+  </div>
+
+  <!-- ═══ SIMULADOR ═══ -->
+  <section id="v-sim">
+    <div class="fila">
+      <div class="card" style="flex:0 0 340px;position:sticky;top:8px;align-self:flex-start;max-height:calc(100vh - 16px);overflow:auto">
+        <h3>Mueve las variables</h3>
+        <div class="nota" style="margin-bottom:6px">🔒 = fija (no se mueve sola). Sin candado, se ajusta sola cuando mueves otra variable con la que está relacionada.</div>
+        <div id="sliders"></div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <button class="bt-mini" id="btBase">↺ Regresar al promedio</button>
+          <button class="bt-mini" id="btUlt">📅 Cargar último día</button>
+          <button class="bt-mini" onclick="document.getElementById('anclaSen').scrollIntoView({behavior:'smooth'})">💰 Ver sensibilidad ↓</button>
+        </div>
+      </div>
+      <div style="flex:1;min-width:520px;display:flex;flex-direction:column;gap:12px">
+        <div class="kpis" id="kpis"></div>
+        <div class="card">
+          <h3>% Recuperación Au según toneladas molidas secas <span class="nota" style="text-transform:none;font-weight:400">· puntos = días reales · línea = modelo con las demás variables como las tienes</span></h3>
+          <div style="height:290px"><canvas id="gCurva"></canvas></div>
+        </div>
+        <div class="fila">
+          <div class="card" style="flex:1;min-width:300px">
+            <h3>¿De dónde sale el cambio en Recuperación Au?</h3>
+            <div class="cascada" id="cascada"></div>
+          </div>
+          <div class="card" style="flex:1;min-width:300px">
+            <h3>Qué tanto pesa cada variable</h3>
+            <table class="t" id="tModelo"></table>
+            <div class="nota" id="calidad" style="margin-top:8px"></div>
+          </div>
+        </div>
+    <h2 id="anclaSen" style="margin:8px 0 0;color:var(--azul);font-size:16px">💰 Sensibilidad económica</h2>
+    <div class="card" style="margin-bottom:12px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+      <div><b style="color:var(--azul)">Punto de partida:</b> <span id="senBase"></span></div>
+      <div>Mover cada variable <select id="senPct"><option value="5">±5 %</option><option value="10" selected>±10 %</option><option value="20">±20 %</option></select></div>
+      <div class="nota">Se recalcula sola cada vez que mueves una barra, un candado, los meses o los precios.</div>
+    </div>
+    <div class="fila">
+      <div class="card" style="flex:1;min-width:520px">
+        <h3>¿Qué variable mueve más el dinero? <span class="nota" style="text-transform:none;font-weight:400">· USD por día si cada variable sube o baja, una a la vez</span></h3>
+        <div style="height:330px"><canvas id="gTornado"></canvas></div>
+      </div>
+      <div class="card" style="flex:1;min-width:300px">
+        <h3>En números</h3>
+        <table class="t" id="tSen"></table>
+        <div class="nota" id="senNota" style="margin-top:8px"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <h3>Curva de sensibilidad económica <span class="nota" style="text-transform:none;font-weight:400">· valor por día cuando cada variable cambia de −20 % a +20 % (las demás quedan igual) · entre más inclinada la línea, más pesa</span></h3>
+      <div style="height:360px"><canvas id="gSpider"></canvas></div>
+    </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ PLANTA (diagrama de flujo) ═══ -->
+  <section id="v-planta" class="oculto">
+    <div class="pl-top">
+      <div class="pl-modo"><span class="pl-sw on" data-d="actual">Diagrama actual</span><span class="pl-sw off" title="Contemplado: se habilita cuando se dé el aviso">Proyecto 🔒 <small>hasta nuevo aviso</small></span></div>
+      <div class="pl-kpis" id="plKpis"></div>
+    </div>
+    <div class="fila">
+      <div class="card" style="flex:1;min-width:640px;padding:8px">
+        <div class="pl-wrap"><div class="pl-lienzo" id="plLienzo"></div></div>
+        <div class="pl-ley">
+          <span><i style="border-top:3px solid #2c3e50"></i> Pulpa</span>
+          <span><i style="border-top:3px dashed #2e86c1"></i> Solución</span>
+          <span><i style="border-top:3px solid #e67e22"></i> Recirculación</span>
+          <span><b class="pl-dot mov"></b> Se mueve (clic para controlar)</span>
+          <span><b class="pl-dot res"></b> Resultado del modelo</span>
+          <span><b class="pl-dot sin"></b> Sin dato en el Flash todavía</span>
+        </div>
+      </div>
+      <div class="card pl-panel" id="plPanel"></div>
+    </div>
+  </section>
+
+  <!-- ═══ CORRELACIONES ═══ -->
+  <section id="v-cor" class="oculto">
+    <div class="fila">
+      <div class="card" style="flex:0 0 auto">
+        <h3>Matriz de correlación (r de Pearson) · clic en una casilla</h3>
+        <table class="mat" id="mat"></table>
+        <div class="nota" style="margin-top:8px">Verde = suben juntas · Rojo = una sube y la otra baja · Blanco = sin relación. Con <span id="nCrit"></span> días, |r| ≥ <b id="rCrit"></b> ya es significativo (95 %).</div>
+      </div>
+      <div class="card" style="flex:1;min-width:420px">
+        <h3 id="tDisp">Dispersión</h3>
+        <div style="height:330px"><canvas id="gDisp"></canvas></div>
+        <div class="nota" id="nDisp"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <h3>Relación mes por mes: Toneladas molidas secas vs % Recuperación Au</h3>
+      <div style="height:240px"><canvas id="gMes"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ═══ CÓMO FUNCIONA ═══ -->
+  <section id="v-como" class="oculto">
+    <div class="card" style="max-width:900px;line-height:1.6">
+      <h3>Cómo funciona</h3>
+      <p><b>1. Datos.</b> Toma los días que ya están en el Flash de Planta: toneladas molidas secas, horas de molienda, leyes de cabeza Au y Ag, P80, NaCN, % de mineral de Cerro Blanco y las recuperaciones de Au y Ag. Se puede elegir qué meses usar y quitar los días con paro.</p>
+      <p><b>2. Correlaciones.</b> Para cada par de variables calcula la correlación (r). Clic en una casilla para ver la gráfica de puntos y la línea de tendencia.</p>
+      <p><b>3. Modelo matemático.</b> Regresión lineal múltiple: <code>% Rec Au = b0 + b1·Ton + b2·Ley Au + b3·Ley Ag + b4·P80 + b5·%CB</code>. (El NaCN se ve en Correlaciones; entra al modelo cuando haya captura de todos los meses: de enero a abril no se registró.) Lo mismo para % Rec Ag. Los coeficientes se recalculan solos con los meses elegidos.</p>
+      <p><b>4. Efecto en cadena.</b> Las variables de entrada también se mueven entre sí. Ejemplo: con más toneladas, el P80 del Flash tiende a cambiar. Con más % Cerro Blanco cambian las leyes de cabeza (sube la de Au y baja la de Ag, según lo histórico) y el P80: por eso al mover la mezcla se mueven las onzas aunque la recuperación cambie poco. Las toneladas no mueven las leyes. Con 🔒 una variable queda fija; se les puede quitar. Si una variable no tiene candado, al mover otra se ajusta según su relación histórica (regresión simple), y el resultado incluye ese efecto indirecto.</p>
+      <p><b>5. Resultados.</b> Recuperación estimada con su rango probable (±1 error típico); onzas Au y Ag producidas por día y en el número de días que elijas (toneladas × ley de cabeza × recuperación ÷ 31.1035); onzas equivalentes Au; y el <b>valor en dólares</b> (onzas × precio), por día y por periodo, con su cambio contra el promedio. Los precios, los días y el tipo de cambio se pueden editar.</p>
+      <p><b>5b. Sensibilidad económica.</b> Parte del escenario del Simulador y mueve cada variable ±5, 10 o 20 %, una a la vez (también los precios del Au y la Ag), para ver cuántos dólares por día sube o baja el valor de lo producido. La gráfica de barras ordena de la que más pesa a la que menos; la curva muestra qué pasa de −20 % a +20 %: entre más inclinada la línea, más sensible es el dinero a esa variable.</p>
+      <p><b>5c. 🏭 Planta.</b> Diagrama de flujo del proceso actual (Lixiviación-MC) con los datos del Flash sobre cada equipo. Clic en un equipo para ver sus datos y moverlo: son las mismas barras del Simulador, así que lo que se mueve en un lado se mueve en el otro. Al mover algo se iluminan los equipos que afecta aguas abajo. Mineral, molienda y clasificación se mueven; lixiviación, solución rica, precipitado y cola muestran el resultado del modelo; los equipos sin dato en el Flash (TEP 2, LCC, E-1, E-2, Detox, etc.) quedan listos para conectarse cuando se capturen. El diagrama del proyecto está contemplado y se habilita cuando se dé el aviso.</p>
+      <p><b>6. Cuidado.</b> Correlación no es causa: el modelo dice qué pasó junto en los datos, no garantiza el resultado. Si una variable sale del rango histórico, se marca en rojo. Qué tanto explica el modelo (R²) se muestra siempre; si es bajo, la recuperación depende más de cosas que no están en el Flash (mineralogía, tiempo de lixiviación, etc.).</p>
+      <p><b>7. Acceso.</b> Botón «🧪 Simulador» del Flash, visible solo para quien tenga el permiso <b>Simulador</b> en 👥 Usuarios (igual que Reporte semanal). Cada uso queda en 🕒 Accesos. Los datos los entrega la base solo con sesión de Google autorizada.</p>
+    </div>
+  </section>
+</main>
+
+<script type="text/plain" id="simMain">
+const CSV=window.SIM_CSV;
+// ── datos ──
+const COLS=CSV.trim().split('\n')[0].split(',');
+const TODO=CSV.trim().split('\n').slice(1).map(l=>{ const v=l.split(','), o={}; COLS.forEach((c,i)=>o[c]=i?(v[i]===''?null:+v[i]):v[i]); o.mes=o.fecha.slice(0,5); o.tph=o.horas_molienda?o.molido_seco/o.horas_molienda:null; if(!o.nacn_real) o.nacn_real=null; return o; });
+const MES_N={'01':'Ene','02':'Feb','03':'Mar','04':'Abr','05':'May','06':'Jun','07':'Jul','08':'Ago','09':'Sep','10':'Oct','11':'Nov','12':'Dic'};
+const mesTxt=m=>MES_N[m.slice(3)]+'-'+m.slice(0,2);
+const MESES=[...new Set(TODO.map(d=>d.mes))];
+let SEL=new Set(MESES);
+const fch=f=>{ const [a,m,d]=f.split('-'); return (+d)+'-'+MES_N[m].toLowerCase()+'-'+a; };
+document.getElementById('nDias').textContent=TODO.length+' días, '+fch(TODO[0].fecha)+' a '+fch(TODO[TODO.length-1].fecha);
+
+// variables (x = entrada del simulador)
+const V={
+  molido_seco:{n:'Ton molidas secas',u:'t/día',d:0,x:true},
+  ley_au:{n:'Ley de cabeza Au',u:'g/t',d:2,x:true},
+  ley_ag:{n:'Ley de cabeza Ag',u:'g/t',d:1,x:true},
+  p80_real:{n:'P80',u:'',d:1,x:true},
+  nacn_real:{n:'NaCN',u:'',d:2},
+  pct_cb:{n:'% Cerro Blanco',u:'%',d:0,x:true,pct:true},
+  horas_molienda:{n:'Horas molienda',u:'h',d:1},
+  m3_bombeados:{n:'m³ bombeados',u:'m³',d:0},
+  recuperacion_au:{n:'% Rec. Au',u:'%',d:1,pct:true},
+  recuperacion_ag:{n:'% Rec. Ag',u:'%',d:1,pct:true},
+};
+const XS=Object.keys(V).filter(k=>V[k].x);
+const fmt=(k,v)=>v==null||isNaN(v)?'–':(V[k]&&V[k].pct?(v*100).toFixed(V[k].d):(+v).toLocaleString('es-MX',{minimumFractionDigits:V[k]?V[k].d:1,maximumFractionDigits:V[k]?V[k].d:1}))+(V[k]&&V[k].u&&!V[k].pct?' '+V[k].u:(V[k]&&V[k].pct?' %':''));
+function datos(){ const s=document.getElementById('sinParo').checked; return TODO.filter(d=>SEL.has(d.mes)&&(!s||(d.horas_molienda>=18&&d.molido_seco>=500))&&d.recuperacion_au>0); }
+
+// ── estadística ──
+const media=a=>a.reduce((s,x)=>s+x,0)/a.length;
+function pares(D,a,b){ return D.filter(d=>d[a]!=null&&d[b]!=null); }
+function corr(D,a,b){ const P=pares(D,a,b), n=P.length; if(n<5) return {r:NaN,n}; const ma=media(P.map(d=>d[a])), mb=media(P.map(d=>d[b]));
+  let sab=0,saa=0,sbb=0; P.forEach(d=>{ const x=d[a]-ma,y=d[b]-mb; sab+=x*y; saa+=x*x; sbb+=y*y; }); return {r:sab/Math.sqrt(saa*sbb),n,ma,mb,m:sab/saa,b0:mb-sab/saa*ma}; }
+function inv(M){ const n=M.length, A=M.map((r,i)=>r.concat(M.map((_,j)=>i===j?1:0)));
+  for(let c=0;c<n;c++){ let p=c; for(let r=c+1;r<n;r++) if(Math.abs(A[r][c])>Math.abs(A[p][c])) p=r; [A[c],A[p]]=[A[p],A[c]];
+    const v=A[c][c]; if(Math.abs(v)<1e-12) return null; for(let j=0;j<2*n;j++) A[c][j]/=v;
+    for(let r=0;r<n;r++) if(r!==c){ const f=A[r][c]; for(let j=0;j<2*n;j++) A[r][j]-=f*A[c][j]; } }
+  return A.map(r=>r.slice(n)); }
+function ols(D,y,X){ // regresión lineal múltiple con mínimos cuadrados
+  const P=D.filter(d=>d[y]!=null&&X.every(x=>d[x]!=null)), n=P.length, k=X.length+1; if(n<k+5) return null;
+  const A=P.map(d=>[1].concat(X.map(x=>d[x]))), Y=P.map(d=>d[y]);
+  const AtA=Array.from({length:k},(_,i)=>Array.from({length:k},(_,j)=>A.reduce((s,r)=>s+r[i]*r[j],0)));
+  const AtY=Array.from({length:k},(_,i)=>A.reduce((s,r,t)=>s+r[i]*Y[t],0)); const I=inv(AtA); if(!I) return null;
+  const b=I.map(r=>r.reduce((s,v,j)=>s+v*AtY[j],0)); const yh=A.map(r=>r.reduce((s,v,j)=>s+v*b[j],0));
+  const sse=Y.reduce((s,v,t)=>s+(v-yh[t])**2,0), my=media(Y), sst=Y.reduce((s,v)=>s+(v-my)**2,0), s=Math.sqrt(sse/(n-k));
+  const se=I.map((r,i)=>Math.sqrt(Math.abs(r[i])*s*s));
+  return {b,se,t:b.map((v,i)=>v/se[i]),n,r2:1-sse/sst,s,X,y}; }
+const pred=(M,x)=>M.b[0]+M.X.reduce((s,k,i)=>s+M.b[i+1]*x[k],0);
+const pctl=(a,p)=>{ const s=a.slice().sort((x,y)=>x-y); const i=(s.length-1)*p, l=Math.floor(i); return s[l]+(s[Math.min(l+1,s.length-1)]-s[l])*(i-l); };
+
+// ── estado del simulador ──
+// Sentido físico: la operación mueve la finura; la MEZCLA de mineral mueve las leyes de cabeza (y la finura). Las toneladas no mueven las leyes.
+const CADENA={molido_seco:['p80_real'], pct_cb:['ley_au','ley_ag','p80_real']};   // más t → P80 · más Cerro Blanco → cambian leyes Au/Ag y P80
+let D=[], M_AU=null, M_AG=null, ENL={}, BASE={}, CUR={}, LOCK={}, RANGO={}, PAU=4100, PAG=57.4, TC=0, DIAS=30;   // precios editables (USD/oz) · TC opcional (MXN por USD)
+function preparar(){
+  D=datos(); document.getElementById('nUsados').textContent='· '+D.length+' días usados';
+  XS.forEach(k=>{ const a=D.map(d=>d[k]).filter(v=>v!=null); RANGO[k]={min:Math.min(...a),max:Math.max(...a),p5:pctl(a,.05),p95:pctl(a,.95)}; BASE[k]=media(a); });
+  M_AU=ols(D,'recuperacion_au',XS); M_AG=ols(D,'recuperacion_ag',XS);
+  // relaciones entre entradas (para el efecto en cadena): cada x contra cada otra x, solo si es significativa
+  // Efecto en cadena SOLO en el sentido físico (la operación mueve la molienda fina, no al revés). Para agregar otra: CADENA.
+  ENL={}; XS.forEach(a=>ENL[a]={}); Object.entries(CADENA).forEach(([a,L])=>L.forEach(b=>{ const c=corr(D,a,b); if(c.n>10&&Math.abs(c.r)>=1.96/Math.sqrt(c.n)) ENL[a][b]=c; }));
+  CUR=Object.assign({},BASE);
+}
+function mover(k,v){ // mueve k y, en cadena, las variables sin candado relacionadas con k
+  const dx=v-CUR[k]; CUR[k]=v; const movidas={};
+  Object.entries(ENL[k]||{}).forEach(([b,c])=>{ if(LOCK[b]) return; const nv=Math.min(RANGO[b].max,Math.max(RANGO[b].min,CUR[b]+c.m*dx)); if(Math.abs(nv-CUR[b])>1e-9){ movidas[b]=nv-CUR[b]; CUR[b]=nv; } });
+  return movidas; }
+
+// ── pintar sliders ──
+let ULT_MOV={};
+function sliders(){
+  document.getElementById('sliders').innerHTML=XS.map(k=>{ const r=RANGO[k], st=(r.max-r.min)/200;
+    return `<div class="var"><div class="cab"><span class="nom">${V[k].n}</span><span><button class="lock${LOCK[k]?' on':''}" data-k="${k}" title="Fijar">${LOCK[k]?'🔒':'🔓'}</button> <span class="val" id="v_${k}"></span></span></div>
+      <input type="range" id="s_${k}" min="${r.min}" max="${r.max}" step="${st}" value="${CUR[k]}">
+      <div class="rango"><span>mín ${fmt(k,r.min)}</span><span>prom ${fmt(k,BASE[k])}</span><span>máx ${fmt(k,r.max)}</span></div>
+      <div class="mov" id="m_${k}"></div></div>`; }).join('');
+  XS.forEach(k=>{ document.getElementById('s_'+k).oninput=e=>{ ULT_MOV=mover(k,+e.target.value); ULT_MOV._de=k; pintar(); }; });
+  document.querySelectorAll('.lock').forEach(b=>b.onclick=()=>{ LOCK[b.dataset.k]=!LOCK[b.dataset.k]; sliders(); pintar(); });
+}
+let gCurva=null;
+function pintar(){
+  XS.forEach(k=>{ const el=document.getElementById('v_'+k), s=document.getElementById('s_'+k), r=RANGO[k];
+    el.textContent=fmt(k,CUR[k]); el.classList.toggle('fuera',CUR[k]<r.p5||CUR[k]>r.p95); s.value=CUR[k];
+    const m=document.getElementById('m_'+k); m.textContent=ULT_MOV[k]!=null&&ULT_MOV._de!==k?'↳ se movió '+(ULT_MOV[k]>0?'+':'')+fmt(k,ULT_MOV[k]).replace(' %',' pts')+' por '+V[ULT_MOV._de].n:''; });
+  // resultados
+  const rAu=Math.min(.999,pred(M_AU,CUR)), rAg=Math.min(.999,pred(M_AG,CUR)), b0Au=pred(M_AU,BASE), b0Ag=pred(M_AG,BASE);
+  const oz=(t,l,r)=>t*l*r/31.1035;
+  const ozAu=oz(CUR.molido_seco,CUR.ley_au,rAu), ozAg=oz(CUR.molido_seco,CUR.ley_ag,rAg), ozEq=ozAu+ozAg*PAG/PAU;
+  const bAu=oz(BASE.molido_seco,BASE.ley_au,b0Au), bAg=oz(BASE.molido_seco,BASE.ley_ag,b0Ag), bEq=bAu+bAg*PAG/PAU;
+  const dif=(v,b,pp)=>{ const d=v-b; const c=Math.abs(d)<(pp?0.0005:0.05)?'eq':(d>0?'up':'dn'); return `<div class="d ${c}">${d>=0?'▲ +':'▼ '}${pp?(d*100).toFixed(2)+' pts':d.toFixed(1)} vs promedio</div>`; };
+  const usd=(au,ag)=>au*PAU+ag*PAG, vD=usd(ozAu,ozAg), vB=usd(bAu,bAg);
+  const $=v=>'$'+Math.round(v).toLocaleString('es-MX'), $d=(v,b)=>{ const d=v-b, c=Math.abs(d)<1?'eq':(d>0?'up':'dn'); return `<div class="d ${c}">${d>=0?'▲ +':'▼ −'}${$(Math.abs(d))} USD vs promedio</div>`; };
+  const mxn=v=>TC>0?`<div class="nota">≈ ${$(v*TC)} MXN</div>`:'';
+  document.getElementById('kpis').innerHTML=
+   `<div class="kpi prin"><div class="n">% Recuperación Au estimada</div><div class="v">${(rAu*100).toFixed(1)} %</div><div class="nota">rango probable ${((rAu-M_AU.s)*100).toFixed(1)} – ${(Math.min(1,rAu+M_AU.s)*100).toFixed(1)} %</div>${dif(rAu,b0Au,1)}</div>
+    <div class="kpi"><div class="n">Oz Au producidas / día</div><div class="v">${ozAu.toFixed(1)}</div><div class="nota">${(ozAu*DIAS).toLocaleString('es-MX',{maximumFractionDigits:0})} oz en ${DIAS} días</div>${dif(ozAu,bAu)}</div>
+    <div class="kpi"><div class="n">Oz Eq Au / día</div><div class="v">${ozEq.toFixed(1)}</div><div class="nota">${(ozEq*DIAS).toLocaleString('es-MX',{maximumFractionDigits:0})} oz eq en ${DIAS} días</div>${dif(ozEq,bEq)}</div>
+    <div class="kpi"><div class="n">% Recuperación Ag estimada</div><div class="v">${(rAg*100).toFixed(1)} %</div>${dif(rAg,b0Ag,1)}</div>
+    <div class="kpi"><div class="n">Oz Ag producidas / día</div><div class="v">${ozAg.toFixed(0)}</div><div class="nota">${(ozAg*DIAS).toLocaleString('es-MX',{maximumFractionDigits:0})} oz en ${DIAS} días</div>${dif(ozAg,bAg)}</div>
+    <div class="kpi"><div class="n">Ton/hora (a ${BASE_H.toFixed(1)} h)</div><div class="v">${(CUR.molido_seco/BASE_H).toFixed(1)}</div><div class="nota">promedio ${(BASE.molido_seco/BASE_H).toFixed(1)} t/h</div></div>
+    <div class="kpi prin" style="grid-column:span 2;background:#f3faf5;border-color:#58b37a">
+      <div class="n">💰 Valor de lo producido</div>
+      <div style="display:flex;gap:22px;align-items:flex-end;flex-wrap:wrap">
+        <div><div class="v">${$(vD)} <span style="font-size:13px">USD/día</span></div>${mxn(vD)}${$d(vD,vB)}</div>
+        <div><div class="v" style="font-size:20px">${$(vD*DIAS)} <span style="font-size:12px">USD en ${DIAS} días</span></div>${mxn(vD*DIAS)}${$d(vD*DIAS,vB*DIAS)}</div>
+      </div>
+      <div class="nota" style="margin-top:4px">Au ${$(ozAu*PAU)} + Ag ${$(ozAg*PAG)} por día</div>
+    </div>
+    <div class="kpi"><div class="n">Precios y supuestos (editables)</div>
+      <div class="nota" style="line-height:2">Au <input id="pAu" type="number" value="${PAU}" style="width:70px"> USD/oz<br>Ag <input id="pAg" type="number" step="0.1" value="${PAG}" style="width:70px"> USD/oz<br>
+      Días <input id="nD" type="number" value="${DIAS}" style="width:46px"> · TC <input id="tc" type="number" step="0.01" value="${TC||''}" placeholder="MXN" style="width:58px"></div></div>`;
+  [['pAu',v=>PAU=v||PAU],['pAg',v=>PAG=v||PAG],['nD',v=>DIAS=v||DIAS],['tc',v=>TC=v||0]].forEach(([id,f])=>document.getElementById(id).onchange=e=>{ f(+e.target.value); pintar(); });
+  // cascada: base → contribución de cada variable
+  const cont=XS.map((k,i)=>({k,v:M_AU.b[i+1]*(CUR[k]-BASE[k])})).filter(c=>Math.abs(c.v)>1e-5).sort((a,b)=>Math.abs(b.v)-Math.abs(a.v));
+  const mx=Math.max(0.002,...cont.map(c=>Math.abs(c.v)));
+  document.getElementById('cascada').innerHTML=`<div class="r"><span>Promedio del periodo</span><span></span><b>${(b0Au*100).toFixed(2)} %</b></div>`+
+    (cont.length?cont.map(c=>`<div class="r"><span>${V[c.k].n}${ULT_MOV[c.k]!=null&&ULT_MOV._de!==c.k?' <span class="nota">(en cadena)</span>':''}</span><span><div class="b" style="width:${Math.abs(c.v)/mx*100}%;background:${c.v>0?'#58b37a':'#e07b6e'}"></div></span><b class="${c.v>0?'up':'dn'}">${c.v>0?'+':''}${(c.v*100).toFixed(2)}</b></div>`).join(''):'<div class="nota">Mueve una variable para ver de dónde sale el cambio.</div>')+
+    `<div class="r" style="border-top:1px solid #ddd;padding-top:4px"><span><b>Estimado</b></span><span></span><b>${(rAu*100).toFixed(2)} %</b></div>`;
+  curva(); sensibilidad(); pintarPlanta(); }
+function curva(){
+  const r=RANGO.molido_seco, pts=[], N=40;
+  const guard=Object.assign({},CUR);
+  for(let i=0;i<=N;i++){ const t=r.min+(r.max-r.min)*i/N; const tmp=Object.assign({},guard); const dx=t-guard.molido_seco; tmp.molido_seco=t;
+    Object.entries(ENL.molido_seco||{}).forEach(([b,c])=>{ if(!LOCK[b]) tmp[b]=Math.min(RANGO[b].max,Math.max(RANGO[b].min,guard[b]+c.m*dx)); });
+    pts.push({x:t,y:pred(M_AU,tmp)*100}); }
+  const data={datasets:[
+    {type:'scatter',label:'Días reales',data:D.map(d=>({x:d.molido_seco,y:d.recuperacion_au*100})),backgroundColor:'rgba(184,144,44,.35)',pointRadius:3},
+    {type:'line',label:'Modelo',data:pts,borderColor:'#1f3864',borderWidth:3,pointRadius:0,tension:.2},
+    {type:'line',label:'Banda',data:pts.map(p=>({x:p.x,y:p.y+M_AU.s*100})),borderColor:'rgba(31,56,100,.25)',borderDash:[5,4],pointRadius:0,fill:false},
+    {type:'line',label:'Banda2',data:pts.map(p=>({x:p.x,y:p.y-M_AU.s*100})),borderColor:'rgba(31,56,100,.25)',borderDash:[5,4],pointRadius:0,fill:'-1',backgroundColor:'rgba(31,56,100,.06)'},
+    {type:'scatter',label:'Tu escenario',data:[{x:CUR.molido_seco,y:pred(M_AU,CUR)*100}],backgroundColor:'#c0392b',pointRadius:8,pointStyle:'rectRot'}]};
+  const op={animation:false,maintainAspectRatio:false,plugins:{legend:{labels:{filter:i=>!/Banda/.test(i.text)}},datalabels:{display:false}},
+    scales:{x:{type:'linear',title:{display:true,text:'Ton molidas secas por día'}},y:{title:{display:true,text:'% Recuperación Au'},min:72,max:100}}};
+  if(gCurva){ gCurva.data=data; gCurva.update(); } else gCurva=new Chart(document.getElementById('gCurva'),{data,options:op}); }
+function tablaModelo(){
+  const fuerza=t=>Math.abs(t)>=3?['#1e8449','Fuerte']:Math.abs(t)>=2?['#d68910','Moderada']:['#b8bec6','Débil'];
+  const un=k=>V[k].pct?'por cada +10 pts':k==='molido_seco'?'por cada +100 t':k==='ley_au'?'por cada +0.5 g/t':k==='ley_ag'?'por cada +10 g/t':k==='p80_real'?'por cada +1':'por cada +1';
+  const esc=k=>V[k].pct?0.10:k==='molido_seco'?100:k==='ley_au'?0.5:k==='ley_ag'?10:1;
+  document.getElementById('tModelo').innerHTML='<tr><th>Variable</th><th>Efecto en % Rec Au</th><th>Confianza</th></tr>'+
+    XS.map((k,i)=>{ const b=M_AU.b[i+1], f=fuerza(M_AU.t[i+1]); return `<tr><td>${V[k].n}</td><td class="${b>0?'up':'dn'}"><b>${b>0?'+':''}${(b*esc(k)*100).toFixed(2)} pts</b> <span class="nota">${un(k)}</span></td><td><span class="sem" style="background:${f[0]}"></span>${f[1]}</td></tr>`; }).join('');
+  const cTp=ENL.molido_seco&&ENL.molido_seco.p80_real;
+  document.getElementById('calidad').innerHTML=`Modelo con <b>${M_AU.n}</b> días · explica <b>${(M_AU.r2*100).toFixed(0)} %</b> de la variación diaria de la recuperación (R²) · error típico ±${(M_AU.s*100).toFixed(1)} pts.`+
+    (M_AU.r2<0.3?' <span style="color:#c0392b">El día a día depende mucho de cosas que no están en el Flash: tomar como tendencia, no como pronóstico exacto.</span>':'')+
+    (cTp?`<br>Efecto en cadena: por cada +100 t molidas, el P80 cambia ${(cTp.m*100>0?'+':'')+(cTp.m*100).toFixed(1)} (r = ${cTp.r.toFixed(2)}).`:'')+
+    (()=>{ const E=ENL.pct_cb||{}, f=(k,u,d)=>E[k]?`${V[k].n} ${E[k].m*0.1>0?'+':''}${(E[k].m*0.1).toFixed(d)}${u?' '+u:''}`:null; const L=[f('ley_au','g/t',2),f('ley_ag','g/t',1),f('p80_real','',1)].filter(Boolean); const n=D.filter(d=>d.pct_cb>=0.2).length;
+      return L.length?`<br>Por cada +10 pts de Cerro Blanco: ${L.join(' · ')}. <span style="color:#b9770e">Ojo: solo ${n} de ${D.length} días tuvieron 20 % o más de Cerro Blanco.</span>`:''; })(); }
+
+// ── correlaciones ──
+const VC=['molido_seco','horas_molienda','ley_au','ley_ag','p80_real','nacn_real','pct_cb','m3_bombeados','recuperacion_au','recuperacion_ag'];
+let gDisp=null, gMes=null, SELC=['molido_seco','recuperacion_au'];
+function color(r){ if(isNaN(r)) return '#f3f3f3'; const a=Math.min(1,Math.abs(r)); return r>0?`rgba(46,139,87,${a*.85})`:`rgba(192,57,43,${a*.85})`; }
+function matriz(){
+  const n=D.length, rc=1.96/Math.sqrt(n); document.getElementById('nCrit').textContent=n; document.getElementById('rCrit').textContent=rc.toFixed(2);
+  const corto={molido_seco:'Ton secas',horas_molienda:'Horas',ley_au:'Ley Au',ley_ag:'Ley Ag',p80_real:'P80',nacn_real:'NaCN',pct_cb:'% C. Blanco',m3_bombeados:'m³',recuperacion_au:'Rec Au',recuperacion_ag:'Rec Ag'};
+  document.getElementById('mat').innerHTML='<tr><th></th>'+VC.map(c=>`<th>${corto[c]}</th>`).join('')+'</tr>'+
+    VC.map(a=>`<tr><th style="text-align:right">${corto[a]}</th>`+VC.map(b=>{ const r=a===b?1:corr(D,a,b).r; return `<td data-a="${a}" data-b="${b}" class="${SELC[0]===a&&SELC[1]===b?'sel':''}" style="background:${color(r)};color:${Math.abs(r)>.55?'#fff':'#222'}">${isNaN(r)?'–':r.toFixed(2)}</td>`; }).join('')+'</tr>').join('');
+  document.querySelectorAll('#mat td').forEach(td=>td.onclick=()=>{ SELC=[td.dataset.a,td.dataset.b]; matriz(); disp(); });
+}
+function disp(){
+  const [a,b]=SELC, c=corr(D,a,b), P=pares(D,a,b), xs=P.map(d=>d[a]);
+  document.getElementById('tDisp').textContent=V[a]?V[a].n+' vs '+(V[b]?V[b].n:b):a+' vs '+b;
+  const mn=Math.min(...xs), mx=Math.max(...xs), k=d=>V[b]&&V[b].pct?d*100:d, kx=d=>V[a]&&V[a].pct?d*100:d;
+  const data={datasets:[{type:'scatter',label:'Días',data:P.map(d=>({x:kx(d[a]),y:k(d[b])})),backgroundColor:'rgba(31,56,100,.45)',pointRadius:3},
+    {type:'line',label:'Tendencia',data:[{x:kx(mn),y:k(c.b0+c.m*mn)},{x:kx(mx),y:k(c.b0+c.m*mx)}],borderColor:'#c0392b',borderWidth:2,pointRadius:0}]};
+  const op={animation:false,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{type:'linear',title:{display:true,text:V[a]?V[a].n:a}},y:{title:{display:true,text:V[b]?V[b].n:b}}}};
+  if(gDisp) gDisp.destroy(); gDisp=new Chart(document.getElementById('gDisp'),{data,options:op});
+  const fuerza=Math.abs(c.r)>=.5?'fuerte':Math.abs(c.r)>=.3?'moderada':Math.abs(c.r)>=1.96/Math.sqrt(c.n)?'débil pero real':'sin relación clara';
+  document.getElementById('nDisp').innerHTML=`r = <b>${c.r.toFixed(2)}</b> · R² = ${(c.r*c.r*100).toFixed(0)} % · ${c.n} días · relación <b>${fuerza}</b>${c.r?(' · cuando '+(V[a]?V[a].n:a)+' sube, '+(V[b]?V[b].n:b)+' tiende a '+(c.r>0?'subir':'bajar')):''}.`;
+}
+function porMes(){
+  const L=MESES.filter(m=>SEL.has(m)).map(m=>{ const Dm=D.filter(d=>d.mes===m); return {m,t:media(Dm.map(d=>d.molido_seco)),r:media(Dm.map(d=>d.recuperacion_au))*100,c:corr(Dm,'molido_seco','recuperacion_au').r}; });
+  const data={labels:L.map(x=>mesTxt(x.m)),datasets:[
+    {type:'bar',label:'Ton molidas secas (prom/día)',data:L.map(x=>x.t),backgroundColor:'rgba(184,144,44,.75)',yAxisID:'y'},
+    {type:'line',label:'% Rec Au (prom)',data:L.map(x=>x.r),borderColor:'#1f3864',backgroundColor:'#1f3864',yAxisID:'y1',tension:.2}]};
+  const op={animation:false,maintainAspectRatio:false,scales:{y:{title:{display:true,text:'t/día'}},y1:{position:'right',min:85,max:100,grid:{drawOnChartArea:false},title:{display:true,text:'% Rec Au'}}}};
+  if(gMes) gMes.destroy(); gMes=new Chart(document.getElementById('gMes'),{data,options:op}); }
+
+
+// ── Sensibilidad económica ──
+const SEN=[{k:'molido_seco',n:'Ton molidas secas',c:'#b8902c'},{k:'ley_au',n:'Ley de cabeza Au',c:'#d4ac0d'},{k:'PAU',n:'Precio del Au',c:'#7d6608'},
+  {k:'ley_ag',n:'Ley de cabeza Ag',c:'#7f8c8d'},{k:'PAG',n:'Precio de la Ag',c:'#aab7b8'},{k:'p80_real',n:'P80',c:'#2e86c1'},{k:'pct_cb',n:'% Cerro Blanco',c:'#a569bd'}];
+function valor(c,pau,pag){ const oz=(t,l,x)=>t*l*x/31.1035; return oz(c.molido_seco,c.ley_au,Math.min(.999,pred(M_AU,c)))*pau+oz(c.molido_seco,c.ley_ag,Math.min(.999,pred(M_AG,c)))*pag; }
+function conCambio(k,f){ // escenario con la variable k multiplicada por f (+ efecto en cadena si no hay candado)
+  const c=Object.assign({},CUR); let pau=PAU, pag=PAG;
+  if(k==='PAU') pau=PAU*f; else if(k==='PAG') pag=PAG*f;
+  else { const nv=k==='pct_cb'?Math.max(0,Math.min(1,CUR[k]+(f-1))):CUR[k]*f, dx=nv-CUR[k]; c[k]=nv;
+    Object.entries(ENL[k]||{}).forEach(([b,r])=>{ if(!LOCK[b]) c[b]=Math.min(RANGO[b].max,Math.max(RANGO[b].min,CUR[b]+r.m*dx)); }); }
+  return valor(c,pau,pag); }
+let gTor=null, gSpi=null;
+function sensibilidad(){
+  if(document.getElementById('v-sim').classList.contains('oculto')) return;
+  const p=(+document.getElementById('senPct').value||10)/100, v0=valor(CUR,PAU,PAG), $=v=>'$'+Math.round(v).toLocaleString('es-MX');
+  document.getElementById('senBase').innerHTML=`${Math.round(CUR.molido_seco).toLocaleString('es-MX')} t/día · Ley Au ${CUR.ley_au.toFixed(2)} g/t · Au ${PAU.toLocaleString('es-MX')} USD/oz → <b>${$(v0)} USD/día</b>`;
+  const R=SEN.map(x=>({...x,up:conCambio(x.k,1+p)-v0,dn:conCambio(x.k,1-p)-v0})).sort((a,b)=>Math.max(Math.abs(b.up),Math.abs(b.dn))-Math.max(Math.abs(a.up),Math.abs(a.dn)));
+  const lab=x=>x.n+(x.k==='pct_cb'?` (±${Math.round(p*100)} pts)`:'');
+  const data={labels:R.map(lab),datasets:[{label:`Si sube ${Math.round(p*100)} %`,data:R.map(x=>x.up),backgroundColor:'rgba(46,139,87,.8)'},{label:`Si baja ${Math.round(p*100)} %`,data:R.map(x=>x.dn),backgroundColor:'rgba(192,57,43,.8)'}]};
+  const op={indexAxis:'y',animation:false,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k'},title:{display:true,text:'Cambio en USD por día'}},y:{stacked:true}},
+    plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.raw>=0?'+':'−')+$(Math.abs(c.raw))+' USD/día'}}}};
+  if(gTor) gTor.destroy(); gTor=new Chart(document.getElementById('gTornado'),{type:'bar',data,options:op});
+  const fx=v=>`<span class="${v>=0?'up':'dn'}">${v>=0?'+':'−'}${$(Math.abs(v))}</span>`;
+  document.getElementById('tSen').innerHTML=`<tr><th>Variable</th><th>Sube ${Math.round(p*100)} %</th><th>Baja ${Math.round(p*100)} %</th><th>Al mes*</th></tr>`+
+    R.map(x=>`<tr><td>${lab(x)}</td><td>${fx(x.up)}</td><td>${fx(x.dn)}</td><td>${fx(x.up*DIAS)}</td></tr>`).join('');
+  const oAu=CUR.molido_seco*CUR.ley_au/31.1035, pt=oAu*0.01*PAU;
+  document.getElementById('senNota').innerHTML=`* Si sube, en ${DIAS} días. · <b>1 punto de recuperación Au</b> vale ${$(pt)} USD/día (${$(pt*DIAS)} en ${DIAS} días). · Si «Ton molidas» no tiene candado en el P80, incluye su efecto en cadena.`;
+  // curva (spider)
+  const pasos=[]; for(let q=-20;q<=20;q+=2) pasos.push(q);
+  const ds=SEN.map(x=>({label:x.n,data:pasos.map(q=>valor===null?0:conCambio(x.k,1+q/100)),borderColor:x.c,backgroundColor:x.c,borderWidth:x.k==='molido_seco'?4:2,pointRadius:0,tension:.15}));
+  const op2={animation:false,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    scales:{x:{title:{display:true,text:'Cambio en la variable (%)  ·  % Cerro Blanco en puntos'},ticks:{callback:(v,i)=>(pasos[i]>0?'+':'')+pasos[i]+' %'}},y:{title:{display:true,text:'Valor producido (USD/día)'},ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k'}}},
+    plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+': '+$(c.raw)+' USD/día'}}}};
+  if(gSpi) gSpi.destroy(); gSpi=new Chart(document.getElementById('gSpider'),{type:'line',data:{labels:pasos,datasets:ds},options:op2});
+}
+document.getElementById('senPct').onchange=sensibilidad;
+
+// ══════════ 🏭 PLANTA · diagrama de flujo interactivo ══════════
+// Modular: para agregar un equipo con datos → una entrada en EQ (vars = barras que mueve, filas = datos que muestra).
+// El diagrama «Proyecto» queda contemplado (DIAGRAMAS.proyecto) y se habilita con PROYECTO_ACTIVO=true.
+let REFD=null;              // null = promedio del periodo · objeto = día cargado (📅 último día)
+let EQ_SEL='molienda';
+const PROYECTO_ACTIVO=false;
+const VW=1100, VH=760;
+const refv=k=>{ if(REFD&&REFD[k]!=null) return REFD[k]; const a=D.map(d=>d[k]).filter(v=>v!=null); return a.length?media(a):null; };
+const refTxt=()=>REFD?'día '+fch(REFD.fecha):'promedio';
+function calc(c){
+  const rAu=Math.min(.999,pred(M_AU,c)), rAg=Math.min(.999,pred(M_AG,c)), oz=(t,l,r)=>t*l*r/31.1035;
+  const ozAu=oz(c.molido_seco,c.ley_au,rAu), ozAg=oz(c.molido_seco,c.ley_ag,rAg), m3=refv('m3_bombeados');
+  return {rAu,rAg,ozAu,ozAg,ozEq:ozAu+ozAg*PAG/PAU,usd:ozAu*PAU+ozAg*PAG,tph:c.molido_seco/BASE_H,
+    colaAu:c.ley_au*(1-rAu),colaAg:c.ley_ag*(1-rAg),perdAu:oz(c.molido_seco,c.ley_au,1-rAu),
+    solRica:m3?c.molido_seco*c.ley_au*rAu/m3:null};
+}
+const n0=(v,d=0)=>v==null||isNaN(v)?'–':(+v).toLocaleString('es-MX',{minimumFractionDigits:d,maximumFractionDigits:d});
+function dlt(v,b,d=1,suf='',inv=false){ if(v==null||b==null) return ''; const x=v-b; if(Math.abs(x)<Math.pow(10,-d)/2) return ' <span class="eq">=</span>'; return ` <span class="${(x>0)!==inv?'up':'dn'}">${x>0?'▲+':'▼'}${n0(x,d)}${suf}</span>`; }
+
+// ── equipos con datos (lo que se ve en cada uno) ──
+const EQ={
+  mineral:{n:'Mineral · Tolvas #1 y #2',tipo:'mov',tag:[60,262],vars:['ley_au','ley_ag','pct_cb'],
+    desc:'Mineral que entra a molienda. Al mover % Cerro Blanco se mueven solas las leyes Au y Ag (según lo histórico), salvo que tengan 🔒.',
+    filas:(c,r,b)=>[['% Realito ('+refTxt()+')',refv('pct_realito')!=null?n0(refv('pct_realito')*100,0)+' %':'–']],
+    t:(c)=>`Au <b>${n0(c.ley_au,2)}</b> g/t · Ag <b>${n0(c.ley_ag,1)}</b><br>C. Blanco <b>${n0(c.pct_cb*100,0)} %</b>`},
+  molienda:{n:'Molienda · Molinos #1, #2 y #3',tipo:'mov',tag:[255,264],vars:['molido_seco'],
+    desc:'Toneladas molidas secas del día (los 3 molinos juntos; el Flash no las separa por molino).',
+    filas:(c,r,b)=>[['Ton/hora (a '+n0(BASE_H,1)+' h)',n0(r.tph,1)+dlt(r.tph,b.tph,1)],['Horas molienda ('+refTxt()+')',n0(refv('horas_molienda'),1)+' h']],
+    t:(c,r,b)=>`<b>${n0(c.molido_seco)}</b> t/día${dlt(c.molido_seco,BASE.molido_seco,0)}<br><b>${n0(r.tph,1)}</b> t/h`},
+  clasif:{n:'Clasificación · Ciclones D15 y batería',tipo:'mov',tag:[530,112],vars:['p80_real'],
+    desc:'Finura del producto (P80). Sin 🔒 se mueve sola cuando cambian las toneladas, según lo histórico.',
+    filas:()=>[],
+    t:(c)=>`P80 <b>${n0(c.p80_real,1)}</b>${dlt(c.p80_real,BASE.p80_real,1)}`},
+  lix:{n:'Tanques de lixiviación · 6 × 403 m³',tipo:'res',tag:[497,462],vars:[],
+    desc:'Aquí se disuelve el oro y la plata. La recuperación es el resultado del modelo con las variables de arriba.',
+    filas:(c,r,b)=>[['% Rec Au estimada',n0(r.rAu*100,1)+' %'+dlt(r.rAu*100,b.rAu*100,2,' pts')],['% Rec Ag estimada',n0(r.rAg*100,1)+' %'+dlt(r.rAg*100,b.rAg*100,2,' pts')],
+      ['NaCN ('+refTxt()+')',n0(refv('nacn_real'),2)+' <span class="nota">· aún no entra al modelo</span>']],
+    t:(c,r,b)=>`Rec Au <b>${n0(r.rAu*100,1)} %</b>${dlt(r.rAu*100,b.rAu*100,1)}<br>Rec Ag <b>${n0(r.rAg*100,1)} %</b> · NaCN ${n0(refv('nacn_real'),2)}`},
+  solrica:{n:'Solución rica · Tanques 9 m (183 m³)',tipo:'res',tag:[985,62],vars:[],
+    desc:'Solución con el oro disuelto que va a Merrill-Crowe. La ley estimada no considera inventario en tanques.',
+    filas:(c,r,b)=>[['m³ bombeados ('+refTxt()+')',n0(refv('m3_bombeados'))+' m³'],['Ley sol. rica Au estimada',n0(r.solRica,3)+' g/m³'+dlt(r.solRica,b.solRica,3)],['Ley sol. rica Au real ('+refTxt()+')',n0(refv('sol_rica_au'),3)+' g/m³']],
+    t:(c,r,b)=>`<b>${n0(refv('m3_bombeados'))}</b> m³ · Au est <b>${n0(r.solRica,3)}</b> g/m³`},
+  precip:{n:'Precipitado (Merrill-Crowe)',tipo:'res',tag:[868,478],vars:[],
+    desc:'Onzas producidas = toneladas × ley × recuperación ÷ 31.1035. El valor usa los precios de la pestaña Simulador.',
+    filas:(c,r,b)=>[['Oz Au / día',n0(r.ozAu,1)+dlt(r.ozAu,b.ozAu,1)],['Oz Ag / día',n0(r.ozAg,0)+dlt(r.ozAg,b.ozAg,0)],['Oz Eq Au / día',n0(r.ozEq,1)+dlt(r.ozEq,b.ozEq,1)],
+      ['Valor USD / día','$'+n0(r.usd)+dlt(r.usd,b.usd,0)],['Valor USD en '+DIAS+' días','$'+n0(r.usd*DIAS)],['Oz Au precipitadas reales ('+refTxt()+')',n0(refv('oz_precipitadas_au'),1)]],
+    t:(c,r,b)=>`<b>${n0(r.ozAu,1)}</b> oz Au${dlt(r.ozAu,b.ozAu,1)} · <b>${n0(r.ozEq,1)}</b> oz eq<br>💰 <b>$${n0(r.usd)}</b> USD/día${dlt(r.usd,b.usd,0)}`},
+  cola:{n:'Cola final',tipo:'res',tag:[620,700],vars:[],
+    desc:'Lo que no se recupera. Ley de cola = ley de cabeza × (1 − recuperación).',
+    filas:(c,r,b)=>[['Ley cola Au estimada',n0(r.colaAu,3)+' g/t'+dlt(r.colaAu,b.colaAu,3,'',true)],['Ley cola Ag estimada',n0(r.colaAg,2)+' g/t'+dlt(r.colaAg,b.colaAg,2,'',true)],['Oz Au que se van / día',n0(r.perdAu,1)+dlt(r.perdAu,b.perdAu,1,'',true)],['Valor que se va / día','$'+n0(r.perdAu*PAU)]],
+    t:(c,r,b)=>`Cola Au <b>${n0(r.colaAu,3)}</b> g/t${dlt(r.colaAu,b.colaAu,3,'',true)}<br>se van <b>${n0(r.perdAu,1)}</b> oz Au/día`},
+};
+// equipos sin dato en el Flash todavía (se muestran con su capacidad; listos para conectar)
+const SIN={tep2:'TEP 2 · espesador 1,500 m³',e1:'E-1',lcc:'Lavado contracorriente · LCC0 800 m³ · LCC1 a LCC4 500 m³ c/u',pileta:'Pileta SSR · 3,300 m³',
+  clarif:'Clarificadores',torre:'Torre de desoxigenación',filtros:'Filtros de precipitado',esteril:'Solución estéril · 203 m³',e2:'E-2',detox:'Tanque Detox · 203 m³'};
+// qué se ilumina cuando se mueve cada variable (efecto aguas abajo)
+const AGUAS={ley_au:['mineral','molienda','lix','solrica','precip','cola'],ley_ag:['mineral','molienda','lix','precip','cola'],pct_cb:['mineral','molienda','lix','solrica','precip','cola'],
+  molido_seco:['molienda','clasif','lix','solrica','precip','cola'],p80_real:['clasif','lix','solrica','precip','cola']};
+
+// ── dibujo (solo equipos y flujos) ──
+const S_={
+ tolva:(x,y)=>`<polygon points="${x-26},${y} ${x+26},${y} ${x+12},${y+24} ${x-12},${y+24}" fill="#dcd6c8" stroke="#6b6458"/><rect x="${x-28}" y="${y-6}" width="56" height="6" fill="#c8c0ae" stroke="#6b6458"/><path d="M${x-22} ${y+6}v30M${x+22} ${y+6}v30M${x-8} ${y+24}v8h16v-8" stroke="#6b6458" fill="none"/>`,
+ molino:(x,y,c)=>`<rect x="${x-46}" y="${y-22}" width="92" height="44" rx="10" fill="${c}" stroke="#7a6a2a"/>${[...Array(7)].map((_,i)=>`<line x1="${x-34+i*11}" y1="${y-21}" x2="${x-34+i*11}" y2="${y+21}" stroke="rgba(0,0,0,.18)"/>`).join('')}<rect x="${x-58}" y="${y-9}" width="12" height="18" fill="#9aa3ad" stroke="#555"/><rect x="${x+46}" y="${y-7}" width="10" height="14" fill="#9aa3ad" stroke="#555"/><rect x="${x+30}" y="${y+22}" width="22" height="12" rx="2" fill="#2e86c1" stroke="#1b4f72"/><rect x="${x-40}" y="${y+22}" width="80" height="8" fill="#b9bec4"/>`,
+ ciclon:(x,y)=>`<rect x="${x-8}" y="${y-14}" width="16" height="12" fill="#e5e8eb" stroke="#555"/><polygon points="${x-8},${y-2} ${x+8},${y-2} ${x+2},${y+26} ${x-2},${y+26}" fill="#e5e8eb" stroke="#555"/><line x1="${x}" y1="${y-14}" x2="${x}" y2="${y-22}" stroke="#555" stroke-width="3"/>`,
+ tanq:(x,y)=>`<rect x="${x-19}" y="${y}" width="38" height="44" fill="#e9ecef" stroke="#59626c"/><ellipse cx="${x}" cy="${y}" rx="19" ry="5" fill="#f4f6f8" stroke="#59626c"/><ellipse cx="${x}" cy="${y+44}" rx="19" ry="5" fill="#d9dde1" stroke="#59626c"/><rect x="${x-7}" y="${y-16}" width="14" height="10" rx="2" fill="#2e86c1" stroke="#1b4f72"/><line x1="${x}" y1="${y-6}" x2="${x}" y2="${y+36}" stroke="#59626c" stroke-width="2"/><line x1="${x-9}" y1="${y+36}" x2="${x+9}" y2="${y+36}" stroke="#59626c" stroke-width="3"/><path d="M${x-26} ${y-4}h52" stroke="#8a939c" stroke-width="2"/>`,
+ espes:(x,y,w)=>`<path d="M${x-w/2} ${y}v12l${w/2-10} 14h20l${w/2-10} -14v-12" fill="#d5dade" stroke="#59626c"/><ellipse cx="${x}" cy="${y}" rx="${w/2}" ry="${w*.1}" fill="#a9cce3" stroke="#59626c"/><ellipse cx="${x}" cy="${y}" rx="${w/2-8}" ry="${w*.1-3}" fill="none" stroke="#7fb3d5"/><path d="M${x-w/2+4} ${y-3}h${w-8}" stroke="#7a8590" stroke-width="3"/><rect x="${x-6}" y="${y-12}" width="12" height="9" fill="#2e86c1" stroke="#1b4f72"/>`,
+ filtro:(x,y)=>`<rect x="${x-38}" y="${y-10}" width="76" height="20" rx="2" fill="#e2e5e8" stroke="#59626c"/>${[...Array(9)].map((_,i)=>`<line x1="${x-30+i*7.5}" y1="${y-10}" x2="${x-30+i*7.5}" y2="${y+10}" stroke="#7a8590"/>`).join('')}<path d="M${x-34} ${y+10}v8M${x+34} ${y+10}v8" stroke="#59626c"/><rect x="${x-46}" y="${y-8}" width="8" height="16" fill="#2e86c1"/>`,
+ torre:(x,y)=>`<rect x="${x-9}" y="${y}" width="18" height="62" rx="8" fill="#e5e8eb" stroke="#59626c"/><circle cx="${x-18}" cy="${y+52}" r="6" fill="#2e86c1" stroke="#1b4f72"/><path d="M${x-9} ${y+12}h-8" stroke="#59626c"/>`,
+ tanque:(x,y,w,h)=>`<rect x="${x-w/2}" y="${y}" width="${w}" height="${h}" fill="#e3e6e9" stroke="#59626c"/>${[...Array(Math.floor(h/7))].map((_,i)=>`<line x1="${x-w/2}" y1="${y+4+i*7}" x2="${x+w/2}" y2="${y+4+i*7}" stroke="rgba(0,0,0,.08)"/>`).join('')}<ellipse cx="${x}" cy="${y}" rx="${w/2}" ry="5" fill="#f1f3f5" stroke="#59626c"/><path d="M${x+w/2-6} ${y}v${h}" stroke="#8a939c"/>`,
+ cono:(x,y)=>`<rect x="${x-18}" y="${y}" width="36" height="26" fill="#3498db" stroke="#1b4f72"/><ellipse cx="${x}" cy="${y}" rx="18" ry="5" fill="#5dade2" stroke="#1b4f72"/><polygon points="${x-18},${y+26} ${x+18},${y+26} ${x+4},${y+44} ${x-4},${y+44}" fill="#2e86c1" stroke="#1b4f72"/>`,
+ pileta:(x,y)=>`<polygon points="${x-40},${y} ${x+30},${y} ${x+44},${y+18} ${x-26},${y+18}" fill="#aed6f1" stroke="#59626c"/><polygon points="${x-26},${y+18} ${x+44},${y+18} ${x+44},${y+24} ${x-26},${y+24}" fill="#c9cfd5" stroke="#59626c"/>`,
+ lingotes:(x,y)=>[0,1,2].map(i=>`<polygon points="${x-30+i*20},${y+12} ${x-14+i*20},${y+12} ${x-18+i*20},${y} ${x-26+i*20},${y}" fill="#c9a43a" stroke="#7a6a2a"/>`).join(''),
+};
+const T=(x,y,s,a='middle')=>`<text x="${x}" y="${y}" text-anchor="${a}" class="lbl">${s}</text>`;
+const P=(pts,tipo)=>`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" class="f-${tipo}" marker-end="url(#a-${tipo})"/>`;
+const G=(id,body)=>`<g class="eq" data-eq="${id}"><g class="cuerpo">${body}</g></g>`;
+function svgActual(){
+  const lix=[310,385,460,535,610,685], lcc=[[150,628,130],[290,614,100],[430,600,100],[575,586,100],[725,572,100]];
+  let f='';
+  // pulpa: molienda y clasificación
+  f+=P([[55,192],[55,214],[96,214]],'p')+P([[196,226],[222,226],[222,102],[160,102]],'p')+P([[150,124],[150,160],[100,160],[100,200]],'p')+P([[150,88],[150,60]],'p');
+  f+=P([[270,198],[270,224],[306,224]],'p')+P([[406,236],[432,236],[432,108],[370,108]],'p')+P([[360,130],[360,165],[312,165],[312,210]],'p')+P([[360,93],[360,60]],'p');
+  f+=P([[606,252],[668,252],[668,112],[640,112]],'p')+P([[630,134],[630,182],[506,182],[506,226]],'p')+P([[630,98],[630,80],[720,80],[720,186]],'p');
+  f+=`<polyline points="150,60 18,60 18,352" class="f-p"/>`+P([[18,352],[142,352]],'p')+`<line x1="360" y1="60" x2="150" y2="60" class="f-p"/>`;
+  f+=P([[720,246],[720,300],[310,300],[310,384]],'p');
+  lix.slice(0,-1).forEach((x,i)=>{ f+=P([[x+19,404],[x+28,404],[x+28,396],[lix[i+1]-22,396]],'p'); });
+  f+=P([[685,452],[685,512],[95,512],[95,340],[146,346]],'r');
+  f+=P([[220,388],[220,600],[196,606]],'p');
+  lcc.slice(0,-1).forEach(([x,y,w],i)=>{ const [nx,ny,nw]=lcc[i+1]; f+=P([[x,y+26],[x,y+50],[nx-nw/2+14,y+50],[nx-nw/2+14,ny+8]],'p'); });
+  f+=P([[725,598],[725,624],[935,624]],'p')+P([[960,646],[960,668]],'p')+P([[960,728],[960,742],[868,742]],'p');
+  // solución
+  lcc.slice(1).forEach(([x,y,w],i)=>{ const [px,py,pw]=lcc[i]; f+=P([[x-w/2,y],[px+pw/2+4,py]],'s'); });
+  f+=P([[1040,440],[1040,540],[790,540],[776,560]],'s')+P([[30,486],[30,628],[82,628]],'s');
+  f+=P([[296,346],[600,346],[600,282],[752,282],[752,96],[832,96]],'s');
+  f+=`<polyline points="860,122 860,164" class="f-s"/><polyline points="810,164 920,164" class="f-s"/>`+P([[810,164],[810,178]],'s')+P([[920,164],[920,178]],'s');
+  f+=`<polyline points="810,202 810,222 920,222 920,202" class="f-s"/>`+P([[865,222],[865,236]],'s');
+  f+=`<polyline points="865,300 865,318" class="f-s"/><polyline points="810,318 930,318" class="f-s"/>`+P([[810,318],[810,333]],'s')+P([[930,318],[930,333]],'s');
+  f+=P([[970,345],[1040,345],[1040,378]],'s');
+  f+=`<polyline points="810,357 810,404 930,404 930,357" class="f-p"/>`+P([[865,404],[865,436]],'p');
+  // equipos
+  let e='';
+  e+=G('mineral',S_.tolva(55,158)+T(55,148,'TOLVA #1')+S_.tolva(270,164)+T(270,154,'TOLVA #2'));
+  e+=G('molienda',S_.molino(150,214,'#e8c547')+T(150,254,'MOLINO #1')+S_.molino(360,224,'#e8c547')+T(360,264,'MOLINO #2')+S_.molino(560,240,'#c3c8cd')+T(560,280,'MOLINO #3'));
+  e+=G('clasif',S_.ciclon(150,100)+T(186,92,'CICLÓN D15','start')+S_.ciclon(360,106)+T(396,98,'CICLÓN D15','start')+S_.ciclon(630,110)+T(655,74,'BATERÍA DE CICLONES','start'));
+  e+=G('e1',S_.cono(720,192)+T(720,208,'E-1').replace('class="lbl"','class="lbl b"'));
+  e+=G('tep2',S_.espes(220,348,150)+T(220,326,'TEP 2')+T(176,392,'1,500 M³'));
+  e+=G('lix',lix.map(x=>S_.tanq(x,396)).join('')+T(497,456,'TANQUES DE LIXIVIACIÓN · 403 M³ C/U'));
+  e+=G('pileta',S_.pileta(48,462)+T(48,500,'PILETA SSR')+T(48,512,'3,300 M³'));
+  e+=G('lcc',lcc.map(([x,y,w],i)=>S_.espes(x,y,w)+T(x,y-16,'LCC'+i)+T(x,y+40,i?'500 M³':'800 M³')).join('')+T(430,700,'LAVADO CONTRACORRIENTE'));
+  e+=G('solrica',S_.tanque(860,86,58,36)+T(860,74,'SOLUCIÓN RICA'));
+  e+=G('clarif',S_.filtro(810,190)+S_.filtro(920,190)+T(990,194,'CLARIFICADORES','start'));
+  e+=G('torre',S_.torre(865,238)+T(885,262,'TORRE DE','start')+T(885,274,'DESOXIGENACIÓN','start'));
+  e+=G('filtros',S_.filtro(810,345)+S_.filtro(930,345)+T(1000,330,'FILTRO DE PRECIPITADO'));
+  e+=G('precip',S_.lingotes(868,440)+T(868,468,'PRECIPITADO'));
+  e+=G('esteril',S_.tanque(1040,380,44,58)+T(1040,454,'SOL. ESTÉRIL 203 M³'));
+  e+=G('e2',S_.cono(960,604)+T(960,620,'E-2').replace('class="lbl"','class="lbl b"'));
+  e+=G('detox',S_.tanque(960,672,40,56)+T(1010,700,'DETOX 203 M³','start'));
+  e+=G('cola',`<rect x="842" y="730" width="24" height="24" fill="transparent"/>`+T(846,746,'COLA FINAL','end'));
+  e+=T(900,560,'SOLUCIÓN ESTÉRIL + AGUA DE REPOSICIÓN','middle').replace('class="lbl"','class="lbl s"');
+  const mk=(id,c)=>`<marker id="a-${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`;
+  return `<svg viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg"><defs>${mk('p','#2c3e50')+mk('s','#2e86c1')+mk('r','#e67e22')}</defs>
+   <style>.f-p{fill:none;stroke:#2c3e50;stroke-width:2}.f-s{fill:none;stroke:#2e86c1;stroke-width:2;stroke-dasharray:6 4}.f-r{fill:none;stroke:#e67e22;stroke-width:2.5}
+   .lbl{font:700 10px "Segoe UI",Arial;fill:#34495e;pointer-events:none}.lbl.b{fill:#fff}.lbl.s{fill:#2e86c1;font-size:9.5px}</style>
+   <text x="550" y="26" text-anchor="middle" style="font:700 15px 'Segoe UI',Arial;fill:#1f3864">DIAGRAMA CONCEPTUAL LIXIVIACIÓN-MC · UNIDAD CIENEGUITA</text>${f}${e}</svg>`;
+}
+const DIAGRAMAS={actual:svgActual, proyecto:null};   // proyecto: pendiente (molinos #1–#4, 1ra y 2da etapa de lixiviación, TEP 1/TEP 2, prensas)
+
+let PL_LISTO=false;
+function armarPlanta(){
+  const L=document.getElementById('plLienzo');
+  L.innerHTML=DIAGRAMAS.actual()+Object.entries(EQ).map(([id,q])=>`<div class="tag ${q.tipo}" data-eq="${id}" style="left:${q.tag[0]/VW*100}%;top:${q.tag[1]/VH*100}%"><div class="t">${q.n.split(' · ')[0]}</div><div id="tg_${id}"></div></div>`).join('');
+  L.querySelectorAll('[data-eq]').forEach(el=>el.onclick=e=>{ e.stopPropagation(); EQ_SEL=el.dataset.eq; panelPlanta(); marcarSel(); });
+  PL_LISTO=true; panelPlanta(); marcarSel();
+}
+function marcarSel(){ document.querySelectorAll('#plLienzo [data-eq]').forEach(el=>el.classList.toggle('sel',el.dataset.eq===EQ_SEL)); }
+function panelPlanta(){
+  const P=document.getElementById('plPanel'), q=EQ[EQ_SEL];
+  if(!q){ P.innerHTML=`<h3>${SIN[EQ_SEL]||EQ_SEL}</h3><div class="nota" style="line-height:1.6">Este equipo <b>todavía no tiene datos en el Flash</b>. Queda listo en el diagrama: cuando se capture algo de él (densidad, ley, NaCN, flujo…) se le agregan sus datos y, si aplica, sus barras para moverlo.</div>${botonesPl()}`; enlazarBotones(); return; }
+  P.innerHTML=`<h3>${q.n}</h3><div class="nota" style="margin-bottom:8px">${q.desc}</div>
+    ${q.vars.length?`<div class="nota" style="margin-bottom:2px"><b>Muévelo aquí</b> (es la misma barra que en 🎛️ Simulador):</div>`+q.vars.map(k=>{ const r=RANGO[k], st=(r.max-r.min)/200; return `<div class="var"><div class="cab"><span class="nom">${V[k].n}</span><span><button class="lock${LOCK[k]?' on':''}" data-pk="${k}">${LOCK[k]?'🔒':'🔓'}</button> <span class="val" id="pv_${k}"></span></span></div>
+      <input type="range" id="ps_${k}" min="${r.min}" max="${r.max}" step="${st}" value="${CUR[k]}"><div class="rango"><span>mín ${fmt(k,r.min)}</span><span>prom ${fmt(k,BASE[k])}</span><span>máx ${fmt(k,r.max)}</span></div><div class="mov" id="pm_${k}"></div></div>`; }).join(''):''}
+    <table class="t" id="plFilas" style="margin-top:6px"></table>${botonesPl()}`;
+  q.vars.forEach(k=>{ document.getElementById('ps_'+k).oninput=e=>{ ULT_MOV=mover(k,+e.target.value); ULT_MOV._de=k; pintar(); brillar(k); }; });
+  P.querySelectorAll('[data-pk]').forEach(b=>b.onclick=()=>{ LOCK[b.dataset.pk]=!LOCK[b.dataset.pk]; sliders(); panelPlanta(); pintar(); });
+  enlazarBotones(); pintarPlanta();
+}
+const botonesPl=()=>`<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap"><button class="bt-mini" id="plBase">↺ Regresar al promedio</button><button class="bt-mini" id="plUlt">📅 Cargar último día</button></div><div class="nota" style="margin-top:6px">Base de comparación: <b>${refTxt()}</b>. ▲▼ = cambio contra el promedio del periodo.</div>`;
+function enlazarBotones(){ const b=document.getElementById('plBase'), u=document.getElementById('plUlt'); if(b) b.onclick=()=>{ irPromedio(); panelPlanta(); }; if(u) u.onclick=()=>{ irUltimo(); panelPlanta(); }; }
+let _brT=null;
+function brillar(k){ const L=AGUAS[k]||[]; document.querySelectorAll('#plLienzo .eq').forEach(g=>{ g.classList.remove('brilla'); if(L.includes(g.dataset.eq)){ g.getBoundingClientRect(); g.classList.add('brilla'); } }); clearTimeout(_brT); _brT=setTimeout(()=>document.querySelectorAll('#plLienzo .eq.brilla').forEach(g=>g.classList.remove('brilla')),1300); }
+function pintarPlanta(){
+  if(!M_AU) return; if(!PL_LISTO){ armarPlanta(); return; }
+  const r=calc(CUR), b=calc(BASE);
+  Object.entries(EQ).forEach(([id,q])=>{ const el=document.getElementById('tg_'+id); if(el) el.innerHTML=q.t(CUR,r,b); });
+  const k=(n,v,d,cl)=>`<div class="pl-k ${cl||''}"><div class="n">${n}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
+  document.getElementById('plKpis').innerHTML=k('% Rec Au est.',n0(r.rAu*100,1)+' %',dlt(r.rAu*100,b.rAu*100,2,' pts'),'oro')+k('Oz Au / día',n0(r.ozAu,1),dlt(r.ozAu,b.ozAu,1))+k('Oz Eq Au / día',n0(r.ozEq,1),dlt(r.ozEq,b.ozEq,1))+
+    k('💰 USD / día','$'+n0(r.usd),dlt(r.usd,b.usd,0),'oro')+k('USD en '+DIAS+' días','$'+n0(r.usd*DIAS),dlt(r.usd*DIAS,b.usd*DIAS,0))+k('Cola Au est.',n0(r.colaAu,3)+' g/t',dlt(r.colaAu,b.colaAu,3,'',true));
+  const q=EQ[EQ_SEL]; if(!q) return;
+  q.vars.forEach(v=>{ const s=document.getElementById('ps_'+v), t=document.getElementById('pv_'+v), m=document.getElementById('pm_'+v), rg=RANGO[v]; if(!s) return;
+    s.value=CUR[v]; t.textContent=fmt(v,CUR[v]); t.classList.toggle('fuera',CUR[v]<rg.p5||CUR[v]>rg.p95);
+    m.textContent=ULT_MOV[v]!=null&&ULT_MOV._de!==v?'↳ se movió '+(ULT_MOV[v]>0?'+':'')+fmt(v,ULT_MOV[v]).replace(' %',' pts')+' por '+V[ULT_MOV._de].n:''; });
+  const tf=document.getElementById('plFilas'); if(tf){ const F=q.filas(CUR,r,b); tf.innerHTML=F.length?'<tr><th>Dato</th><th style="text-align:right">Valor</th></tr>'+F.map(([a,v])=>`<tr><td>${a}</td><td>${v}</td></tr>`).join(''):''; }
+}
+
+// ── arranque ──
+const _tabsPrev=null;
+let BASE_H=23;
+function todo(){ preparar(); BASE_H=media(D.map(d=>d.horas_molienda)); ULT_MOV={}; sliders(); tablaModelo(); pintar(); matriz(); disp(); porMes(); if(PL_LISTO) panelPlanta(); }
+document.getElementById('meses').innerHTML=MESES.map(m=>`<span class="chip on" data-m="${m}">${mesTxt(m)}</span>`).join(' ');
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{ const m=c.dataset.m; if(SEL.has(m)&&SEL.size>1) SEL.delete(m); else SEL.add(m); c.classList.toggle('on',SEL.has(m)); todo(); });
+document.getElementById('sinParo').onchange=todo;
+function irPromedio(){ CUR=Object.assign({},BASE); REFD=null; ULT_MOV={}; pintar(); }
+function irUltimo(){ const u=D[D.length-1]; XS.forEach(k=>{ if(u[k]!=null) CUR[k]=u[k]; }); REFD=u; ULT_MOV={}; pintar(); }
+document.getElementById('btBase').onclick=irPromedio;
+document.getElementById('btUlt').onclick=irUltimo;
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{ document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t)); ['sim','planta','cor','como'].forEach(v=>document.getElementById('v-'+v).classList.toggle('oculto',v!==t.dataset.t)); if(t.dataset.t==='sim') sensibilidad(); });
+todo();
+</script>
+<script>
+// ══ 10-nov-26 · Simulador dentro del Flash: misma sesión de Google, permiso «simulador» ══
+// El HTML no lleva datos: la base (RLS) solo los entrega a correos autorizados.
+const SUPABASE_URL = 'https://vknnwhivhqzbyeqnnegy.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrbm53aGl2aHF6YnllcW5uZWd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyMjA3ODAsImV4cCI6MjEwMTc5Njc4MH0._1bIE726QDVcWnN9LaC8CKoM2IVoCNA4ncouyx2Zl5Y';
+const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+// Columnas que usa el modelo (mismo orden que la maqueta aprobada). pct_cb y pct_realito salen de la mezcla del día.
+const SIM_COLS=['molido_seco','horas_molienda','ley_au','ley_ag','p80_real','nacn_real','m3_bombeados','sol_rica_au','recuperacion_au','recuperacion_ag','oz_precipitadas_au','oz_eq_au','proy_recup_au'];
+function simCSV(rows){
+  const L=['fecha,'+SIM_COLS.join(',')+',pct_cb,pct_realito'];
+  rows.slice().sort((a,b)=>a.periodo<b.periodo?-1:1).forEach(r=>((r.data&&r.data.dias)||[]).forEach(d=>{
+    if(!d||!d.fecha||!(d.molido_seco>0)) return;                       // solo días con operación
+    const mt=d.mezcla_total, m=d.mezcla||{}, v=k=>(d[k]==null||isNaN(d[k]))?'':d[k];
+    L.push([d.fecha.slice(2),...SIM_COLS.map(v), mt>0?((m['Cerro Blanco']||0)/mt):'', mt>0?((m['Realito']||0)/mt):''].join(','));
+  }));
+  return L.join('\n');
+}
+(function(){
+  const PERMISO='simulador', ACCION='Simulador de Planta';
+  const st=document.createElement('style');
+  st.textContent='#gateFlash{position:fixed;inset:0;z-index:99999;background:#f4f5f7;display:flex;align-items:flex-start;justify-content:center;padding:60px 16px;font-family:"Segoe UI",Arial,sans-serif}'
+   +'#gateFlash .c{background:#fff;border:1px solid #e3e6e9;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.08);padding:26px;max-width:420px;width:100%;text-align:center}'
+   +'#gateFlash h2{margin:0 0 6px;font-size:17px;color:#1a2733}#gateFlash p{font-size:13px;color:#5a656d;margin:0 0 16px;line-height:1.5}'
+   +'#gateFlash button{width:100%;padding:11px;border-radius:8px;border:1px solid #c9ced3;background:#fff;font:600 14px "Segoe UI",Arial,sans-serif;cursor:pointer;margin-top:6px}'
+   +'#gateFlash .m{font-size:12.5px;color:#c0392b;min-height:18px;margin-top:10px}'
+   +'#gateBarra{position:fixed;top:6px;right:10px;z-index:9999;font:11.5px "Segoe UI",Arial,sans-serif;color:#7c858d;background:rgba(255,255,255,.9);padding:3px 8px;border-radius:6px}'
+   +'#gateBarra button{background:none;border:none;color:#5a656d;text-decoration:underline;cursor:pointer;font-size:11.5px}';
+  document.head.appendChild(st);
+  const g=document.createElement('div'); g.id='gateFlash';
+  g.innerHTML='<div class="c"><h2>🔒 '+ACCION+'</h2><p id="gateTxt">Entra con tu cuenta de Google del trabajo (la misma del Reporte Flash).</p>'
+   +'<button id="gateEntrar" type="button">Entrar con Google</button><button id="gateOtra" type="button" style="display:none">Usar otra cuenta</button><div class="m" id="gateMsg"></div></div>';
+  document.body.appendChild(g);
+  const url=()=>location.origin+location.pathname+location.search;
+  const msg=t=>{ document.getElementById('gateMsg').textContent=t||''; };
+  async function salir(){ try{ await sb.auth.signOut(); }catch(e){} location.replace(url()); }
+  (async()=>{
+    document.getElementById('gateEntrar').onclick=()=>sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:url(),queryParams:{prompt:'select_account'}}});
+    document.getElementById('gateOtra').onclick=salir;
+    if(location.protocol==='file:'){ document.getElementById('gateTxt').innerHTML='El simulador se abre desde el Flash (botón 🧪 Simulador):<br><b>csalido-glitch.github.io/reporte-flash-mrt/</b>'; document.getElementById('gateEntrar').style.display='none'; return; }
+    if(!sb){ msg('No se pudo cargar la conexión. Recarga la página.'); return; }
+    const {data:{session}}=await sb.auth.getSession(); if(!session) return;
+    const email=String(session.user.email||'').toLowerCase();
+    const {data,error}=await sb.from('flash_autorizados').select('*').eq('correo',email).maybeSingle();
+    if(error){ msg('No se pudo revisar tu acceso: '+error.message); return; }
+    if(!data||!(data.admin||data[PERMISO])){
+      document.getElementById('gateTxt').innerHTML='La cuenta <b>'+email.replace(/</g,'&lt;')+'</b> no tiene permiso para el Simulador. Si lo necesitas, pídeselo a César Salido.';
+      document.getElementById('gateEntrar').style.display='none'; document.getElementById('gateOtra').style.display=''; return;
+    }
+    msg(''); document.getElementById('gateTxt').textContent='Cargando los datos del Flash…'; document.getElementById('gateEntrar').style.display='none';
+    const r=await sb.from('flash_reportes').select('periodo,data');
+    if(r.error){ msg('No se pudieron leer los datos: '+r.error.message); return; }
+    window.SIM_CSV=simCSV(r.data||[]);
+    if(window.SIM_CSV.split('\n').length<40){ msg('Todavía no hay suficientes días con datos para el modelo.'); return; }
+    if(window.top===window){ try{ await sb.rpc('flash_registrar_acceso',{p_vista:'simulador',p_nombre:data.nombre||null}); }catch(e){} }
+    g.remove();
+    const sc=document.createElement('script'); sc.textContent=document.getElementById('simMain').textContent; document.body.appendChild(sc);
+    if(window.top===window){ const b=document.createElement('div'); b.id='gateBarra'; b.innerHTML='👤 '+email.replace(/</g,'&lt;')+' · <button type="button">Salir</button>'; b.querySelector('button').onclick=salir; document.body.appendChild(b); }
+  })();
+})();
+
+</script>
+</body>
+</html>

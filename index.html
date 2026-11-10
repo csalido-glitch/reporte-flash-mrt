@@ -629,13 +629,13 @@ body.sin-sesion #authGate{ display:flex; }
 #authBar button{ background:none; border:none; color:#5a656d; text-decoration:underline; font-size:11.5px; cursor:pointer; padding:0; }
 body.sin-subir #dropzone, body.sin-subir #btnMaint,
 body.sin-exportar #btnExport, body.sin-exportar #btnExportXlsx,
-body.sin-buzon #btnVerComentarios, body.sin-admin #btnUsuarios, body.sin-semanal #btnSemanal{ display:none !important; }
-#semModal{ display:none; position:fixed; inset:0; z-index:70; background:#fafafa; flex-direction:column; }
-#semModal.abierto{ display:flex; }
+body.sin-buzon #btnVerComentarios, body.sin-admin #btnUsuarios, body.sin-semanal #btnSemanal, body.sin-simulador #btnSimulador{ display:none !important; }
+#semModal, #simModal{ display:none; position:fixed; inset:0; z-index:70; background:#fafafa; flex-direction:column; }
+#semModal.abierto, #simModal.abierto{ display:flex; }
 .sem-head{ display:flex; align-items:center; gap:12px; padding:8px 14px; background:#13294b; color:#fff; font-size:13.5px; flex-wrap:wrap; }
 .sem-nota{ font-size:11.5px; opacity:.8; flex:1; }
 .sem-head button{ background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:6px; padding:5px 12px; cursor:pointer; font-size:12px; }
-#semFrame{ flex:1; width:100%; border:0; background:#fff; }
+#semFrame, #simFrame{ flex:1; width:100%; border:0; background:#fff; }
 .usr-forma{ display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; padding:12px 18px; border-bottom:1px solid #e3e6e9; }
 .usr-forma label{ display:block; font-size:10.5px; color:#7c858d; margin-bottom:3px; }
 .usr-forma input{ font-size:12.5px; padding:6px 8px; border:1px solid #c9ced3; border-radius:6px; width:230px; max-width:100%; }
@@ -733,6 +733,7 @@ body[data-theme="dark"] .auth-btn{ background:#2a3238; color:#e8e8e8; border-col
         <button class="action" id="btnVerHistorial">📅 Histórico</button>
         <button class="action" id="btnVerPanel">📊 Panel Ejecutivo</button>
         <button class="action" id="btnSemanal">📑 Reporte semanal</button>
+        <button class="action" id="btnSimulador">🧪 Simulador</button>
       </div>
     </div>
   </div>
@@ -843,7 +844,7 @@ body[data-theme="dark"] .auth-btn{ background:#2a3238; color:#e8e8e8; border-col
     </div>
     <div class="usr-msg" id="usrMsg"></div>
     <div class="usr-caja"><table>
-      <thead><tr><th>Correo</th><th title="Ver el Flash, Histórico y Panel Ejecutivo">Ver</th><th title="Exportar a Excel y guardar copia del mes">Exportar</th><th title="Subir datos y modo mantenimiento">Subir datos</th><th title="Ver y generar el Reporte Semanal de Planta (PPTX)">Reporte semanal</th><th title="Leer y atender el buzón de comentarios">Buzón</th><th title="Todo, más dar y quitar accesos">Admin</th><th></th></tr></thead>
+      <thead><tr><th>Correo</th><th title="Ver el Flash, Histórico y Panel Ejecutivo">Ver</th><th title="Exportar a Excel y guardar copia del mes">Exportar</th><th title="Subir datos y modo mantenimiento">Subir datos</th><th title="Ver y generar el Reporte Semanal de Planta (PPTX)">Reporte semanal</th><th title="Abrir el Simulador de Planta (qué pasa si… con las variables del Flash)">Simulador</th><th title="Leer y atender el buzón de comentarios">Buzón</th><th title="Todo, más dar y quitar accesos">Admin</th><th></th></tr></thead>
       <tbody id="usrTabla"></tbody>
     </table></div>
     <div class="usr-nota">Los cambios se guardan al momento y aplican la próxima vez que esa persona abra o recargue el Flash. El acceso lo revisa la base de datos, no esta pantalla: quien no esté en la lista no ve datos aunque tenga el link. Cada cambio queda en la bitácora.</div>
@@ -864,6 +865,10 @@ body[data-theme="dark"] .auth-btn{ background:#2a3238; color:#e8e8e8; border-col
 <div id="semModal">
   <div class="sem-head"><b>📑 Reporte Semanal de Planta</b><span class="sem-nota">Genera el PPTX de la semana con los datos del Flash</span><button type="button" id="semCerrar" title="Cerrar">✕ Cerrar</button></div>
   <iframe id="semFrame" title="Generador del Reporte Semanal de Planta"></iframe>
+</div>
+<div id="simModal">
+  <div class="sem-head"><b>🧪 Simulador de Planta</b><span class="sem-nota">¿Qué pasa si…? Con los datos reales del Flash; solo calcula, no cambia nada</span><button type="button" id="simCerrar" title="Cerrar">✕ Cerrar</button></div>
+  <iframe id="simFrame" title="Simulador de Planta"></iframe>
 </div>
 
 <div class="cmt-modal" id="cmtModal">
@@ -970,6 +975,7 @@ function authAplicarUI(){
   b.classList.toggle('sin-buzon', !puede('buzon'));
   b.classList.toggle('sin-admin', !puede('admin'));
   b.classList.toggle('sin-semanal', !puede('semanal'));
+  b.classList.toggle('sin-simulador', !puede('simulador'));
   const bar = document.getElementById('authBar');
   bar.style.display = 'flex';
   document.getElementById('authQuien').textContent = '👤 ' + (AUTH.nombre ? AUTH.nombre + ' · ' : '') + AUTH.email;
@@ -1034,18 +1040,18 @@ async function usrBitacora(que){
 }
 async function usrCargar(){
   const tb = document.getElementById('usrTabla');
-  tb.innerHTML = '<tr><td colspan="8">Cargando…</td></tr>';
+  tb.innerHTML = '<tr><td colspan="9">Cargando…</td></tr>';
   const { data, error } = await sb.from('flash_autorizados').select('*').order('correo');
-  if(error){ tb.innerHTML = '<tr><td colspan="8">No se pudo leer la lista: ' + cmtEsc(error.message) + '</td></tr>'; return; }
+  if(error){ tb.innerHTML = '<tr><td colspan="9">No se pudo leer la lista: ' + cmtEsc(error.message) + '</td></tr>'; return; }
   USR.lista = data || [];
   document.getElementById('usrConteo').textContent = USR.lista.length + ' correos con acceso';
-  const campos = ['ver','exportar','subir','semanal','buzon','admin'];
+  const campos = ['ver','exportar','subir','semanal','simulador','buzon','admin'];
   tb.innerHTML = USR.lista.map(u => {
     const yo = u.correo === AUTH.email;
     return '<tr><td><b>' + cmtEsc(u.correo) + '</b>' + (yo ? ' <span class="n">(tú)</span>' : '') + (u.nombre ? '<span class="n">' + cmtEsc(u.nombre) + '</span>' : '') + '</td>'
       + campos.map(c => '<td><input type="checkbox" data-usr="' + cmtEsc(u.correo) + '" data-campo="' + c + '"' + (u[c] ? ' checked' : '') + (yo && (c === 'admin' || c === 'ver') ? ' disabled title="No puedes quitarte esto a ti mismo"' : '') + '></td>').join('')
       + '<td>' + (yo ? '' : '<button class="usr-quitar" data-quitar="' + cmtEsc(u.correo) + '">Quitar</button>') + '</td></tr>';
-  }).join('') || '<tr><td colspan="8">Sin correos.</td></tr>';
+  }).join('') || '<tr><td colspan="9">Sin correos.</td></tr>';
 }
 async function usrCambiar(correo, campo, valor, chk){
   usrMsg('Guardando…');
@@ -1075,7 +1081,7 @@ async function usrQuitar(correo){
   usrCargar();
 }
 // ── Accesos (solo admin) ──
-const VISTA_TXT = { flash:'Flash', panel:'Panel Ejecutivo', historico:'Histórico', semanal:'Reporte semanal' };
+const VISTA_TXT = { flash:'Flash', panel:'Panel Ejecutivo', historico:'Histórico', semanal:'Reporte semanal', simulador:'Simulador' };
 function accFecha(iso){ const s = selloSubida(iso); return s ? s.fecha + ' ' + s.hora : '—'; }
 async function accCargar(){
   const m = document.getElementById('accMsg'); m.textContent = 'Cargando…'; m.className = 'usr-msg';
@@ -1126,6 +1132,16 @@ function usrTab(t){
     sem.classList.add('abierto'); document.body.style.overflow = 'hidden';
   };
   document.getElementById('semCerrar').onclick = ()=>{ sem.classList.remove('abierto'); document.body.style.overflow = ''; };
+  // 10-nov-26 · Simulador de Planta: misma idea que el Reporte semanal (mismo sitio, misma sesión, permiso propio)
+  const sim = document.getElementById('simModal');
+  document.getElementById('btnSimulador').onclick = ()=>{
+    if(!authPermiso('simulador','abrir el Simulador de Planta')) return;
+    const f = document.getElementById('simFrame');
+    if(!f.getAttribute('src')) f.setAttribute('src', 'simulador.html');
+    registrarAcceso('simulador');
+    sim.classList.add('abierto'); document.body.style.overflow = 'hidden';
+  };
+  document.getElementById('simCerrar').onclick = ()=>{ sim.classList.remove('abierto'); document.body.style.overflow = ''; };
   document.getElementById('usrTabla').addEventListener('click', e => {
     const b = e.target.closest('button[data-quitar]'); if(b) usrQuitar(b.dataset.quitar);
   });
