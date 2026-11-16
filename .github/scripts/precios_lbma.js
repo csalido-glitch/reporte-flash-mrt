@@ -31,9 +31,18 @@ async function leerComex(sym) {
     const x = await fetch(u, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!x.ok) { console.log('COMEX ' + sym + ': respuesta ' + x.status); return {}; }
     const j = await x.json(); const res = j.chart.result[0];
-    const off = res.meta.gmtoffset || 0, t = res.timestamp || [], c = res.indicators.quote[0].close || [];
+    const t = res.timestamp || [], c = res.indicators.quote[0].close || [];
+    // La vela diaria marca la medianoche de Nueva York (04:00 o 05:00 UTC segun horario de verano).
+    // Se suman 12 h para caer siempre en el dia correcto, sin depender del gmtoffset actual.
+    // Se omite el dia de hoy: su "cierre" todavia se esta moviendo.
+    const hoy = new Date(Date.now() - 5 * 3600 * 1000).toISOString().slice(0, 10);
     const m = {};
-    t.forEach((s, i) => { if (c[i] != null) m[new Date((s + off) * 1000).toISOString().slice(0, 10)] = Math.round(c[i] * 1000) / 1000; });
+    t.forEach((s, i) => {
+      if (c[i] == null) return;
+      const d = new Date((s + 12 * 3600) * 1000).toISOString().slice(0, 10);
+      if (d >= hoy) return;
+      m[d] = Math.round(c[i] * 1000) / 1000;
+    });
     return m;
   } catch (e) { console.log('COMEX ' + sym + ': ' + e.message); return {}; }
 }
