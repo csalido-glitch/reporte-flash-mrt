@@ -1,0 +1,44 @@
+# Precios de metales para el Flash de Planta (16-nov-26)
+# Lunes a viernes lee LBMA (Au AM/PM, Ag) y COMEX y los guarda en Supabase.
+# Corre ~9:45 y ~13:45 hora Chihuahua (la 2a por si la LBMA publica tarde). Tambien a mano: Run workflow.
+# La clave robot vive SOLO en Settings > Secrets > Actions > FLASH_CLAVE_ROBOT.
+name: Precios LBMA
+
+on:
+  schedule:
+    - cron: '45 15 * * 1-5'
+    - cron: '45 19 * * 1-5'
+  workflow_dispatch:
+
+concurrency:
+  group: precios-lbma
+  cancel-in-progress: false
+
+jobs:
+  precios:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            index.html
+            .github/scripts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar navegador sin ventana (Chromium)
+        run: |
+          npm init -y > /dev/null
+          npm i playwright@1.47.2 > /dev/null
+          npx playwright install --with-deps chromium > /dev/null
+
+      - name: Leer precios y guardarlos en el Flash
+        env:
+          FLASH_CLAVE_ROBOT: ${{ secrets.FLASH_CLAVE_ROBOT }}
+        run: |
+          export SUPABASE_URL=$(grep -o "SUPABASE_URL *= *'[^']*'" index.html | head -1 | cut -d"'" -f2)
+          export SUPABASE_ANON_KEY=$(grep -o "SUPABASE_ANON_KEY *= *'[^']*'" index.html | head -1 | cut -d"'" -f2)
+          node .github/scripts/precios_lbma.js
