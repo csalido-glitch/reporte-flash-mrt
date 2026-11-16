@@ -1,0 +1,54 @@
+# Prueba (16-nov-26): ¿la LBMA deja leer sus precios desde los servidores de GitHub?
+# Solo LEE. No guarda nada ni toca el Flash. Se corre a mano: Actions -> "Prueba LBMA" -> Run workflow.
+# En el registro solo salen codigos de respuesta, cuantos dias trae y la ultima fecha (sin precios).
+name: Prueba LBMA (solo lectura)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  prueba:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 1) Directo, como lo intenta Excel
+        run: |
+          curl -s -o /dev/null -w "Directo al JSON de la LBMA: respuesta %{http_code}\n" \
+            -H "Referer: https://www.lbma.org.uk/" https://prices.lbma.org.uk/json/limited/gold_pm.json || true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar navegador sin ventana (Chromium)
+        run: |
+          npm init -y > /dev/null
+          npm i playwright@1.47.2 > /dev/null
+          npx playwright install --with-deps chromium > /dev/null
+
+      - name: 2) Con navegador, desde la pagina de precios
+        run: |
+          cat > prueba.js <<'JS'
+          const { chromium } = require('playwright');
+          (async () => {
+            const b = await chromium.launch();
+            const p = await b.newPage({ userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36' });
+            const r = await p.goto('https://www.lbma.org.uk/prices-and-data/lbma-precious-metal-prices', { waitUntil: 'domcontentloaded', timeout: 60000 });
+            await p.waitForTimeout(5000);
+            console.log('Pagina: respuesta ' + (r && r.status()) + ' · titulo: ' + await p.title());
+            const res = await p.evaluate(async () => {
+              const out = {};
+              for (const n of ['gold_am', 'gold_pm', 'silver']) {
+                try {
+                  const x = await fetch('https://prices.lbma.org.uk/json/limited/' + n + '.json');
+                  const j = x.ok ? await x.json() : [];
+                  out[n] = 'respuesta ' + x.status + ' · ' + j.length + ' dias · ultimo ' + (j.length ? j[j.length - 1].d : '-');
+                } catch (e) { out[n] = 'error: ' + e.message; }
+              }
+              return out;
+            });
+            for (const k in res) console.log(k + ': ' + res[k]);
+            await b.close();
+          })();
+          JS
+          node prueba.js
