@@ -1164,9 +1164,9 @@ function preMostrar(){
   const pAu = preProm(au), pAg = preProm(ag), pdAu = preProm(dAu), pdAg = preProm(dAg);
   const nDias = au.filter(v => v != null).length;
   document.getElementById('preKpis').innerHTML =
-      '<div class="pre-kpi"><div class="t">Au LBMA · último</div><div class="v">$' + (ultAu ? preF(preAu(ultAu),2) : '—') + '</div><div class="s">' + (ultAu ? preFecha(ultAu.fecha) + ' · prom. AM/PM' : '') + '</div></div>'
+      '<div class="pre-kpi"><div class="t">Au LBMA · último</div><div class="v">$' + (ultAu ? preF(preAu(ultAu),3) : '—') + '</div><div class="s">' + (ultAu ? preFecha(ultAu.fecha) + ' · prom. AM/PM' : '') + '</div></div>'
     + '<div class="pre-kpi"><div class="t">Ag LBMA · último</div><div class="v">$' + (ultAg ? preF(preNum(ultAg.ag_lbma),3) : '—') + '</div><div class="s">' + (ultAg ? preFecha(ultAg.fecha) : '') + '</div></div>'
-    + '<div class="pre-kpi"><div class="t">Promedio del mes · Au</div><div class="v">$' + preF(pAu,2) + '</div><div class="s">' + nDias + ' días hábiles LBMA</div></div>'
+    + '<div class="pre-kpi"><div class="t">Promedio del mes · Au</div><div class="v">$' + preF(pAu,3) + '</div><div class="s">' + nDias + ' días hábiles LBMA</div></div>'
     + '<div class="pre-kpi"><div class="t">Promedio del mes · Ag</div><div class="v">$' + preF(pAg,3) + '</div><div class="s">Ratio Au/Ag ' + (pAu && pAg ? preF(pAu / pAg, 2) : '—') + '</div></div>'
     + '<div class="pre-kpi"><div class="t">COMEX − LBMA (prom.)</div><div class="v" style="font-size:17px">Au ' + (pdAu == null ? '—' : (pdAu >= 0 ? '+' : '') + preF(pdAu,2)) + '</div><div class="s">Ag ' + (pdAg == null ? '—' : (pdAg >= 0 ? '+' : '') + preF(pdAg,3)) + (pAu && pdAu != null ? ' · Au ' + (pdAu / pAu * 100 >= 0 ? '+' : '') + preF(pdAu / pAu * 100, 2) + '%' : '') + '</div></div>';
   // tabla
@@ -1174,10 +1174,10 @@ function preMostrar(){
         + '<th class="ag">Ag LBMA<br>(Balance)</th><th class="ag">Ag COMEX</th><th class="ag">Dif.</th></tr></thead><tbody>';
   rows.slice().reverse().forEach(r => {
     const i = rows.indexOf(r);
-    h += '<tr><td>' + preFecha(r.fecha) + '</td><td>' + preF(preNum(r.au_am),2) + '</td><td>' + preF(preNum(r.au_pm),2) + '</td><td class="bal">' + preF(au[i],2) + '</td><td>' + preF(auC[i],2) + '</td>' + preDif(dAu[i],2)
+    h += '<tr><td>' + preFecha(r.fecha) + '</td><td>' + preF(preNum(r.au_am),2) + '</td><td>' + preF(preNum(r.au_pm),2) + '</td><td class="bal">' + preF(au[i],3) + '</td><td>' + preF(auC[i],2) + '</td>' + preDif(dAu[i],2)
        + '<td class="bal-ag">' + preF(ag[i],3) + '</td><td>' + preF(agC[i],3) + '</td>' + preDif(dAg[i],3) + '</tr>';
   });
-  h += '<tr class="fin"><td>Promedio</td><td>' + preF(preProm(rows.map(r => preNum(r.au_am))),2) + '</td><td>' + preF(preProm(rows.map(r => preNum(r.au_pm))),2) + '</td><td class="bal">' + preF(pAu,2) + '</td><td>' + preF(preProm(auC),2) + '</td>' + preDif(pdAu,2)
+  h += '<tr class="fin"><td>Promedio</td><td>' + preF(preProm(rows.map(r => preNum(r.au_am))),2) + '</td><td>' + preF(preProm(rows.map(r => preNum(r.au_pm))),2) + '</td><td class="bal">' + preF(pAu,3) + '</td><td>' + preF(preProm(auC),2) + '</td>' + preDif(pdAu,2)
      + '<td class="bal-ag">' + preF(pAg,3) + '</td><td>' + preF(preProm(agC),3) + '</td>' + preDif(pdAg,3) + '</tr></tbody></table>';
   document.getElementById('preTabla').innerHTML = h;
   // gráfica
@@ -1192,7 +1192,7 @@ function preMostrar(){
     ]},
     options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'index', intersect:false },
       plugins:{ datalabels:{ display:false }, legend:{ position:'top' },
-        tooltip:{ callbacks:{ label: c => c.dataset.label + ': $' + (c.parsed.y == null ? '—' : c.parsed.y.toLocaleString('en-US', {minimumFractionDigits: esAu ? 2 : 3, maximumFractionDigits: esAu ? 2 : 3})) } } },
+        tooltip:{ callbacks:{ label: c => c.dataset.label + ': $' + (c.parsed.y == null ? '—' : c.parsed.y.toLocaleString('en-US', {minimumFractionDigits:3, maximumFractionDigits:3})) } } },
       scales:{ y:{ ticks:{ callback: v => '$' + Number(v).toLocaleString('en-US') } } } }
   });
 }
