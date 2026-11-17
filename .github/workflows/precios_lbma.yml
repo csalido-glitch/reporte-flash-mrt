@@ -24,17 +24,43 @@ jobs:
             index.html
             .github/scripts
 
+      # 17-nov-26 · Interruptor del Flash: se revisa ANTES de todo. Si esta apagado no se instala nada ni se visita la LBMA.
+      - name: Revisar interruptor del Flash
+        id: interruptor
+        env:
+          FLASH_CLAVE_ROBOT: ${{ secrets.FLASH_CLAVE_ROBOT }}
+        run: |
+          URL=$(grep -o "SUPABASE_URL *= *'[^']*'" index.html | head -1 | cut -d"'" -f2)
+          KEY=$(grep -o "SUPABASE_ANON_KEY *= *'[^']*'" index.html | head -1 | cut -d"'" -f2)
+          RESP=$(curl -sS -X POST "$URL/rest/v1/rpc/flash_precios_robot_estado" \
+            -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+            -d "$(jq -n --arg c "$FLASH_CLAVE_ROBOT" '{p_clave:$c}')")
+          ACTIVO=$(echo "$RESP" | jq -r '.activo // empty' 2>/dev/null)
+          if [ "$ACTIVO" = "false" ]; then
+            echo "Robot APAGADO desde el Flash por $(echo "$RESP" | jq -r '.por // "-"') · motivo: $(echo "$RESP" | jq -r '.motivo // "-"'). No se hace nada mas."
+            echo "activo=false" >> "$GITHUB_OUTPUT"
+          elif [ "$ACTIVO" = "true" ]; then
+            echo "Robot encendido."
+            echo "activo=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No se pudo leer el interruptor: $RESP"
+            exit 1
+          fi
+
       - uses: actions/setup-node@v5
+        if: steps.interruptor.outputs.activo == 'true'
         with:
           node-version: '22'
 
       - name: Instalar navegador sin ventana (Chromium)
+        if: steps.interruptor.outputs.activo == 'true'
         run: |
           npm init -y > /dev/null
           npm i playwright@1.47.2 > /dev/null
           npx playwright install --with-deps chromium > /dev/null
 
       - name: Leer precios y guardarlos en el Flash
+        if: steps.interruptor.outputs.activo == 'true'
         env:
           FLASH_CLAVE_ROBOT: ${{ secrets.FLASH_CLAVE_ROBOT }}
         run: |
