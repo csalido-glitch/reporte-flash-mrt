@@ -1,4 +1,4 @@
-// Precios de metales para el Flash de Planta (v3 · 16-nov-26: 1 corrida al dia, aprovecha el JSON que baja la pagina)
+// Precios de metales para el Flash de Planta (v4 · 17-nov-26: interruptor desde el Flash; 1 corrida al dia; aprovecha el JSON de la pagina)
 // Lee LBMA (Au AM, Au PM, Ag) desde la pagina oficial y COMEX (Yahoo GC=F / SI=F),
 // guarda el JSON crudo (evidencia) y los precios en Supabase. La clave robot llega por GitHub Secrets.
 // Termina en ROJO (GitHub manda correo) si: no se pudo leer, falta el precio del ultimo dia habil,
@@ -94,6 +94,13 @@ async function rpc(nombre, cuerpo) {
 
 (async () => {
   if (!URL_SB || !ANON || !CLAVE) throw new Error('Faltan datos: revisa el Secret FLASH_CLAVE_ROBOT');
+
+  // 0) Interruptor del Flash: si esta apagado, NO se visita la LBMA
+  const est = JSON.parse(await rpc('flash_precios_robot_estado', { p_clave: CLAVE }));
+  if (est && est.activo === false) {
+    console.log('Robot APAGADO desde el Flash' + (est.por ? ' por ' + est.por : '') + (est.actualizado ? ' el ' + est.actualizado.slice(0, 10) : '') + (est.motivo ? ' · motivo: ' + est.motivo : '') + '. No se visito la LBMA.');
+    return;
+  }
   const alertas = [];
 
   const l = await leerLBMA();

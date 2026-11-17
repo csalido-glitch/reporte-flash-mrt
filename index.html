@@ -644,6 +644,11 @@ body.sin-buzon #btnVerComentarios, body.sin-admin #btnUsuarios, body.sin-semanal
 .pre-barra{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:12.5px; color:#3d4852; }
 .pre-barra select{ padding:5px 8px; border:1px solid #c9d0d6; border-radius:6px; font-size:12.5px; background:#fff; }
 .pre-barra .pre-act{ margin-left:auto; color:#7c858d; font-size:11.5px; }
+.pre-robot{ display:inline-flex; align-items:center; gap:8px; padding:4px 10px; border-radius:14px; font-size:12px; border:1px solid #c9d0d6; background:#fff; }
+.pre-robot.on{ border-color:#9fd3ad; background:#eef8f1; color:#1f6b35; }
+.pre-robot.off{ border-color:#e3b3ad; background:#fbeeec; color:#9a2c1f; }
+.pre-robot button{ font-size:11.5px; padding:2px 10px; border-radius:10px; border:1px solid currentColor; background:#fff; color:inherit; cursor:pointer; }
+.pre-robot .m{ color:#5a656d; font-size:11px; }
 .pre-kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; }
 .pre-kpi{ background:#fff; border:1px solid #e1e5e9; border-radius:10px; padding:10px 12px; }
 .pre-kpi .t{ font-size:11px; color:#7c858d; text-transform:uppercase; letter-spacing:.03em; }
@@ -1137,6 +1142,7 @@ async function preCargar(){
   if(!PRE.mes || !meses.includes(PRE.mes)) PRE.mes = meses[0];
   area.innerHTML =
     '<div class="pre-barra"><label>Mes: <select id="preMes">' + meses.map(m => { const [y,mm] = m.split('-').map(Number); return '<option value="' + m + '"' + (m === PRE.mes ? ' selected' : '') + '>' + MESES_ES_FULL[mm] + ' ' + y + '</option>'; }).join('') + '</select></label>'
+    + '<span class="pre-robot" id="preRobot">Robot: …</span>'
     + '<span class="pre-act" id="preAct"></span></div>'
     + '<div class="pre-kpis" id="preKpis"></div>'
     + '<div class="pre-caja"><h4>Diario del mes <button data-premetal="au">Oro (Au)</button><button data-premetal="ag">Plata (Ag)</button></h4><div class="pre-graf"><canvas id="preCanvas"></canvas></div></div>'
@@ -1148,6 +1154,36 @@ async function preCargar(){
   document.getElementById('preMes').onchange = e => { PRE.mes = e.target.value; preMostrar(); };
   area.querySelectorAll('[data-premetal]').forEach(b => b.onclick = () => { PRE.metal = b.dataset.premetal; preMostrar(); });
   preMostrar();
+  preRobotCargar();
+}
+// 17-nov-26 · Interruptor del robot (solo admin lo cambia; todos con permiso Precios ven el estado)
+async function preRobotCargar(){
+  const el = document.getElementById('preRobot'); if(!el) return;
+  const { data, error } = await sb.from('flash_precios_robot').select('*').eq('id', 1).maybeSingle();
+  if(error || !data){ el.className = 'pre-robot'; el.textContent = 'Robot: estado no disponible'; return; }
+  const s = selloSubida(data.actualizado);
+  const cuando = s ? s.fecha + ' ' + s.hora : '';
+  el.className = 'pre-robot ' + (data.activo ? 'on' : 'off');
+  el.innerHTML = (data.activo ? '🟢 <b>Robot encendido</b>' : '⚪ <b>Robot apagado</b>')
+    + (!data.activo ? '<span class="m">' + cmtEsc(data.motivo || '') + (data.por ? ' · ' + cmtEsc(data.por) : '') + (cuando ? ' · ' + cuando : '') + '</span>' : '')
+    + (puede('admin') ? '<button type="button" id="preRobotBtn">' + (data.activo ? 'Apagar' : 'Encender') + '</button>' : '');
+  const b = document.getElementById('preRobotBtn');
+  if(b) b.onclick = () => preRobotCambiar(!data.activo);
+}
+async function preRobotCambiar(activo){
+  let motivo = '';
+  if(!activo){
+    motivo = prompt('¿Por qué se apaga el robot? (queda registrado)\nEj.: correo de LBMA, licencia en trámite, revisión');
+    if(motivo === null) return;
+    if(!motivo.trim()){ alert('Escribe el motivo para apagarlo.'); return; }
+    if(!confirm('El robot dejará de visitar la LBMA hasta que lo vuelvas a encender.\nLa macro del Balance avisará que no hay precio de los días nuevos.\n\n¿Apagar el robot?')) return;
+  } else {
+    if(!confirm('¿Encender el robot? Volverá a leer la LBMA de lunes a viernes a las ~9:45.')) return;
+    motivo = 'Encendido';
+  }
+  const { error } = await sb.rpc('flash_precios_robot_fijar', { p_activo: activo, p_motivo: motivo });
+  if(error){ alert('No se pudo cambiar: ' + error.message); return; }
+  preRobotCargar();
 }
 function preMostrar(){
   const rows = PRE.filas.filter(r => r.fecha.slice(0,7) === PRE.mes);
