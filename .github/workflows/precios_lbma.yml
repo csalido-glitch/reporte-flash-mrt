@@ -35,7 +35,7 @@ jobs:
           RESP=$(curl -sS -X POST "$URL/rest/v1/rpc/flash_precios_robot_estado" \
             -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
             -d "$(jq -n --arg c "$FLASH_CLAVE_ROBOT" '{p_clave:$c}')")
-          ACTIVO=$(echo "$RESP" | jq -r '.activo // empty' 2>/dev/null)
+          ACTIVO=$(echo "$RESP" | jq -r 'if type=="object" then (.activo|tostring) else "" end' 2>/dev/null)
           if [ "$ACTIVO" = "false" ]; then
             echo "Robot APAGADO desde el Flash por $(echo "$RESP" | jq -r '.por // "-"') · motivo: $(echo "$RESP" | jq -r '.motivo // "-"'). No se hace nada mas."
             echo "activo=false" >> "$GITHUB_OUTPUT"
