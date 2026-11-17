@@ -3706,6 +3706,15 @@ function handleFile(file){
           }
         }catch(e){ console.error('No se pudo revisar si ya había un Ppto guardado para conservarlo', e); }
       }
+      // 17-nov-26 · Elegir hasta qué día se sube (por omisión, el último capturado)
+      if(!procesandoLote){
+        const ultimo = lastDiaConDatoDe(parsed.dias);
+        if(ultimo > 1){
+          const hasta = await eligeDiaCorte(parsed.mes, ultimo);
+          if(hasta == null) return;                       // canceló: no se guarda nada
+          if(hasta < ultimo) cortaParsedAlDia(parsed, hasta);
+        }
+      }
       state.mes = parsed.mes; state.dias = parsed.dias; state.totales = parsed.totales; state.stock = parsed.stock; state.stockProcedencia = parsed.stockProcedencia; state.fletes = parsed.fletes || []; state.panel = parsed.panel || null; state.ensayePendiente = parsed.ensayePendiente;
       const last = lastDiaConDato();
       state.selectedDay = Math.max(1,last);
@@ -3727,6 +3736,64 @@ function handleFile(file){
   };
   reader.readAsArrayBuffer(file);
   });
+}
+
+// 17-nov-26 · Subir solo hasta un día (p. ej. hasta el 14 aunque el Excel traiga hasta el 16).
+// Los días posteriores quedan sin dato real (como días que aún no pasan); la proyección se conserva.
+function eligeDiaCorte(periodo, ultimo){
+  return new Promise(res => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(15,25,40,.45);display:flex;align-items:center;justify-content:center;padding:16px;';
+    let opts = '';
+    for(let d = ultimo; d >= 1; d--) opts += '<option value="' + d + '">' + d + '</option>';
+    ov.innerHTML = '<div style="background:#fff;border-radius:12px;max-width:380px;width:100%;padding:20px 22px;box-shadow:0 10px 40px rgba(0,0,0,.25);font-size:14px;color:#1f2a33">'
+      + '<div style="font-weight:700;font-size:16px;margin-bottom:6px">Subir ' + mesCorto(periodo) + '</div>'
+      + '<div style="color:#5a656d;margin-bottom:14px">El archivo trae datos hasta el día <b>' + ultimo + '</b>.</div>'
+      + '<label style="display:flex;align-items:center;gap:10px">Subir hasta el día <select id="corteDia" style="font-size:15px;padding:5px 10px;border:1px solid #c9d0d6;border-radius:6px">' + opts + '</select></label>'
+      + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px">'
+      + '<button type="button" id="corteNo" style="padding:7px 14px;border:1px solid #c9d0d6;background:#fff;border-radius:7px;cursor:pointer">Cancelar</button>'
+      + '<button type="button" id="corteSi" style="padding:7px 16px;border:0;background:#13294b;color:#fff;border-radius:7px;cursor:pointer;font-weight:600">Subir</button></div></div>';
+    document.body.appendChild(ov);
+    const fin = v => { ov.remove(); res(v); };
+    ov.querySelector('#corteSi').onclick = () => fin(parseInt(ov.querySelector('#corteDia').value, 10));
+    ov.querySelector('#corteNo').onclick = () => fin(null);
+    ov.addEventListener('keydown', e => { if(e.key === 'Escape') fin(null); if(e.key === 'Enter') ov.querySelector('#corteSi').click(); });
+    ov.querySelector('#corteDia').focus();
+  });
+}
+function cortaParsedAlDia(parsed, hasta){
+  // Días: después del corte se limpia todo lo REAL; se conservan día, fecha y la proyección (proy_*)
+  (parsed.dias || []).forEach(d => {
+    if(!d || d.dia <= hasta) return;
+    Object.keys(d).forEach(k => {
+      if(k === 'dia' || k === 'fecha' || k.indexOf('proy_') === 0) return;
+      const v = d[k];
+      if(typeof v === 'number') d[k] = 0;
+      else if(typeof v === 'string') d[k] = '';
+      else if(Array.isArray(v)) d[k] = [];
+      else if(v && typeof v === 'object') d[k] = {};
+    });
+  });
+  // Totales reales del mes: solo con los días que se suben
+  const suma = c => (parsed.dias || []).reduce((a, d) => d && d.fecha != null ? a + (d[c] || 0) : a, 0);
+  if(parsed.totales){ parsed.totales.real_ton_total = suma('molido_seco'); parsed.totales.real_oz_total = suma('oz_eq_au'); }
+  // Panel Ejecutivo: el lado real se corta en el día elegido
+  if(parsed.panel && parsed.panel.real){
+    for(let i = hasta + 1; i <= 31; i++){ parsed.panel.real.dias[i] = {}; parsed.panel.real.acum[i] = {}; }
+  }
+  if(parsed.panel && Array.isArray(parsed.panel.consumos)){
+    parsed.panel.consumos.forEach(cn => { if(Array.isArray(cn.real)) for(let i = hasta; i < cn.real.length; i++) cn.real[i] = null; });
+  }
+  // Fletes por procedencia: solo hasta el día elegido
+  if(Array.isArray(parsed.fletes)){
+    parsed.fletes.forEach(f => {
+      Object.keys(f.porDia || {}).forEach(k => { if(+k > hasta) delete f.porDia[k]; });
+      Object.keys(f.porDiaCamiones || {}).forEach(k => { if(+k > hasta) delete f.porDiaCamiones[k]; });
+      f.ton = Object.values(f.porDia || {}).reduce((a, v) => a + (v || 0), 0);
+      f.camiones = Object.values(f.porDiaCamiones || {}).reduce((a, v) => a + (v || 0), 0);
+    });
+    parsed.fletes = parsed.fletes.filter(f => f.ton > 0 || f.camiones > 0);
+  }
 }
 
 // Subir varios balances de una sola vez (por ejemplo, para que meses ya cargados recojan
