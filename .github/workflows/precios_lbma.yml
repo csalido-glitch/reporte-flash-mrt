@@ -1,13 +1,12 @@
 # Precios de metales para el Flash de Planta (16-nov-26)
 # Lunes a viernes lee LBMA (Au AM/PM, Ag) y COMEX y los guarda en Supabase.
-# Corre ~9:45 y ~13:45 hora Chihuahua (la 2a por si la LBMA publica tarde). Tambien a mano: Run workflow.
+# Corre 1 vez al dia, ~9:45 hora Chihuahua (ya esta completo el dia anterior). Tambien a mano: Run workflow.
 # La clave robot vive SOLO en Settings > Secrets > Actions > FLASH_CLAVE_ROBOT.
 name: Precios LBMA
 
 on:
   schedule:
     - cron: '45 15 * * 1-5'
-    - cron: '45 19 * * 1-5'
   workflow_dispatch:
 
 concurrency:

@@ -1,4 +1,4 @@
-// Precios de metales para el Flash de Planta (v2 · 16-nov-26)
+// Precios de metales para el Flash de Planta (v3 · 16-nov-26: 1 corrida al dia, aprovecha el JSON que baja la pagina)
 // Lee LBMA (Au AM, Au PM, Ag) desde la pagina oficial y COMEX (Yahoo GC=F / SI=F),
 // guarda el JSON crudo (evidencia) y los precios en Supabase. La clave robot llega por GitHub Secrets.
 // Termina en ROJO (GitHub manda correo) si: no se pudo leer, falta el precio del ultimo dia habil,
@@ -21,19 +21,31 @@ async function leerLBMAunaVez() {
   const b = await chromium.launch();
   try {
     const p = await b.newPage({ userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36' });
-    const llegoJson = p.waitForResponse(r => r.url().includes('/json/') && r.status() === 200, { timeout: 45000 }).catch(() => null);
+    // La propia pagina ya baja gold_am.json para su grafica: se aprovecha ese mismo (una peticion menos)
+    const r = {};
+    p.on('response', async resp => {
+      const m = resp.url().match(/\/json\/limited\/(gold_am|gold_pm|silver)\.json/);
+      if (m && resp.status() === 200) { try { const j = await resp.json(); if (Array.isArray(j)) r[m[1]] = j; } catch (e) {} }
+    });
+    const llegoJson = p.waitForResponse(x => /\/json\/limited\//.test(x.url()) && x.status() === 200, { timeout: 45000 }).catch(() => null);
     await p.goto(PAGINA, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    const r0 = await llegoJson;                       // la propia pagina ya cargo su JSON: el acceso esta listo
+    const r0 = await llegoJson;                       // la pagina ya cargo su JSON: el acceso esta listo
     if (!r0) await p.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
-    const r = await p.evaluate(async (archivos) => {
-      const out = {};
-      for (const n of archivos) {
-        const x = await fetch('https://prices.lbma.org.uk/json/limited/' + n + '.json', { cache: 'no-store' });
-        let j = null; try { j = await x.json(); } catch (e) {}
-        out[n] = (x.ok && Array.isArray(j)) ? j : { error: x.status };
-      }
-      return out;
-    }, ARCHIVOS);
+    await espera(500);
+    const faltan = ARCHIVOS.filter(n => !r[n]);
+    if (faltan.length) {
+      const extra = await p.evaluate(async (archivos) => {
+        const out = {};
+        for (const n of archivos) {
+          const x = await fetch('https://prices.lbma.org.uk/json/limited/' + n + '.json');
+          let j = null; try { j = await x.json(); } catch (e) {}
+          out[n] = (x.ok && Array.isArray(j)) ? j : { error: x.status };
+        }
+        return out;
+      }, faltan);
+      Object.assign(r, extra);
+    }
+    console.log('Archivos de la pagina: ' + ARCHIVOS.filter(n => !faltan.includes(n)).join(', ') + ' · pedidos aparte: ' + (faltan.join(', ') || 'ninguno'));
     for (const k of ARCHIVOS) if (!Array.isArray(r[k]) || !r[k].length) throw new Error('LBMA ' + k + ' sin datos (' + JSON.stringify(r[k]) + ')');
     return r;
   } finally { await b.close(); }

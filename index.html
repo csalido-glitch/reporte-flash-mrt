@@ -1142,7 +1142,7 @@ async function preCargar(){
     + '<div class="pre-caja"><h4>Diario del mes <button data-premetal="au">Oro (Au)</button><button data-premetal="ag">Plata (Ag)</button></h4><div class="pre-graf"><canvas id="preCanvas"></canvas></div></div>'
     + '<div class="pre-caja pre-tabla" id="preTabla"></div>'
     + '<div class="pre-aviso">ℹ️ <b>Precio de referencia LBMA</b> (fuente pública, publicado al día siguiente). <b>Uso informativo interno</b>: el cierre oficial de mes se valúa por su propio proceso de auditoría.</div>'
-    + '<div class="pre-nota"><b>Cómo se llena:</b> un robot (GitHub) lee la página oficial de la LBMA y COMEX de lunes a viernes ~9:45 y ~13:45 hora Chihuahua y los guarda aquí. '
+    + '<div class="pre-nota"><b>Cómo se llena:</b> un robot (GitHub) lee la página oficial de la LBMA y COMEX de lunes a viernes a las ~9:45 hora Chihuahua (una vez al día) y los guarda aquí. '
     + 'La macro del Balance (botones 1 y 2) toma de aquí <b>Au = promedio LBMA AM y PM</b> y <b>Ag = LBMA</b>; sábado, domingo y festivos toman el último día hábil. '
     + 'Horas oficiales LBMA: Au AM 10:30 y PM 15:00 (Londres); Ag 12:00 (Londres). COMEX = cierre del futuro más cercano, solo como referencia.</div>';
   document.getElementById('preMes').onchange = e => { PRE.mes = e.target.value; preMostrar(); };
